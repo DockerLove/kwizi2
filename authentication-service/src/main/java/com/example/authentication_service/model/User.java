@@ -22,13 +22,13 @@ public class User {
     @Column(name = "id")
     private Long id;
 
-    @NotBlank(message = "Это поле не должен быть пустым")
-    @Size(min = 3, max = 20, message = "Введите логин от 3 до 20 символов")
+
     @Column(name = "username")
     private String username;
 
-    @NotBlank(message = "Это поле не должен быть пустым")
+
     @Column(name = "password")
+    @NotBlank(message = "Это поле не должен быть пустым")
     @Size(min = 8, message = "Введите пароль от 8 символов")
     private String password;
 

@@ -31,7 +31,6 @@ public class SecurityConfig {
 
     private JwtRequestFilter jwtRequestFilter;
 
-    private String userServiceUrl = "http://user-service:8080/api/users";
 
     @Autowired
     public SecurityConfig(UserDetailsService userDetailsService, JwtRequestFilter jwtRequestFilter) {
@@ -57,8 +56,9 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/users/authenticate").permitAll()
-                        .requestMatchers("/api/users/register").permitAll()
+                        .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/register").permitAll()
+                        .requestMatchers("/api/email-verification/verify-email").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

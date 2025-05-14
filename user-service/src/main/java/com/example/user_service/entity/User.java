@@ -2,6 +2,7 @@ package com.example.user_service.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.OffsetDateTime;
@@ -26,12 +27,17 @@ public class User {
     @Column(nullable = false)
     private String email;
 
+    @Column(name = "email_verified")
+    private boolean email_verified = false;
+
     @NotBlank(message = "Имя не должно быть пустым")
     @Column(name = "first_name", nullable = false)
+    @Size(min = 2,max = 30, message = "Введите имя от 2 до 30 символов")
     private String firstName;
 
     @NotBlank(message = "Фамилия не должна быть пустой")
     @Column(name = "last_name", nullable = false)
+    @Size(min = 2,max = 30, message = "Введите фамилию от 2 до 30 символов")
     private String lastName;
 
     @Column(name = "created_at", updatable = false)
@@ -105,5 +111,13 @@ public class User {
 
     public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public boolean isEmail_verified() {
+        return email_verified;
+    }
+
+    public void setEmail_verified(boolean email_verified) {
+        this.email_verified = email_verified;
     }
 }
