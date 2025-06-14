@@ -38,32 +38,20 @@ public class AuthenticationService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    /*public void sendVerificationEmail(Long id) { // Используем id (из auth-service)
+    public void sendVerificationEmail(Long id) { // Используем id (из auth-service)
         // 1. Получить email пользователя из user-service
-        ResponseEntity<String> response = userServiceFeignClient.getUserEmail(id); // Передаем id в user-service
-        String email;
-
-        if (response.getStatusCode().is2xxSuccessful()) {//проверка что status от 200 дл 299
-            email = response.getBody();
-            if (email == null || email.isEmpty()) {
-                throw new IllegalStateException("Email не получен из user-service.");
-            }
-        } else {
-            throw new IllegalStateException("Не удалось получить email пользователя из user-service.");
-        }
-
-        // 2. Проверить, существует ли пользователь с указанным id в auth-service
-        Optional<User> userOptional = authenticationRepository.findById(id);
-        User user = userOptional.orElseThrow(() -> new IllegalArgumentException("Пользователь с id " + id + " не найден."));
+        User user1 = authenticationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден с ID: " + id));
+        String email = user1.getEmail();
 
         // 3. Сгенерировать JWT токен
-        String verificationToken = jwtEmailVerify.generateVerificationToken(user.getId());
+        String verificationToken = jwtEmailVerify.generateVerificationToken(user1.getId());
 
         // 4. Отправить письмо с подтверждением email
         emailService.sendVerificationEmail(email, verificationToken);
-    }*/
+    }
 
-    /*public void verifyEmail(String token) {
+    public void verifyEmail(String token) {
         try {
 
             if (jwtEmailVerify.isTokenExpired(token)) {
@@ -74,7 +62,7 @@ public class AuthenticationService {
             Long userId = Long.parseLong(userIdString);
 
             // 4. Активировать пользователя (если он еще не активирован)
-            userServiceFeignClient.verifyUserEmail(userId);
+            verifyUserEmail(userId);
         } catch (JwtAuthenticationException e) {
             throw new IllegalArgumentException("Неверный токен: " + e.getMessage());
         } catch (NumberFormatException e) {
@@ -84,7 +72,16 @@ public class AuthenticationService {
         } catch (Exception e) {
             throw new IllegalStateException("Произошла ошибка: " + e.getMessage());
         }
-    }*/
+    }
+
+
+    public void verifyUserEmail(Long id){
+        User user = authenticationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден с ID: " + id));
+        user.setEmail_verified(true);
+        authenticationRepository.save(user);
+
+    }
 
 
 

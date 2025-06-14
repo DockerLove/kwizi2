@@ -20,7 +20,7 @@ public class EmailVerificationController {
         this.authenticationService = authenticationService;
     }
 
-    /*@GetMapping("/verify-email")
+    @GetMapping("/verify-email")
     public ResponseEntity<String> verifyEmail(@RequestParam("token") String token) {
         try {
             authenticationService.verifyEmail(token);
@@ -32,5 +32,5 @@ public class EmailVerificationController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Произошла ошибка: " + e.getMessage());
         }
-    }*/
+    }
 }

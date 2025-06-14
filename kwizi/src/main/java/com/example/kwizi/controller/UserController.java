@@ -5,6 +5,7 @@ import com.example.kwizi.DTO.RegistrationRequestDto;
 import com.example.kwizi.model.User;
 import com.example.kwizi.service.AuthenticationService;
 import com.example.kwizi.service.RegistrationService;
+import com.example.kwizi.service.UserService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,13 +29,15 @@ public class UserController {
 
     private AuthenticationService authenticationService;
 
+    private UserService userService;
+
     private RegistrationService registrationService;
 
 
 
     @Autowired
-    public UserController(AuthenticationService authenticationService, RegistrationService registrationService) {
-
+    public UserController(AuthenticationService authenticationService, UserService userService,RegistrationService registrationService) {
+        this.userService = userService;
         this.authenticationService = authenticationService;
         this.registrationService = registrationService;
     }
@@ -96,18 +99,27 @@ public class UserController {
         return new ResponseEntity<>(users, HttpStatus.OK);
     }
 
+    @PatchMapping("/{id}/verify-email")
+    public ResponseEntity<?> verifyUserEmail(@PathVariable("id") Long id){
+        try{
+            userService.verifyUserEmail(id);
+            return ResponseEntity.ok(("Email успешно подтвержден"));
+        }catch(IllegalArgumentException ex){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+        }
+    }
 
 
 
-    /*@PostMapping("/send-verification-email")
-    public ResponseEntity<String> sendVerificationEmail(@RequestParam("userId") Long userId) {
+    @PostMapping("/send-verification-email/{id}")
+    public ResponseEntity<String> sendVerificationEmail(@PathVariable("id") Long id) {
         try {
-            authenticationService.sendVerificationEmail(userId);
+            authenticationService.sendVerificationEmail(id);
             return ResponseEntity.ok("Письмо для подтверждения email отправлено.");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Ошибка при отправке письма: " + e.getMessage());
         }
-    }*/
+    }
 
     // Другие методы контроллера (например, для аутентификации, обновления, удаления)
 }
