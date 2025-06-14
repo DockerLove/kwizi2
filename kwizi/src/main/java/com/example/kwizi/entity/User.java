@@ -50,7 +50,7 @@ public class User {
 
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
-    
+
     @Column(name = "phone_number")
     private String phoneNumber;
 }
