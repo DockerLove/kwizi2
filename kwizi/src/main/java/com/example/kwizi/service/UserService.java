@@ -30,4 +30,30 @@ public class UserService {
         user.setBio(bio);
         userRepository.save(user);
     }
+
+    public void updateFirstName(Long id, String firstName){
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+        user.setFirstName(firstName);
+        userRepository.save(user);
+    }
+
+    public void updateLastName(Long id, String lastName){
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+        user.setLastName(lastName);
+        userRepository.save(user);
+    }
+
+    public void updateUsername(Long id, String username){
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+
+        if(userRepository.existsByUsername(username)){
+            throw new IllegalArgumentException("Пользователь с таким ником уже используется");
+        }
+        user.setUsername(username);
+        userRepository.save(user);
+    }
+
 }

@@ -1,8 +1,7 @@
 package com.example.kwizi.controller;
 
-import com.example.kwizi.DTO.ChangePasswordRequest;
-import com.example.kwizi.DTO.RegistrationRequestDto;
-import com.example.kwizi.DTO.UpdateBioRequest;
+import com.example.kwizi.DTO.*;
+import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.User;
 import com.example.kwizi.service.AuthenticationService;
 import com.example.kwizi.service.RegistrationService;
@@ -138,6 +137,63 @@ public class UserController {
         }catch(IllegalArgumentException illegalArgumentException){
             illegalArgumentException.printStackTrace();
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/{id}/firstName")
+    public ResponseEntity<?> updateFirstName(@PathVariable("id") Long id, @Valid @RequestBody UpdateFirstNameRequest request, BindingResult bindingResult){
+        if (bindingResult.hasErrors()) {
+            List<String> errors = bindingResult.getFieldErrors()
+                    .stream()
+                    .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+                    .collect(Collectors.toList());
+            return ResponseEntity.badRequest().body(errors);
+        }
+        try{
+            userService.updateFirstName(id,request.getFirstName());
+            return ResponseEntity.ok().body("Имя успешно обновлено");
+        }catch(UserNotFoundException userNotFoundException){
+            userNotFoundException.printStackTrace();
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/{id}/lastName")
+    public ResponseEntity<?> updateLastName(@PathVariable("id") Long id, @Valid @RequestBody UpdateLastNameRequest request, BindingResult bindingResult){
+        if (bindingResult.hasErrors()) {
+            List<String> errors = bindingResult.getFieldErrors()
+                    .stream()
+                    .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+                    .collect(Collectors.toList());
+            return ResponseEntity.badRequest().body(errors);
+        }
+        try{
+            userService.updateLastName(id,request.getLastName());
+            return ResponseEntity.ok().body("Фамилия успешно обновлена");
+        }catch(UserNotFoundException userNotFoundException){
+            userNotFoundException.printStackTrace();
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/{id}/username")
+    public ResponseEntity<?> updateUsername(@PathVariable("id") Long id,@Valid @RequestBody UpdateUsernameRequest request, BindingResult bindingResult){
+        if (bindingResult.hasErrors()) {
+            List<String> errors = bindingResult.getFieldErrors()
+                    .stream()
+                    .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+                    .collect(Collectors.toList());
+            return ResponseEntity.badRequest().body(errors);
+        }
+        try{
+            userService.updateUsername(id,request.getUsername());
+            return ResponseEntity.ok().body("Никнейм успешно обновлен");
+        }catch(UserNotFoundException userNotFoundException){
+            userNotFoundException.printStackTrace();
+            return ResponseEntity.notFound().build();
+        }catch(IllegalArgumentException illegalArgumentException){
+            illegalArgumentException.printStackTrace();
+            return ResponseEntity.badRequest().build();
         }
     }
     // Другие методы контроллера (например, для аутентификации, обновления, удаления)
