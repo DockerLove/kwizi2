@@ -1,15 +1,13 @@
 package com.example.kwizi.service;
 
 
-import com.example.kwizi.DTO.ChangePasswordRequest;
+import com.example.kwizi.DTO.request.ChangePasswordRequest;
 import com.example.kwizi.exception.JwtAuthenticationException;
 import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.User;
 import com.example.kwizi.repository.AuthenticationRepository;
 import com.example.kwizi.security.JwtEmailVerify;
-import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;

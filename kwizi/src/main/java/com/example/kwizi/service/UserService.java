@@ -1,5 +1,6 @@
 package com.example.kwizi.service;
 
+import com.example.kwizi.DTO.response.UserProfileResponse;
 import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.User;
 import com.example.kwizi.repository.UserRepository;
@@ -54,6 +55,20 @@ public class UserService {
         }
         user.setUsername(username);
         userRepository.save(user);
+    }
+
+
+    public UserProfileResponse getUserProfile(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+
+        return new UserProfileResponse(
+                user.getId(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getUsername(),
+                user.getBio()
+        );
     }
 
 }

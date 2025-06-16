@@ -1,12 +1,7 @@
 package com.example.kwizi.service;
-import com.example.kwizi.DTO.RegistrationRequestDto;
+import com.example.kwizi.DTO.request.RegistrationRequest;
 import com.example.kwizi.model.User;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.util.Map;
 
 @Service
 public class RegistrationService {
@@ -17,7 +12,7 @@ public class RegistrationService {
         this.authenticationService = authenticationService;
     }
 
-    public void registerUser(RegistrationRequestDto registrationRequest) {
+    public void registerUser(RegistrationRequest registrationRequest) {
         // 1. Check if username is already taken
         if (authenticationService.findByUsername(registrationRequest.getUsername()).isPresent()) {
             throw new IllegalStateException("Пользователь с таким username уже есть");

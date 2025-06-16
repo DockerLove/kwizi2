@@ -1,4 +1,4 @@
-package com.example.kwizi.DTO;
+package com.example.kwizi.DTO.request;
 
 public class ChangePasswordRequest {
     private String oldPassword;

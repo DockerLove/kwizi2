@@ -1,11 +1,10 @@
-package com.example.kwizi.DTO;
+package com.example.kwizi.DTO.request;
 
-import jakarta.persistence.Column;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public class RegistrationRequestDto {
+public class RegistrationRequest {
     @NotBlank(message = "Это поле не должен быть пустым")
     @Size(min = 3, max = 20, message = "Введите логин от 3 до 20 символов")
     private String username;

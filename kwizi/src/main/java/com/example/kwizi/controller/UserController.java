@@ -1,12 +1,13 @@
 package com.example.kwizi.controller;
 
-import com.example.kwizi.DTO.*;
+import com.example.kwizi.DTO.request.*;
+import com.example.kwizi.DTO.response.UserProfileResponse;
 import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.User;
+
 import com.example.kwizi.service.AuthenticationService;
 import com.example.kwizi.service.RegistrationService;
 import com.example.kwizi.service.UserService;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -16,11 +17,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -60,7 +58,7 @@ public class UserController {
     }
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(
-            @Valid @RequestBody RegistrationRequestDto registrationRequest,
+            @Valid @RequestBody RegistrationRequest registrationRequest,
             BindingResult bindingResult
     ) {
         // 1. Валидация входных данных
@@ -123,7 +121,7 @@ public class UserController {
 
 
     @PostMapping("/{id}/bio")
-    public ResponseEntity<?> updateBio(@PathVariable("id") Long id,@Valid @RequestBody UpdateBioRequest request, BindingResult bindingResult){
+    public ResponseEntity<?> updateBio(@PathVariable("id") Long id, @Valid @RequestBody UpdateBioRequest request, BindingResult bindingResult){
         if (bindingResult.hasErrors()) {
             List<String> errors = bindingResult.getFieldErrors()
                     .stream()
@@ -177,7 +175,7 @@ public class UserController {
     }
 
     @PostMapping("/{id}/username")
-    public ResponseEntity<?> updateUsername(@PathVariable("id") Long id,@Valid @RequestBody UpdateUsernameRequest request, BindingResult bindingResult){
+    public ResponseEntity<?> updateUsername(@PathVariable("id") Long id, @Valid @RequestBody UpdateUsernameRequest request, BindingResult bindingResult){
         if (bindingResult.hasErrors()) {
             List<String> errors = bindingResult.getFieldErrors()
                     .stream()
@@ -195,6 +193,12 @@ public class UserController {
             illegalArgumentException.printStackTrace();
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @GetMapping("/{id}/profile")
+    public ResponseEntity<UserProfileResponse> getUserProfile(@PathVariable("id") Long id) {
+        UserProfileResponse profile = userService.getUserProfile(id);
+        return ResponseEntity.ok(profile);
     }
     // Другие методы контроллера (например, для аутентификации, обновления, удаления)
 }

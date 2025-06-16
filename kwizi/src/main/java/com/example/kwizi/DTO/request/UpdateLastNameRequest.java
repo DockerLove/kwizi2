@@ -1,4 +1,4 @@
-package com.example.kwizi.DTO;
+package com.example.kwizi.DTO.request;
 
 import jakarta.validation.constraints.Size;
 
