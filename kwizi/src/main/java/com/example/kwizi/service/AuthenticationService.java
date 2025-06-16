@@ -3,6 +3,7 @@ package com.example.kwizi.service;
 
 import com.example.kwizi.DTO.ChangePasswordRequest;
 import com.example.kwizi.exception.JwtAuthenticationException;
+import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.User;
 import com.example.kwizi.repository.AuthenticationRepository;
 import com.example.kwizi.security.JwtEmailVerify;
@@ -41,7 +42,7 @@ public class AuthenticationService {
     public void sendVerificationEmail(Long id) { // Используем id (из auth-service)
         // 1. Получить email пользователя из user-service
         User user1 = authenticationRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден с ID: " + id));
+                .orElseThrow(() -> new UserNotFoundException(id));
         String email = user1.getEmail();
 
         // 3. Сгенерировать JWT токен
@@ -77,7 +78,7 @@ public class AuthenticationService {
 
     public void verifyUserEmail(Long id){
         User user = authenticationRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден с ID: " + id));
+                .orElseThrow(() -> new UserNotFoundException(id));
         user.setEmail_verified(true);
         authenticationRepository.save(user);
 

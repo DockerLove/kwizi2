@@ -1,5 +1,6 @@
 package com.example.kwizi.service;
 
+import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.User;
 import com.example.kwizi.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,9 +18,16 @@ public class UserService {
 
     public void verifyUserEmail(Long id){
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден с ID: " + id));
+                .orElseThrow(() -> new UserNotFoundException(id));
         user.setEmail_verified(true);
         userRepository.save(user);
 
+    }
+
+    public void updateBio(Long id, String bio){
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+        user.setBio(bio);
+        userRepository.save(user);
     }
 }

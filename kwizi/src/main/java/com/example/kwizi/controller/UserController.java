@@ -2,6 +2,7 @@ package com.example.kwizi.controller;
 
 import com.example.kwizi.DTO.ChangePasswordRequest;
 import com.example.kwizi.DTO.RegistrationRequestDto;
+import com.example.kwizi.DTO.UpdateBioRequest;
 import com.example.kwizi.model.User;
 import com.example.kwizi.service.AuthenticationService;
 import com.example.kwizi.service.RegistrationService;
@@ -121,5 +122,23 @@ public class UserController {
         }
     }
 
+
+    @PostMapping("/{id}/bio")
+    public ResponseEntity<?> updateBio(@PathVariable("id") Long id,@Valid @RequestBody UpdateBioRequest request, BindingResult bindingResult){
+        if (bindingResult.hasErrors()) {
+            List<String> errors = bindingResult.getFieldErrors()
+                    .stream()
+                    .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+                    .collect(Collectors.toList());
+            return ResponseEntity.badRequest().body(errors);
+        }
+        try{
+            userService.updateBio(id,request.getBio());
+            return ResponseEntity.ok().body("Bio успешно обновлен");
+        }catch(IllegalArgumentException illegalArgumentException){
+            illegalArgumentException.printStackTrace();
+            return ResponseEntity.notFound().build();
+        }
+    }
     // Другие методы контроллера (например, для аутентификации, обновления, удаления)
 }
