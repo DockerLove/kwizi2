@@ -19,7 +19,6 @@ import java.util.Optional;
 
 @Service
 public class AuthenticationService {
-    //todo DI
     private final AuthenticationRepository authenticationRepository;
     private final PasswordEncoder passwordEncoder;
 

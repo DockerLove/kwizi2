@@ -173,7 +173,7 @@ public class UserController {
             return ResponseEntity.notFound().build();
         }
     }
-
+    //TODO спросить по поводу копипасты bindingResult(вынести в private,AOP,Controller Advice)
     @PostMapping("/{id}/username")
     public ResponseEntity<?> updateUsername(@PathVariable("id") Long id, @Valid @RequestBody UpdateUsernameRequest request, BindingResult bindingResult){
         if (bindingResult.hasErrors()) {
