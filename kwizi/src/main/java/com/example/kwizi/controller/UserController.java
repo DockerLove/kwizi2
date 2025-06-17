@@ -22,22 +22,19 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/user")
 public class UserController {
 
     private AuthenticationService authenticationService;
 
     private UserService userService;
 
-    private RegistrationService registrationService;
-
 
 
     @Autowired
-    public UserController(AuthenticationService authenticationService, UserService userService,RegistrationService registrationService) {
+    public UserController(AuthenticationService authenticationService, UserService userService) {
         this.userService = userService;
         this.authenticationService = authenticationService;
-        this.registrationService = registrationService;
     }
 
 
@@ -56,32 +53,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal server error");
         }
     }
-    @PostMapping("/register")
-    public ResponseEntity<?> registerUser(
-            @Valid @RequestBody RegistrationRequest registrationRequest,
-            BindingResult bindingResult
-    ) {
-        // 1. Валидация входных данных
-        if (bindingResult.hasErrors()) {
-            List<String> errors = bindingResult.getFieldErrors()
-                    .stream()
-                    .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
-                    .collect(Collectors.toList());
-            return ResponseEntity.badRequest().body(errors);
-        }
 
-        // 2. Регистрация пользователя
-        try {
-            registrationService.registerUser(registrationRequest);
-            return new ResponseEntity<>(HttpStatus.CREATED); // Успешное создание пользователя
-        } catch (IllegalStateException e) {
-            // Обработка исключения, если username уже занят
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT); // 409 Conflict
-        } catch (Exception e) {
-            // Обработка других исключений (логирование, и т.д.)
-            return new ResponseEntity<>("Произошла ошибка при регистрации пользователя", HttpStatus.INTERNAL_SERVER_ERROR); // 500 Internal Server Error
-        }
-    }
 
     @GetMapping("/{username}")
     public ResponseEntity<User> getUserByUsername(@PathVariable String username) {

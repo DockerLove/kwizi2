@@ -1,19 +1,27 @@
 package com.example.kwizi.controller; // Замените на ваш пакет
 
+import com.example.kwizi.DTO.request.RegistrationRequest;
 import com.example.kwizi.security.JwtUtils;
+import com.example.kwizi.service.RegistrationService;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -22,13 +30,43 @@ public class AuthenticationController {
     private static final Logger logger = LoggerFactory.getLogger(AuthenticationController.class);
     private AuthenticationManager authenticationManager;
     private UserDetailsService userDetailsService;
+
+    private RegistrationService registrationService;
     private JwtUtils jwtUtils;
 
     @Autowired
-    public AuthenticationController(AuthenticationManager authenticationManager, UserDetailsService userDetailsService, JwtUtils jwtUtils) {
+    public AuthenticationController(AuthenticationManager authenticationManager, UserDetailsService userDetailsService, JwtUtils jwtUtils, RegistrationService registrationService) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtUtils = jwtUtils;
+        this.registrationService = registrationService;
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> registerUser(
+            @Valid @RequestBody RegistrationRequest registrationRequest,
+            BindingResult bindingResult
+    ) {
+        // 1. Валидация входных данных
+        if (bindingResult.hasErrors()) {
+            List<String> errors = bindingResult.getFieldErrors()
+                    .stream()
+                    .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+                    .collect(Collectors.toList());
+            return ResponseEntity.badRequest().body(errors);
+        }
+
+        // 2. Регистрация пользователя
+        try {
+            registrationService.registerUser(registrationRequest);
+            return new ResponseEntity<>(HttpStatus.CREATED); // Успешное создание пользователя
+        } catch (IllegalStateException e) {
+            // Обработка исключения, если username уже занят
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT); // 409 Conflict
+        } catch (Exception e) {
+            // Обработка других исключений (логирование, и т.д.)
+            return new ResponseEntity<>("Произошла ошибка при регистрации пользователя", HttpStatus.INTERNAL_SERVER_ERROR); // 500 Internal Server Error
+        }
     }
 
     @PostMapping("/login")
