@@ -73,4 +73,9 @@ public class UserService {
         );
     }
 
+    public boolean getEmailVerified(Long id){
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+        return user.isEmail_verified();
+    }
 }

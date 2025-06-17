@@ -26,7 +26,7 @@ public class RegistrationRequest {
 
     private String bio;
 
-    @Size(min = 2,max = 30, message = "Введите фамилию от 2 до 30 символов")
+    @Size(min = 2,max = 30, message = "Введите номер телефона")
     private String phoneNumber;
 
     public String getBio() {

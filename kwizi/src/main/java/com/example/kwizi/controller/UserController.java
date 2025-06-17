@@ -200,5 +200,16 @@ public class UserController {
         UserProfileResponse profile = userService.getUserProfile(id);
         return ResponseEntity.ok(profile);
     }
+
+    @GetMapping("verified/{id}")
+    public ResponseEntity<?> getEmailVerified(@PathVariable("id")Long id){
+        try{
+            boolean isVerified = userService.getEmailVerified(id);
+            return ResponseEntity.ok(isVerified);
+        }catch(UserNotFoundException userNotFoundException){
+            userNotFoundException.printStackTrace();
+            return ResponseEntity.notFound().build();
+        }
+    }
     // Другие методы контроллера (например, для аутентификации, обновления, удаления)
 }
