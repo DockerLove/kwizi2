@@ -1,10 +1,10 @@
 package com.example.kwizi.websocket;
 
+import com.example.kwizi.DTO.internal.*;
 import com.example.kwizi.DTO.internal.MessageDto;
-import com.example.kwizi.DTO.internal.ChatDto;
-import com.example.kwizi.DTO.internal.MessageDto;
-import com.example.kwizi.DTO.internal.UserDto;
 import com.example.kwizi.model.Message;
+import com.example.kwizi.model.User;
+import com.example.kwizi.repository.ChatMemberRepository;
 import com.example.kwizi.service.ChatMessageService;
 import com.example.kwizi.service.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,14 +27,15 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
     private final ChatMessageService chatMessageService;
     private final UserService userService;
     private final ObjectMapper objectMapper;
+    private final ChatMemberRepository chatMemberRepository;
     private final Map<Long, WebSocketSession> sessions = new ConcurrentHashMap<>();
 
-    // Явный конструктор (вместо @RequiredArgsConstructor)
     @Autowired
-    public MyWebSocketHandler(ChatMessageService chatMessageService, UserService userService, ObjectMapper objectMapper) {
+    public MyWebSocketHandler(ChatMessageService chatMessageService, UserService userService, ObjectMapper objectMapper, ChatMemberRepository chatMemberRepository) {
         this.chatMessageService = chatMessageService;
         this.userService = userService;
         this.objectMapper = objectMapper;
+        this.chatMemberRepository = chatMemberRepository;
     }
 
     @Override
@@ -47,42 +48,91 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
 
         // Сохранение сессии для последующей рассылки
         sessions.put(userId, session);
-
-        System.out.println("WebSocket connection established");
-        System.out.println("User ID from query params: " + userId);
-        System.out.println("Session added for user ID: " + userId);
     }
-
+    //TODO реализованы приватные чаты но не групповые
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        // Обработка входящего текстового сообщения
-
         try {
             String payload = message.getPayload();
             System.out.println("Received message: " + payload);
 
-            // Десериализация JSON в MessageDto (внутренний формат)
-            MessageDto messageDto = objectMapper.readValue(payload, MessageDto.class);
+            // Десериализация JSON в PrivateChatMessageDto
+            PrivateChatMessageDto privateChatMessageDto = objectMapper.readValue(payload, PrivateChatMessageDto.class);
 
-            // Получение ID отправителя из параметров сессии (или из аутентификации, в production)
+            // Получение ID отправителя из параметров сессии
             Long senderId = Long.parseLong(getUriTemplateVariables(session).get("id"));
+            User sender = userService.findById(senderId)
+                    .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
 
-            // Обработка сообщения сервисом (сохранение в БД, проверка прав доступа и т.д.)
-            Message savedMessage = chatMessageService.sendMessage(messageDto, senderId);
+            // Получение имени пользователя-получателя
+            String recipientUsername = privateChatMessageDto.getRecipientUsername();
 
-            // Преобразование Message в DTO (для ответа клиенту)
-            MessageDto messageDtoForSend = convertToDto(savedMessage);
+            // Поиск пользователя-получателя
+            User recipient = userService.findByUsername(recipientUsername)
+                    .orElseThrow(() -> new IllegalArgumentException("Recipient not found"));
 
-            // Рассылка сообщения всем пользователям в чате
-            broadcastMessage(messageDtoForSend, messageDto.getChatId());
+            // Определение chatId (комбинация ID отправителя и получателя)
+            Long chatId = generateChatId(senderId, recipient.getId());
+
+            // Создание MessageDto
+            MessageDto messageDto = privateChatMessageDto.getMessageDto();
+            messageDto.setChatId(chatId); // Устанавливаем chatId в MessageDto
+
+            // Отправка сообщения
+            Message savedMessage = chatMessageService.sendPrivateMessage(messageDto, senderId, recipient.getId());
+            messageDto.setId(savedMessage.getId());
+            messageDto.setCreatedAt(savedMessage.getCreatedAt().toLocalDateTime());
+            messageDto.setSenderId(savedMessage.getSender().getId());
+
+            // Рассылка сообщения (только отправителю и получателю)
+            broadcastMessageToPrivateChat(messageDto, chatId, senderId, recipient.getId());
+
 
         } catch (Exception e) {
-            System.err.println("Error processing message: " + e.getMessage());
-            // Отправка ошибки клиенту (опционально)
+            System.err.println("Error processing private message: " + e.getMessage());
             session.sendMessage(new TextMessage("Error: " + e.getMessage()));
             session.close(CloseStatus.SERVER_ERROR);
-            throw e; // Перебрасываем исключение для обработки Spring
+            throw e;
         }
+    }
+
+    private Long generateChatId(Long senderId, Long recipientId) {
+        // Ensure IDs are not null
+        if (senderId == null || recipientId == null) {
+            throw new IllegalArgumentException("SenderId and RecipientId cannot be null");
+        }
+
+        if (senderId.equals(recipientId)) {
+            throw new IllegalArgumentException("SenderId and RecipientId cannot be the same");
+        }
+
+        long chatId;
+
+        if (senderId < recipientId) {
+            chatId = senderId * 10000 + recipientId;
+        } else {
+            chatId = recipientId * 10000 + senderId;
+        }
+        return chatId;
+    }
+
+
+    private void broadcastMessageToPrivateChat(MessageDto messageDto, Long chatId, Long senderId, Long recipientId) {
+        sessions.forEach((userId, session) -> {
+            // Проверяем, является ли пользователь отправителем или получателем
+            if (userId.equals(senderId) || userId.equals(recipientId)) {
+                try {
+                    if (session.isOpen()) {
+                        String jsonMessage = objectMapper.writeValueAsString(messageDto);
+                        session.sendMessage(new TextMessage(jsonMessage));
+                    }
+                } catch (IOException e) {
+                    System.err.println("Error broadcasting message to user " + userId + ": " + e.getMessage());
+                }
+            } else {
+                System.out.println("User " + userId + " is not a member of the private chat " + chatId + ", skipping");
+            }
+        });
     }
 
     // Метод для получения параметров из URI

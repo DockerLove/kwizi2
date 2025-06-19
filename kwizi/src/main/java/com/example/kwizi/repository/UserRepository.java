@@ -18,4 +18,6 @@ public interface UserRepository extends JpaRepository<User, Long>{
     // Поиск по email (уникальное поле)
     Optional<User> findByEmail(String email);
 
+    Optional<User> findById(Long id);
+
 }

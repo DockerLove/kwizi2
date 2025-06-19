@@ -15,6 +15,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(myWebSocketHandler, "/ws").setAllowedOrigins("*"); // Важно для CORS!
+        registry.addHandler(myWebSocketHandler, "/ws", "/ws/private") // Регистрируем два эндпоинта
+                .setAllowedOrigins("*"); // Разрешаем CORS (временно, для разработки)
     }
 }
