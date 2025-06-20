@@ -71,21 +71,18 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
             User recipient = userService.findByUsername(recipientUsername)
                     .orElseThrow(() -> new IllegalArgumentException("Recipient not found"));
 
-            // Определение chatId (комбинация ID отправителя и получателя)
-            Long chatId = generateChatId(senderId, recipient.getId());
 
             // Создание MessageDto
             MessageDto messageDto = privateChatMessageDto.getMessageDto();
-            messageDto.setChatId(chatId); // Устанавливаем chatId в MessageDto
-
             // Отправка сообщения
             Message savedMessage = chatMessageService.sendPrivateMessage(messageDto, senderId, recipient.getId());
             messageDto.setId(savedMessage.getId());
             messageDto.setCreatedAt(savedMessage.getCreatedAt().toLocalDateTime());
             messageDto.setSenderId(savedMessage.getSender().getId());
+            messageDto.setChatId(savedMessage.getChat().getId());
 
             // Рассылка сообщения (только отправителю и получателю)
-            broadcastMessageToPrivateChat(messageDto, chatId, senderId, recipient.getId());
+            broadcastMessageToPrivateChat(messageDto, senderId, recipient.getId());
 
 
         } catch (Exception e) {
@@ -96,28 +93,9 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private Long generateChatId(Long senderId, Long recipientId) {
-        // Ensure IDs are not null
-        if (senderId == null || recipientId == null) {
-            throw new IllegalArgumentException("SenderId and RecipientId cannot be null");
-        }
-
-        if (senderId.equals(recipientId)) {
-            throw new IllegalArgumentException("SenderId and RecipientId cannot be the same");
-        }
-
-        long chatId;
-
-        if (senderId < recipientId) {
-            chatId = senderId * 10000 + recipientId;
-        } else {
-            chatId = recipientId * 10000 + senderId;
-        }
-        return chatId;
-    }
 
 
-    private void broadcastMessageToPrivateChat(MessageDto messageDto, Long chatId, Long senderId, Long recipientId) {
+    private void broadcastMessageToPrivateChat(MessageDto messageDto, Long senderId, Long recipientId) {
         sessions.forEach((userId, session) -> {
             // Проверяем, является ли пользователь отправителем или получателем
             if (userId.equals(senderId) || userId.equals(recipientId)) {
@@ -130,7 +108,7 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
                     System.err.println("Error broadcasting message to user " + userId + ": " + e.getMessage());
                 }
             } else {
-                System.out.println("User " + userId + " is not a member of the private chat " + chatId + ", skipping");
+                System.out.println("User " + userId + " is not a member of the private chat " + messageDto.getChatId() + ", skipping");
             }
         });
     }

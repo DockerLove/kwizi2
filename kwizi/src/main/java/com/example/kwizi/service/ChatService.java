@@ -51,11 +51,24 @@ public class ChatService {
 
     @Transactional
     public void addChatMember(AddChatMemberRequestDto addChatMemberRequestDto) {
-        Chat chat = chatRepository.findById(addChatMemberRequestDto.getChatId()).orElseThrow(() -> new IllegalArgumentException("Chat not found"));
-        User user = userRepository.findById(addChatMemberRequestDto.getUserId()).orElseThrow(() -> new IllegalArgumentException("User not found"));
-    //TODO при добавлении одного и того же человека в chat_members значение поля joined_at становится default
+        Long chatId = addChatMemberRequestDto.getChatId();
+        Long userId = addChatMemberRequestDto.getUserId();
+
+        // 1. Проверяем существование чата и пользователя
+        Chat chat = chatRepository.findById(chatId)
+                .orElseThrow(() -> new IllegalArgumentException("Chat not found"));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // 2. Явная проверка на участие в чате
+        if (chatMemberRepository.existsByChatIdAndUserId(chatId, userId)) {
+            throw new IllegalStateException("User " + userId + " is already a member of chat " + chatId);
+        }
+
+        // 3. Создаем новую запись
         ChatMember chatMember = new ChatMember(chat, user);
         chatMember.setIsAdmin(false);
+        chatMember.setJoinedAt(OffsetDateTime.now());
         chatMemberRepository.save(chatMember);
     }
 

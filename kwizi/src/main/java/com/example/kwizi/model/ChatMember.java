@@ -30,6 +30,22 @@ public class ChatMember {
     @Column(name = "joined_at", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE DEFAULT NOW()")
     private OffsetDateTime joinedAt;
 
+    public void setId(ChatMemberId id) {
+        this.id = id;
+    }
+
+    public Boolean getAdmin() {
+        return isAdmin;
+    }
+
+    public void setAdmin(Boolean admin) {
+        isAdmin = admin;
+    }
+
+    public void setJoinedAt(OffsetDateTime joinedAt) {
+        this.joinedAt = joinedAt;
+    }
+
     // Конструкторы
     public ChatMember() {
     }

@@ -17,13 +17,14 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Lazy
 public class ChatMessageService implements ChatMessageServiceInterface {
-    //todo реальзовано создание чата но чату не присваивается id создателя и также нет проверки кто в каком чате находится
     private final MessageRepository messageRepository;
     private final ChatRepository chatRepository;
     private final UserRepository userRepository;
@@ -89,75 +90,41 @@ public class ChatMessageService implements ChatMessageServiceInterface {
 
     @Transactional
     public Message sendPrivateMessage(MessageDto messageDto, Long senderId, Long recipientId) {
-        try {
-            // Получение chatId (комбинация ID отправителя и получателя)
-            Long chatId = generateChatId(senderId, recipientId);
-            System.out.println("ChatID: " + chatId);
-            // Получение чата
-            Chat chat = chatRepository.findById(chatId).orElse(null);
+        // 1. Проверяем существование чата
+        Optional<Long> existingChatId = chatMemberRepository.findPrivateChatIdByUserIds(senderId, recipientId);
 
-            // Получение отправителя и получателя
-            User sender = userRepository.findById(senderId)
-                    .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
-            User recipient = userRepository.findById(recipientId)
-                    .orElseThrow(() -> new IllegalArgumentException("Recipient not found"));
+        Chat chat;
+        User sender = userRepository.findById(senderId)
+                .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
+        User recipient = userRepository.findById(recipientId)
+                .orElseThrow(() -> new IllegalArgumentException("Recipient not found"));
 
-            // Если чат не существует, создаем его и добавляем отправителя и получателя в chat_members
-            if (chat == null) {
-                System.out.println("Chat NULL");
-                chat = getOrCreateChat(chatId, sender); // Создаем чат
-                System.out.println("Chat after creating " + chat);
-                // Добавляем отправителя и получателя в chat_members
-                ChatMember chatMemberSender = new ChatMember(chat, sender);
-                ChatMember chatMemberRecipient = new ChatMember(chat, recipient);
-
-                chatMemberRepository.save(chatMemberSender);
-                chatMemberRepository.save(chatMemberRecipient);
-            } else {
-                System.out.println("Chat not NULL");
-            }
-
-            // Создание сообщения
-            Message message = new Message();
-            message.setChat(chat);
-            message.setSender(sender);
-            message.setText(messageDto.getText());
-            message.setCreatedAt(OffsetDateTime.now());
-
-            // Сохранение сообщения
-            Message savedMessage =  messageRepository.save(message);
-            return savedMessage;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private Long generateChatId(Long senderId, Long recipientId) {
-        // Ensure IDs are not null
-        if (senderId == null || recipientId == null) {
-            throw new IllegalArgumentException("SenderId and RecipientId cannot be null");
-        }
-
-        // Ensure IDs are not equal, as it doesn't make sense for a user to send messages to themselves.
-        if (senderId.equals(recipientId)) {
-            throw new IllegalArgumentException("SenderId and RecipientId cannot be the same");
-        }
-
-        long chatId;
-
-        // Ensure ChatId is created same every time irrespective of the order of sender and recipient.
-        if (senderId < recipientId) {
-            chatId = senderId * 10000 + recipientId;
+        if (existingChatId.isPresent()) {
+            // 2. Если чат существует - получаем его
+            chat = chatRepository.findById(existingChatId.get())
+                    .orElseThrow(() -> new IllegalArgumentException("Chat not found"));
         } else {
-            chatId = recipientId * 10000 + senderId;
+            // 3. Если чата нет - создаем новый
+            chat = new Chat();
+            chat.setCreatedBy(sender); // Устанавливаем создателя чата
+            chat.setCreatedAt(OffsetDateTime.now());
+            chat = chatRepository.save(chat);
+
+            // 4. Добавляем участников
+            ChatMember chatMemberSender = new ChatMember(chat, sender);
+            ChatMember chatMemberRecipient = new ChatMember(chat, recipient);
+
+            chatMemberRepository.saveAll(List.of(chatMemberSender, chatMemberRecipient));
         }
-        return chatId;
+
+        // 5. Создаем и сохраняем сообщение
+        Message message = new Message();
+        message.setChat(chat);
+        message.setSender(sender);
+        message.setText(messageDto.getText());
+        message.setCreatedAt(OffsetDateTime.now());
+
+        return messageRepository.save(message);
     }
-
-
-
-
-
-
 
 }
