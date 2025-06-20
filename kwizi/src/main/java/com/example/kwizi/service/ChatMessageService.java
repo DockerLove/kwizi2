@@ -127,4 +127,7 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         return messageRepository.save(message);
     }
 
+    public List<Long> getChatMembers(Long chatId) {
+        return chatMemberRepository.findUserIdsByChatId(chatId);
+    }
 }

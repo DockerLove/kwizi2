@@ -11,8 +11,8 @@ import java.util.Optional;
 @Repository
 public interface ChatMemberRepository extends JpaRepository<ChatMember, Long> {
 
+    // Существующие методы
     List<ChatMember> findByChatId(Long chatId);
-
     Optional<ChatMember> findById(ChatMember.ChatMemberId id);
 
     @Query("SELECT cm.isAdmin FROM ChatMember cm WHERE cm.chat.id = :chatId AND cm.user.id = :userId")
@@ -21,13 +21,20 @@ public interface ChatMemberRepository extends JpaRepository<ChatMember, Long> {
     @Query("SELECT DISTINCT c.id FROM Chat c " +
             "WHERE c.id IN (SELECT cm.chat.id FROM ChatMember cm WHERE cm.user.id = :userId1) " +
             "AND c.id IN (SELECT cm.chat.id FROM ChatMember cm WHERE cm.user.id = :userId2) " +
-            "AND c.groupName IS NULL") // Только приватные чаты
+            "AND c.groupName IS NULL")
     Optional<Long> findPrivateChatIdByUserIds(@Param("userId1") Long userId1,
                                               @Param("userId2") Long userId2);
+
+    // Добавляем/модифицируем методы для групповых чатов
     boolean existsByChatIdAndUserId(Long chatId, Long userId);
 
+    @Query("SELECT cm.user.id FROM ChatMember cm WHERE cm.chat.id = :chatId")
+    List<Long> findUserIdsByChatId(@Param("chatId") Long chatId);
 
+    @Query("SELECT COUNT(cm) FROM ChatMember cm WHERE cm.chat.id = :chatId")
+    int countMembersInChat(@Param("chatId") Long chatId);
 
-    // Дополнительные методы можно добавлять по мере необходимости
+    @Query("SELECT cm.user.id FROM ChatMember cm WHERE cm.chat.id = :chatId AND cm.isAdmin = true")
+    List<Long> findAdminIdsByChatId(@Param("chatId") Long chatId);
 }
 //Управление участниками чатов (добавление, удаление, проверка принадлежности).
