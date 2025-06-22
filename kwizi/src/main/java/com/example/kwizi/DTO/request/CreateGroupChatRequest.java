@@ -2,7 +2,7 @@ package com.example.kwizi.DTO.request;
 
 import java.util.List;
 
-public class CreateChatRequestDto {
+public class CreateGroupChatRequest {
     private String groupName;
     private Long creatorId;
     private List<Long> initialMemberIds;

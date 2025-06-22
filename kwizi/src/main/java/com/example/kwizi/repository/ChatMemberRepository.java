@@ -36,5 +36,9 @@ public interface ChatMemberRepository extends JpaRepository<ChatMember, Long> {
 
     @Query("SELECT cm.user.id FROM ChatMember cm WHERE cm.chat.id = :chatId AND cm.isAdmin = true")
     List<Long> findAdminIdsByChatId(@Param("chatId") Long chatId);
+
+    boolean existsById(ChatMember.ChatMemberId id);
+
+    void deleteById(ChatMember.ChatMemberId id);
 }
 //Управление участниками чатов (добавление, удаление, проверка принадлежности).
