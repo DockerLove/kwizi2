@@ -29,8 +29,12 @@ public class ChatController {
 
     @PostMapping("/group")
     public ResponseEntity<?> createGroupChat(@RequestBody CreateGroupChatRequest createChatRequestDto) {
-        chatService.createGroupChat(createChatRequestDto);
-        return ResponseEntity.ok().build();
+        try {
+            chatService.createGroupChat(createChatRequestDto);
+            return ResponseEntity.ok().build();
+        }catch(IllegalArgumentException ex){
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        }
     }
 
     @PostMapping("/private")
@@ -39,7 +43,7 @@ public class ChatController {
             Principal principal) {
         try {
             chatService.createPrivateChat(createPrivateChatRequest, principal.getName());
-            return ResponseEntity.ok().build(); // Возвращаем ID созданного чата
+            return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

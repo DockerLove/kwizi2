@@ -7,6 +7,7 @@ import com.example.kwizi.DTO.request.PrivateMessageRequest;
 import com.example.kwizi.enums.MessageType;
 import com.example.kwizi.model.Message;
 import com.example.kwizi.model.User;
+import com.example.kwizi.repository.ChatMemberRepository;
 import com.example.kwizi.service.ChatMessageService;
 import com.example.kwizi.service.UserService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -63,7 +64,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
             session.sendMessage(new TextMessage("Ошибка: " + e.getMessage()));
         }
     }
-
+    //todo реализовать логику создания личного чата
     private void handlePrivateMessage(Long senderId, PrivateMessageRequest request) throws IOException {
         User recipient = userService.findById(request.getRecipientId())
                 .orElseThrow(() -> new IllegalArgumentException("Получатель не найден"));
