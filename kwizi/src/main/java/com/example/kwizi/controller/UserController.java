@@ -5,6 +5,8 @@ import com.example.kwizi.DTO.response.UserProfileResponse;
 import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.User;
 
+import com.example.kwizi.security.JwtUtils;
+import com.example.kwizi.security.UserDetailsImpl;
 import com.example.kwizi.service.AuthenticationService;
 import com.example.kwizi.service.RegistrationService;
 import com.example.kwizi.service.UserService;
@@ -14,11 +16,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -29,12 +34,15 @@ public class UserController {
 
     private UserService userService;
 
+    private JwtUtils jwtUtils;
+
 
 
     @Autowired
-    public UserController(AuthenticationService authenticationService, UserService userService) {
+    public UserController(AuthenticationService authenticationService, UserService userService, JwtUtils jwtUtils) {
         this.userService = userService;
         this.authenticationService = authenticationService;
+        this.jwtUtils = jwtUtils;
     }
 
 
@@ -69,22 +77,20 @@ public class UserController {
         return new ResponseEntity<>(users, HttpStatus.OK);
     }
 
-    @PatchMapping("/{id}/verify-email")
-    public ResponseEntity<?> verifyUserEmail(@PathVariable("id") Long id){
-        try{
-            userService.verifyUserEmail(id);
-            return ResponseEntity.ok(("Email успешно подтвержден"));
-        }catch(IllegalArgumentException ex){
+    @PatchMapping("/verify-email")
+    public ResponseEntity<?> verifyUserEmail(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        try {
+            userService.verifyUserEmail(userDetails.getId());
+            return ResponseEntity.ok("Email успешно подтвержден");
+        } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
         }
     }
 
-
-
-    @PostMapping("/send-verification-email/{id}")
-    public ResponseEntity<String> sendVerificationEmail(@PathVariable("id") Long id) {
+    @PostMapping("/send-verification-email")
+    public ResponseEntity<String> sendVerificationEmail(@AuthenticationPrincipal UserDetailsImpl userDetails) {
         try {
-            authenticationService.sendVerificationEmail(id);
+            authenticationService.sendVerificationEmail(userDetails.getId());
             return ResponseEntity.ok("Письмо для подтверждения email отправлено.");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Ошибка при отправке письма: " + e.getMessage());
@@ -92,85 +98,94 @@ public class UserController {
     }
 
 
-    @PostMapping("/{id}/bio")
-    public ResponseEntity<?> updateBio(@PathVariable("id") Long id, @Valid @RequestBody UpdateBioRequest request, BindingResult bindingResult){
+    @PostMapping("/bio")
+    public ResponseEntity<?> updateBio(@Valid @RequestBody UpdateBioRequest request,
+                                       BindingResult bindingResult,
+                                       @AuthenticationPrincipal UserDetailsImpl userDetails) {
         if (bindingResult.hasErrors()) {
-            List<String> errors = bindingResult.getFieldErrors()
-                    .stream()
-                    .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
-                    .collect(Collectors.toList());
-            return ResponseEntity.badRequest().body(errors);
+            return buildValidationErrorResponse(bindingResult);
         }
-        try{
-            userService.updateBio(id,request.getBio());
-            return ResponseEntity.ok().body("Bio успешно обновлен");
-        }catch(IllegalArgumentException illegalArgumentException){
-            illegalArgumentException.printStackTrace();
+        try {
+            userService.updateBio(userDetails.getId(), request.getBio());
+            return ResponseEntity.ok("Bio успешно обновлен");
+        } catch (UserNotFoundException ex) {
             return ResponseEntity.notFound().build();
         }
     }
 
-    @PostMapping("/{id}/firstName")
-    public ResponseEntity<?> updateFirstName(@PathVariable("id") Long id, @Valid @RequestBody UpdateFirstNameRequest request, BindingResult bindingResult){
+    @PostMapping("/firstName")
+    public ResponseEntity<?> updateFirstName(@Valid @RequestBody UpdateFirstNameRequest request,
+                                             BindingResult bindingResult,
+                                             @AuthenticationPrincipal UserDetailsImpl userDetails) {
         if (bindingResult.hasErrors()) {
-            List<String> errors = bindingResult.getFieldErrors()
-                    .stream()
-                    .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
-                    .collect(Collectors.toList());
-            return ResponseEntity.badRequest().body(errors);
+            return buildValidationErrorResponse(bindingResult);
         }
-        try{
-            userService.updateFirstName(id,request.getFirstName());
-            return ResponseEntity.ok().body("Имя успешно обновлено");
-        }catch(UserNotFoundException userNotFoundException){
-            userNotFoundException.printStackTrace();
+        try {
+            userService.updateFirstName(userDetails.getId(), request.getFirstName());
+            return ResponseEntity.ok("Имя успешно обновлено");
+        } catch (UserNotFoundException ex) {
             return ResponseEntity.notFound().build();
         }
     }
 
-    @PostMapping("/{id}/lastName")
-    public ResponseEntity<?> updateLastName(@PathVariable("id") Long id, @Valid @RequestBody UpdateLastNameRequest request, BindingResult bindingResult){
+    @PostMapping("/lastName")
+    public ResponseEntity<?> updateLastName(@Valid @RequestBody UpdateLastNameRequest request,
+                                            BindingResult bindingResult,
+                                            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         if (bindingResult.hasErrors()) {
-            List<String> errors = bindingResult.getFieldErrors()
-                    .stream()
-                    .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
-                    .collect(Collectors.toList());
-            return ResponseEntity.badRequest().body(errors);
+            return buildValidationErrorResponse(bindingResult);
         }
-        try{
-            userService.updateLastName(id,request.getLastName());
-            return ResponseEntity.ok().body("Фамилия успешно обновлена");
-        }catch(UserNotFoundException userNotFoundException){
-            userNotFoundException.printStackTrace();
+        try {
+            userService.updateLastName(userDetails.getId(), request.getLastName());
+            return ResponseEntity.ok("Фамилия успешно обновлена");
+        } catch (UserNotFoundException ex) {
             return ResponseEntity.notFound().build();
         }
     }
     //TODO спросить по поводу копипасты bindingResult(вынести в private,AOP,Controller Advice)
-    @PostMapping("/{id}/username")
-    public ResponseEntity<?> updateUsername(@PathVariable("id") Long id, @Valid @RequestBody UpdateUsernameRequest request, BindingResult bindingResult){
+    @PostMapping("/username")
+    public ResponseEntity<?> updateUsername(@Valid @RequestBody UpdateUsernameRequest request,
+                                            BindingResult bindingResult,
+                                            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         if (bindingResult.hasErrors()) {
-            List<String> errors = bindingResult.getFieldErrors()
-                    .stream()
-                    .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
-                    .collect(Collectors.toList());
-            return ResponseEntity.badRequest().body(errors);
+            return buildValidationErrorResponse(bindingResult);
         }
-        try{
-            userService.updateUsername(id,request.getUsername());
-            return ResponseEntity.ok().body("Никнейм успешно обновлен");
-        }catch(UserNotFoundException userNotFoundException){
-            userNotFoundException.printStackTrace();
+        try {
+            // 1. Обновляем username в базе данных
+            userService.updateUsername(userDetails.getId(), request.getUsername());
+
+            // 2. Получаем обновленную информацию о пользователе из базы данных
+            Optional<User> updatedUserOptional = userService.findById(userDetails.getId());
+
+            // 3. Проверяем, что пользователь найден
+            if (updatedUserOptional.isPresent()) {
+                User updatedUser = updatedUserOptional.get();
+
+                // 4. Генерируем новый JWT с новым username
+                String token = jwtUtils.generateToken(updatedUser.getUsername());
+
+                // 5. Возвращаем новый JWT клиенту
+                return ResponseEntity.ok(Map.of("message", "Никнейм успешно обновлен", "token", token));
+            } else {
+                // 6. Если пользователь не найден, возвращаем ошибку
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Пользователь не найден");
+            }
+
+        } catch (UserNotFoundException ex) {
             return ResponseEntity.notFound().build();
-        }catch(IllegalArgumentException illegalArgumentException){
-            illegalArgumentException.printStackTrace();
-            return ResponseEntity.badRequest().build();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
         }
     }
 
-    @GetMapping("/{id}/profile")
-    public ResponseEntity<UserProfileResponse> getUserProfile(@PathVariable("id") Long id) {
-        UserProfileResponse profile = userService.getUserProfile(id);
-        return ResponseEntity.ok(profile);
+    @GetMapping("/profile")
+    public ResponseEntity<UserProfileResponse> getUserProfile(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        try {
+            UserProfileResponse profile = userService.getUserProfile(userDetails.getId());
+            return ResponseEntity.ok(profile);
+        }catch(UserNotFoundException ex){
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping("verified/{id}")
@@ -182,6 +197,14 @@ public class UserController {
             userNotFoundException.printStackTrace();
             return ResponseEntity.notFound().build();
         }
+    }
+
+    private ResponseEntity<List<String>> buildValidationErrorResponse(BindingResult bindingResult) {
+        List<String> errors = bindingResult.getFieldErrors()
+                .stream()
+                .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+                .collect(Collectors.toList());
+        return ResponseEntity.badRequest().body(errors);
     }
     // Другие методы контроллера (например, для аутентификации, обновления, удаления)
 }

@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Size;
 
 public class UpdateFirstNameRequest {
 
-    @Size(max = 20, message = "Имя должно быть не больше 20 символов")
+    @Size(min = 2,max = 30, message = "Имя должно быть от 2 до 30 символов")
     private String firstName;
 
     public String getFirstName() {

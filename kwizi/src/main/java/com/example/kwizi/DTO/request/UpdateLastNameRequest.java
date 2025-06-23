@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Size;
 
 public class UpdateLastNameRequest {
 
-    @Size(max = 30,message = "Фамилия должна быть не более 30 символов")
+    @Size(min = 2,max = 30,message = "Фамилия должна быть от 2 до 30 символов")
     private String lastName;
 
     public String getLastName() {
