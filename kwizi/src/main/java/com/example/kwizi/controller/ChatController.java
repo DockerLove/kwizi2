@@ -5,6 +5,7 @@ import com.example.kwizi.DTO.request.AddChatMemberRequestDto;
 import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
 import com.example.kwizi.model.User;
+import com.example.kwizi.security.UserDetailsImpl;
 import com.example.kwizi.service.ChatService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,9 +29,9 @@ public class ChatController {
     }
 
     @PostMapping("/group")
-    public ResponseEntity<?> createGroupChat(@RequestBody CreateGroupChatRequest createChatRequestDto) {
+    public ResponseEntity<?> createGroupChat(@Valid @RequestBody CreateGroupChatRequest createChatRequestDto, @AuthenticationPrincipal UserDetailsImpl userDetails) {
         try {
-            chatService.createGroupChat(createChatRequestDto);
+            chatService.createGroupChat(createChatRequestDto, userDetails.getUsername());
             return ResponseEntity.ok().build();
         }catch(IllegalArgumentException ex){
             return ResponseEntity.badRequest().body(ex.getMessage());
@@ -40,9 +41,9 @@ public class ChatController {
     @PostMapping("/private")
     public ResponseEntity<?> createPrivateChat(
             @Valid @RequestBody CreatePrivateChatRequest createPrivateChatRequest,
-            Principal principal) {
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         try {
-            chatService.createPrivateChat(createPrivateChatRequest, principal.getName());
+            chatService.createPrivateChat(createPrivateChatRequest, userDetails.getUsername());
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -69,9 +70,17 @@ public class ChatController {
     }
 
     @PutMapping("/{chatId}/members/{userId}/admin")
-    public ResponseEntity<?> setAdmin(@PathVariable Long chatId, @PathVariable Long userId) {
-        chatService.setAdmin(chatId, userId);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<?> setAdmin(
+            @PathVariable Long chatId,
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserDetailsImpl currentUser) {
+
+        try {
+            chatService.setAdmin(chatId, userId, currentUser.getId());
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     // Controller

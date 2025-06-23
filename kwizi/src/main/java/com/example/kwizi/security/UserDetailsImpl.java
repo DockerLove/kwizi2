@@ -54,5 +54,17 @@ public class UserDetailsImpl implements UserDetails {
         return true; // Или user.isCredentialsNonExpired()
     }
 
+    @Override
+    public boolean isEnabled() {
+        return user.isEmail_verified();
+    }
 
+    // Дополнительные геттеры
+    public Long getId() {
+        return user.getId();
+    }
+
+    public String getEmail() {
+        return user.getEmail();
+    }
 }

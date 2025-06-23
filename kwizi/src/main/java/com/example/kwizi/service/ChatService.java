@@ -12,7 +12,9 @@ import com.example.kwizi.repository.ChatRepository;
 import com.example.kwizi.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import java.time.OffsetDateTime;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -32,11 +34,21 @@ public class ChatService {
     }
 
     @Transactional
-    public void createGroupChat(CreateGroupChatRequest createChatRequestDto) {
+    public void createGroupChat(CreateGroupChatRequest createChatRequestDto, String creatorUsername) {
+
+        Set<Long> uniqueUserIds = new HashSet<>(createChatRequestDto.getInitialMemberIds());
+        if (uniqueUserIds.size() < createChatRequestDto.getInitialMemberIds().size()) {
+            throw new IllegalArgumentException("Список участников содержит дубликаты");
+        }
+        User creator = userRepository.findByUsername(creatorUsername).orElseThrow(() -> new IllegalArgumentException("Создатель чата не найден"));
+
+        // Проверяем, что создатель не добавлен в список участников (он добавляется отдельно)
+        if (uniqueUserIds.contains(creator.getId())) {
+            throw new IllegalArgumentException("Создатель не должен явно добавляться в список участников");
+        }
         Chat chat = new Chat();
         chat.setGroupName(createChatRequestDto.getGroupName());
 
-        User creator = userRepository.findById(createChatRequestDto.getCreatorId()).orElseThrow(() -> new IllegalArgumentException("Creator not found"));
         chat.setCreatedBy(creator);
         chat.setGroup(true);
         chatRepository.save(chat);
@@ -62,6 +74,9 @@ public class ChatService {
         User recipient = userRepository.findByUsername(createPrivateChatRequest.getRecipientUsername())
                 .orElseThrow(() -> new IllegalArgumentException("Получатель с username " + createPrivateChatRequest.getRecipientUsername() + " не найден"));
 
+        if (creator.getId().equals(recipient.getId())) {
+            throw new IllegalArgumentException("Нельзя создать приватный чат с самим собой");
+        }
         // 3. Проверяем, существует ли уже приватный чат между этими пользователями
         Optional<Long> existingChatId = chatMemberRepository.findPrivateChatIdByUserIds(creator.getId(), recipient.getId());
         if (existingChatId.isPresent()) {
@@ -105,17 +120,29 @@ public class ChatService {
     }
 
     @Transactional
-    public void setAdmin(Long chatId, Long userId) {
-        Chat chat = chatRepository.findById(chatId).orElseThrow(() -> new IllegalArgumentException("Chat not found"));
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+    public void setAdmin(Long chatId, Long userId, Long requestingUserId) {
+        Chat chat = chatRepository.findById(chatId)
+                .orElseThrow(() -> new IllegalArgumentException("Чат не найден"));
 
-        if (chat.getGroup()) { // Допустим, в Chat есть поле isPrivate
-            throw new IllegalArgumentException("You cannot remove members from a private chat.");
+        // Проверка, что чат групповой
+        if (!chat.getGroup()) {
+            throw new IllegalArgumentException("Приватные чаты не поддерживают администрирование");
         }
-        ChatMemberId chatMemberId = new ChatMemberId(chatId, userId);
-        ChatMember chatMember = chatMemberRepository.findById(chatMemberId).orElseThrow(() -> new IllegalArgumentException("Chat member not found"));
-        chatMember.setIsAdmin(true);
-        chatMemberRepository.save(chatMember);
+
+        // Проверка прав текущего пользователя
+        ChatMember requester = chatMemberRepository.findByChatIdAndUserId(chatId, requestingUserId)
+                .orElseThrow(() -> new IllegalArgumentException("Вы не участник чата"));
+
+        if (!requester.getIsAdmin()) {
+            throw new IllegalArgumentException("Только админ может назначать других админов");
+        }
+
+        // Назначение админа
+        ChatMember memberToPromote = chatMemberRepository.findByChatIdAndUserId(chatId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("Участник не найден"));
+
+        memberToPromote.setIsAdmin(true);
+        chatMemberRepository.save(memberToPromote);
     }
 
     @Transactional
