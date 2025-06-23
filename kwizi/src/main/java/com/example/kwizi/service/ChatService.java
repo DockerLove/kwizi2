@@ -151,23 +151,23 @@ public class ChatService {
         User userToRemove = userRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("User to remove not found"));
         User requestingUser = userRepository.findById(requestingUserId).orElseThrow(() -> new IllegalArgumentException("Requesting user not found"));
 
-        if (chat.getGroup()) { // Допустим, в Chat есть поле isPrivate
-            throw new IllegalArgumentException("You cannot remove members from a private chat.");
+        if (!chat.getGroup()) {
+            throw new IllegalArgumentException("Приватные чаты не поддерживают администрирование");
         }
 
         // Проверяем, является ли запрашивающий пользователь админом чата
         ChatMemberId requestingUserChatMemberId = new ChatMemberId(chatId, requestingUserId);
         ChatMember requestingUserChatMember = chatMemberRepository.findById(requestingUserChatMemberId)
-                .orElseThrow(() -> new IllegalArgumentException("Requesting user is not a member of the chat"));
+                .orElseThrow(() -> new IllegalArgumentException("Запрашивающий пользователь не является участником чата"));
 
         if (!requestingUserChatMember.getIsAdmin()) {
-            throw new IllegalArgumentException("Only admins can remove members from the chat");
+            throw new IllegalArgumentException("Только админ может назначать других админов");
         }
 
         // Проверяем, существует ли участник чата, которого нужно удалить
         ChatMemberId chatMemberIdToRemove = new ChatMemberId(chatId, id);
         if (!chatMemberRepository.existsById(chatMemberIdToRemove)) {
-            throw new IllegalArgumentException("Chat member not found");
+            throw new IllegalArgumentException("Участник чата не найден");
         }
 
         chatMemberRepository.deleteById(chatMemberIdToRemove);

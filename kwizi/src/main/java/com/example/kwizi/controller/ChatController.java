@@ -88,9 +88,10 @@ public class ChatController {
     public ResponseEntity<?> removeChatMember(
             @PathVariable Long chatId,
             @PathVariable Long id,
-            @RequestParam("id") Long requestingUserId) {
+            @AuthenticationPrincipal UserDetailsImpl currentUser) {
+
         try {
-            chatService.removeChatMember(chatId, id, requestingUserId);
+            chatService.removeChatMember(chatId, id, currentUser.getId());
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

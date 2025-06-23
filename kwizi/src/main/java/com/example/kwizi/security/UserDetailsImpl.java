@@ -1,6 +1,7 @@
 package com.example.kwizi.security;
 
 import com.example.kwizi.model.User;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -52,11 +53,6 @@ public class UserDetailsImpl implements UserDetails {
     @Override
     public boolean isCredentialsNonExpired() {
         return true; // Или user.isCredentialsNonExpired()
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return user.isEmail_verified();
     }
 
     // Дополнительные геттеры
