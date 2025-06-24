@@ -3,14 +3,14 @@ package com.example.kwizi.controller;
 import com.example.kwizi.DTO.request.*;
 import com.example.kwizi.DTO.response.ApiResponse;
 import com.example.kwizi.DTO.response.UserProfileResponse;
+import com.example.kwizi.annotations.RateLimited;
 import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.User;
-
 import com.example.kwizi.security.JwtUtils;
 import com.example.kwizi.security.UserDetailsImpl;
 import com.example.kwizi.service.AuthenticationService;
-import com.example.kwizi.service.RegistrationService;
 import com.example.kwizi.service.UserService;
+import com.example.kwizi.util.TimeUnit;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,13 +19,9 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/user")
@@ -91,6 +87,7 @@ public class UserController {
         );
     }
 
+    @RateLimited(value = 3, timeUnit = TimeUnit.MINUTES, duration = 1)
     @PostMapping("/send-verification-email")
     public ResponseEntity<ApiResponse<String>> sendVerificationEmail(
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
@@ -148,7 +145,6 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("Фамилия успешно обновлена", null));
     }
 
-    //TODO спросить по поводу копипасты bindingResult(вынести в private,AOP,Controller Advice)
 
     @PostMapping("/username")
     public ResponseEntity<ApiResponse<Map<String, String>>> updateUsername(
