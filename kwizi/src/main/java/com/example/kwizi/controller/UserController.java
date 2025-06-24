@@ -1,6 +1,7 @@
 package com.example.kwizi.controller;
 
 import com.example.kwizi.DTO.request.*;
+import com.example.kwizi.DTO.response.ApiResponse;
 import com.example.kwizi.DTO.response.UserProfileResponse;
 import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.User;
@@ -63,11 +64,14 @@ public class UserController {
     }
 
 
-    @GetMapping("/{username}")
-    public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
-        return authenticationService.findByUsername(username)
-                .map(user -> new ResponseEntity<>(user, HttpStatus.OK))
-                .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
+    @GetMapping("/find/{username}")
+    public ResponseEntity<ApiResponse<User>> getUserByUsername(@PathVariable String username) {
+        User user = authenticationService.findByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Пользователь найден", user)
+        );
     }
 
 
@@ -78,133 +82,86 @@ public class UserController {
     }
 
     @PatchMapping("/verify-email")
-    public ResponseEntity<?> verifyUserEmail(@AuthenticationPrincipal UserDetailsImpl userDetails) {
-        try {
-            userService.verifyUserEmail(userDetails.getId());
-            return ResponseEntity.ok("Email успешно подтвержден");
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
-        }
+    public ResponseEntity<ApiResponse<String>> verifyUserEmail(
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        userService.verifyUserEmail(userDetails.getId());
+        return ResponseEntity.ok(
+                ApiResponse.success("Email успешно подтвержден", null)
+        );
     }
 
     @PostMapping("/send-verification-email")
-    public ResponseEntity<String> sendVerificationEmail(@AuthenticationPrincipal UserDetailsImpl userDetails) {
-        try {
-            authenticationService.sendVerificationEmail(userDetails.getId());
-            return ResponseEntity.ok("Письмо для подтверждения email отправлено.");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Ошибка при отправке письма: " + e.getMessage());
-        }
+    public ResponseEntity<ApiResponse<String>> sendVerificationEmail(
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        authenticationService.sendVerificationEmail(userDetails.getId());
+        return ResponseEntity.ok(
+                ApiResponse.success("Письмо для подтверждения email отправлено", null)
+        );
     }
 
 
     @PostMapping("/bio")
     public ResponseEntity<?> updateBio(@Valid @RequestBody UpdateBioRequest request,
-                                       BindingResult bindingResult,
                                        @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        if (bindingResult.hasErrors()) {
-            return buildValidationErrorResponse(bindingResult);
-        }
-        try {
-            userService.updateBio(userDetails.getId(), request.getBio());
-            return ResponseEntity.ok("Bio успешно обновлен");
-        } catch (UserNotFoundException ex) {
-            return ResponseEntity.notFound().build();
-        }
+        userService.updateBio(userDetails.getId(), request.getBio());
+        return ResponseEntity.ok(
+                ApiResponse.success("Bio успешно обновлен", null)
+        );
     }
 
     @PostMapping("/firstName")
     public ResponseEntity<?> updateFirstName(@Valid @RequestBody UpdateFirstNameRequest request,
-                                             BindingResult bindingResult,
                                              @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        if (bindingResult.hasErrors()) {
-            return buildValidationErrorResponse(bindingResult);
-        }
-        try {
-            userService.updateFirstName(userDetails.getId(), request.getFirstName());
-            return ResponseEntity.ok("Имя успешно обновлено");
-        } catch (UserNotFoundException ex) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @PostMapping("/lastName")
-    public ResponseEntity<?> updateLastName(@Valid @RequestBody UpdateLastNameRequest request,
-                                            BindingResult bindingResult,
-                                            @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        if (bindingResult.hasErrors()) {
-            return buildValidationErrorResponse(bindingResult);
-        }
-        try {
-            userService.updateLastName(userDetails.getId(), request.getLastName());
-            return ResponseEntity.ok("Фамилия успешно обновлена");
-        } catch (UserNotFoundException ex) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-    //TODO спросить по поводу копипасты bindingResult(вынести в private,AOP,Controller Advice)
-    @PostMapping("/username")
-    public ResponseEntity<?> updateUsername(@Valid @RequestBody UpdateUsernameRequest request,
-                                            BindingResult bindingResult,
-                                            @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        if (bindingResult.hasErrors()) {
-            return buildValidationErrorResponse(bindingResult);
-        }
-        try {
-            // 1. Обновляем username в базе данных
-            userService.updateUsername(userDetails.getId(), request.getUsername());
-
-            // 2. Получаем обновленную информацию о пользователе из базы данных
-            Optional<User> updatedUserOptional = userService.findById(userDetails.getId());
-
-            // 3. Проверяем, что пользователь найден
-            if (updatedUserOptional.isPresent()) {
-                User updatedUser = updatedUserOptional.get();
-
-                // 4. Генерируем новый JWT с новым username
-                String token = jwtUtils.generateToken(updatedUser.getUsername());
-
-                // 5. Возвращаем новый JWT клиенту
-                return ResponseEntity.ok(Map.of("message", "Никнейм успешно обновлен", "token", token));
-            } else {
-                // 6. Если пользователь не найден, возвращаем ошибку
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Пользователь не найден");
-            }
-
-        } catch (UserNotFoundException ex) {
-            return ResponseEntity.notFound().build();
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ex.getMessage());
-        }
+        userService.updateFirstName(userDetails.getId(), request.getFirstName());
+        return ResponseEntity.ok(
+                ApiResponse.success("Имя успешно обновлено", null)
+        );
     }
 
     @GetMapping("/profile")
-    public ResponseEntity<UserProfileResponse> getUserProfile(@AuthenticationPrincipal UserDetailsImpl userDetails) {
-        try {
-            UserProfileResponse profile = userService.getUserProfile(userDetails.getId());
-            return ResponseEntity.ok(profile);
-        }catch(UserNotFoundException ex){
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<ApiResponse<UserProfileResponse>> getUserProfile(
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        UserProfileResponse profile = userService.getUserProfile(userDetails.getId());
+        return ResponseEntity.ok(
+                ApiResponse.success("Профиль успешно загружен", profile)
+        );
     }
 
-    @GetMapping("verified/{id}")
-    public ResponseEntity<?> getEmailVerified(@PathVariable("id")Long id){
-        try{
-            boolean isVerified = userService.getEmailVerified(id);
-            return ResponseEntity.ok(isVerified);
-        }catch(UserNotFoundException userNotFoundException){
-            userNotFoundException.printStackTrace();
-            return ResponseEntity.notFound().build();
-        }
+    @GetMapping("/verified")
+    public ResponseEntity<ApiResponse<Boolean>> getEmailVerified(
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        boolean isVerified = userService.getEmailVerified(userDetails.getId());
+        return ResponseEntity.ok(
+                ApiResponse.success("Получен статус проверки", isVerified)
+        );
+    }
+    @PostMapping("/lastName")
+    public ResponseEntity<ApiResponse<String>> updateLastName(
+            @Valid @RequestBody UpdateLastNameRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        userService.updateLastName(userDetails.getId(), request.getLastName());
+        return ResponseEntity.ok(ApiResponse.success("Фамилия успешно обновлена", null));
     }
 
-    private ResponseEntity<List<String>> buildValidationErrorResponse(BindingResult bindingResult) {
-        List<String> errors = bindingResult.getFieldErrors()
-                .stream()
-                .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
-                .collect(Collectors.toList());
-        return ResponseEntity.badRequest().body(errors);
+    //TODO спросить по поводу копипасты bindingResult(вынести в private,AOP,Controller Advice)
+
+    @PostMapping("/username")
+    public ResponseEntity<ApiResponse<Map<String, String>>> updateUsername(
+            @Valid @RequestBody UpdateUsernameRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        String token = userService.updateUsername(userDetails.getId(), request.getUsername());
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Никнейм успешно обновлен",
+                        Map.of("token", token)
+                )
+        );
     }
-    // Другие методы контроллера (например, для аутентификации, обновления, удаления)
+
 }

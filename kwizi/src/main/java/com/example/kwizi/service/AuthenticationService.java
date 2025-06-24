@@ -38,15 +38,17 @@ public class AuthenticationService {
 
     public void sendVerificationEmail(Long id) { // Используем id (из auth-service)
         // 1. Получить email пользователя из user-service
-        User user1 = authenticationRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException(id));
-        String email = user1.getEmail();
+        User user = authenticationRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
 
+        if (user.isEmail_verified()) {
+            throw new IllegalArgumentException("Email уже подтвержден");
+        }
         // 3. Сгенерировать JWT токен
-        String verificationToken = jwtEmailVerify.generateVerificationToken(user1.getId());
+        String verificationToken = jwtEmailVerify.generateVerificationToken(user.getId());
 
         // 4. Отправить письмо с подтверждением email
-        emailService.sendVerificationEmail(email, verificationToken);
+        emailService.sendVerificationEmail(user.getEmail(), verificationToken);
     }
 
     public void verifyEmail(String token) {
@@ -75,12 +77,11 @@ public class AuthenticationService {
 
     public void verifyUserEmail(Long id){
         User user = authenticationRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException(id));
+                .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
         user.setEmail_verified(true);
         authenticationRepository.save(user);
 
     }
-
 
 
 
