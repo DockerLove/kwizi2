@@ -7,6 +7,7 @@ import com.example.kwizi.repository.UserRepository;
 import com.example.kwizi.security.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
@@ -22,6 +23,7 @@ public class UserService {
         this.jwtUtils = jwtUtils;
     }
 
+    @Transactional
     public void verifyUserEmail(Long id){
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));

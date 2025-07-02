@@ -35,7 +35,7 @@ public class AuthenticationService {
         this.authenticationRepository = authenticationRepository;
         this.passwordEncoder = passwordEncoder;
     }
-
+    @Transactional
     public void sendVerificationEmail(Long id) { // Используем id (из auth-service)
         // 1. Получить email пользователя из user-service
         User user = authenticationRepository.findById(id)
@@ -48,7 +48,7 @@ public class AuthenticationService {
         String verificationToken = jwtEmailVerify.generateVerificationToken(user.getId());
 
         // 4. Отправить письмо с подтверждением email
-        emailService.sendVerificationEmail(user.getEmail(), verificationToken);
+        emailService.sendVerificationEmailAsync(user.getEmail(), verificationToken);
     }
 
     public void verifyEmail(String token) {

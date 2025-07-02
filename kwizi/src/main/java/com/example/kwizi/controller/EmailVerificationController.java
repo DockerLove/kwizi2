@@ -24,7 +24,7 @@ public class EmailVerificationController {
             authenticationService.verifyEmail(token);
             return ResponseEntity.ok()
                     .contentType(MediaType.TEXT_HTML)
-                    .body("Email успешно подтвержден!");
+                    .body("Email успешно подтвержден! Можете закрыть эту страницу.");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .contentType(MediaType.TEXT_HTML)
