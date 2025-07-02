@@ -6,16 +6,14 @@ public class UserProfileResponse {
     private String username;
     private String bio;
     private String email;
-    private String phoneNumber;
 
-    public UserProfileResponse(Long id, String firstName, String lastName, String username, String bio, String email, String phoneNumber) {
+    public UserProfileResponse(Long id, String firstName, String lastName, String username, String bio, String email) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
         this.username = username;
         this.bio = bio;
         this.email = email;
-        this.phoneNumber = phoneNumber;
     }
 
     public Long getId() {
@@ -66,11 +64,4 @@ public class UserProfileResponse {
         this.email = email;
     }
 
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
 }

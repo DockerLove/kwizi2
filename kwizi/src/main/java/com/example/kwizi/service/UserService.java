@@ -79,8 +79,7 @@ public class UserService {
                 user.getLastName(),
                 user.getUsername(),
                 user.getBio(),
-                user.getEmail(),
-                user.getPhoneNumber()
+                user.getEmail()
         );
     }
 

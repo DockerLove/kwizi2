@@ -135,4 +135,8 @@ public class AuthenticationService {
         return authenticationRepository.findAll();
     }
     // Другие методы сервиса (например, для аутентификации, обновления, удаления)
+
+    public Optional<User> findByEmail(String email){
+        return authenticationRepository.findByEmail(email);
+    }
 }

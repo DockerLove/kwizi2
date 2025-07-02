@@ -26,23 +26,12 @@ public class RegistrationRequest {
 
     private String bio;
 
-    @Size(min = 2,max = 30, message = "Введите номер телефона")
-    private String phoneNumber;
-
     public String getBio() {
         return bio;
     }
 
     public void setBio(String bio) {
         this.bio = bio;
-    }
-
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
     }
 
     public String getUsername() {

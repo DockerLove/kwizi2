@@ -42,11 +42,6 @@ public class User {
     @Column(name = "bio")
     private String bio;
 
-    @Column(name = "phone_number")
-    private String phoneNumber;
-
-    @Column(name = "phone_verified")
-    private boolean phoneVerified;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
@@ -136,11 +131,4 @@ public class User {
         this.updatedAt = updatedAt;
     }
 
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
 }
