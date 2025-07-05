@@ -8,8 +8,7 @@ import lombok.Data;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "users") // Указываем имя таблицы в базе данных
-@Data // Lombok: генерирует геттеры, сеттеры, toString, equals, hashCode
+@Table(name = "users")
 public class User {
 
     @Id

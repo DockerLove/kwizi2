@@ -1,8 +1,15 @@
 package com.example.kwizi.controller; // Замените на ваш пакет
 
 import com.example.kwizi.DTO.request.RegistrationRequest;
+import com.example.kwizi.exception.JwtAuthenticationException;
+import com.example.kwizi.model.RevokedToken;
+import com.example.kwizi.model.User;
+import com.example.kwizi.repository.RevokedTokenRepository;
 import com.example.kwizi.security.JwtUtils;
+import com.example.kwizi.service.AuthenticationService;
 import com.example.kwizi.service.RegistrationService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.validation.BindingResult;
@@ -20,7 +28,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.security.Principal;
+import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -29,17 +40,24 @@ public class AuthenticationController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthenticationController.class);
     private AuthenticationManager authenticationManager;
+    private AuthenticationService authenticationService;
     private UserDetailsService userDetailsService;
 
     private RegistrationService registrationService;
     private JwtUtils jwtUtils;
+    private final RevokedTokenRepository revokedTokenRepo;
+
 
     @Autowired
-    public AuthenticationController(AuthenticationManager authenticationManager, UserDetailsService userDetailsService, JwtUtils jwtUtils, RegistrationService registrationService) {
+    public AuthenticationController(AuthenticationManager authenticationManager, UserDetailsService userDetailsService,
+                                    JwtUtils jwtUtils, RegistrationService registrationService,
+                                    RevokedTokenRepository revokedTokenRepo,AuthenticationService authenticationService) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtUtils = jwtUtils;
         this.registrationService = registrationService;
+        this.revokedTokenRepo = revokedTokenRepo;
+        this.authenticationService = authenticationService;
     }
 
     @PostMapping("/register")
@@ -69,6 +87,37 @@ public class AuthenticationController {
         }
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request, @AuthenticationPrincipal Principal principal) {
+        // 1. Извлекаем токен
+        String token = jwtUtils.extractToken(request);
+        if (token == null) {
+            throw new JwtAuthenticationException("Токен отсутствует");
+        }
+
+        // 2. Проверяем и добавляем в чёрный список
+        String jti = jwtUtils.extractJti(token);
+        Date expiresAt = jwtUtils.extractExpiration(token);
+        String username = jwtUtils.getUsernameFromToken(token);
+        Optional<User> user = authenticationService.findByUsername(username);
+
+        if (user.isEmpty()) {
+            throw new JwtAuthenticationException("Пользователь не найден");
+        }
+
+        // Создаем RevokedToken с userId
+        RevokedToken revokedToken = new RevokedToken(
+                jti,
+                user.get().getId(),  // Long userId
+                expiresAt,
+                username
+        );
+
+        revokedTokenRepo.save(revokedToken);
+
+        // 3. Возвращаем успешный ответ
+        return ResponseEntity.noContent().build();
+    }
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthenticationRequest authenticationRequest) {
         logger.info("Received authentication request for user: {}", authenticationRequest.getUsername());

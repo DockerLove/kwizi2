@@ -71,12 +71,6 @@ public class UserController {
     }
 
 
-    @GetMapping
-    public ResponseEntity<List<User>> getAllUsers(){
-        List<User> users = authenticationService.findAll();
-        return new ResponseEntity<>(users, HttpStatus.OK);
-    }
-
     @PatchMapping("/verify-email")
     public ResponseEntity<ApiResponse<String>> verifyUserEmail(
             @AuthenticationPrincipal UserDetailsImpl userDetails) {

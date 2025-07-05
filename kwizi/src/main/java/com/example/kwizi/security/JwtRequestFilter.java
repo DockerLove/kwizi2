@@ -1,5 +1,7 @@
 package com.example.kwizi.security;
 
+import com.example.kwizi.exception.JwtAuthenticationException;
+import com.example.kwizi.repository.RevokedTokenRepository;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -29,46 +31,52 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
     private JwtUtils jwtUtils;
 
+    private final RevokedTokenRepository revokedTokenRepo; // Добавляем
+
     @Autowired
-    public JwtRequestFilter(UserDetailsService userDetailsService, JwtUtils jwtUtils){
+    public JwtRequestFilter(UserDetailsService userDetailsService,
+                            JwtUtils jwtUtils,
+                            RevokedTokenRepository revokedTokenRepo) {
         this.userDetailsService = userDetailsService;
         this.jwtUtils = jwtUtils;
+        this.revokedTokenRepo = revokedTokenRepo;
     }
 
+
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain chain)
             throws ServletException, IOException {
 
         final String authorizationHeader = request.getHeader("Authorization");
 
-        String username = null;
-        String jwt = null;
-
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            jwt = authorizationHeader.substring(7);
+            String jwt = authorizationHeader.substring(7);
+
             try {
-                username = jwtUtils.getUsernameFromToken(jwt);
-            } catch (IllegalArgumentException e) {
-                System.out.println("Unable to get JWT Token");
-            } catch (ExpiredJwtException e) {
-                System.out.println("JWT Token has expired");
-            }
-        } else {
-            //  System.out.println("JWT Token does not begin with Bearer String");
-        }
+                // Проверяем, не отозван ли токен
+                String jti = jwtUtils.extractJti(jwt);
+                if (revokedTokenRepo.existsById(jti)) {
+                    throw new JwtAuthenticationException("Токен был отозван");
+                }
 
+                String username = jwtUtils.getUsernameFromToken(jwt);
 
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {//проверка что пользователь не аутентифицирован
+                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-
-            if (jwtUtils.validateToken(jwt, userDetails)) {
-
-                UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                usernamePasswordAuthenticationToken
-                        .setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
+                    if (jwtUtils.validateToken(jwt, userDetails)) {
+                        UsernamePasswordAuthenticationToken authToken =
+                                new UsernamePasswordAuthenticationToken(
+                                        userDetails, null, userDetails.getAuthorities());
+                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                    }
+                }
+            } catch (JwtAuthenticationException e) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+                return;
             }
         }
         chain.doFilter(request, response);

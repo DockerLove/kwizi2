@@ -5,6 +5,7 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -13,6 +14,8 @@ import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+
 @Component
 public class JwtUtils {
 
@@ -55,23 +58,57 @@ public class JwtUtils {
         подпись JWT и, если она действительна, извлекает имя пользователя из claims.*/
     }
 
+
+    // Добавляем метод для извлечения JTI
+    public String extractJti(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.getId(); // Получаем уникальный идентификатор токена
+        } catch (JwtException e) {
+            throw new JwtAuthenticationException("Не удалось извлечь JTI из токена", e);
+        }
+    }
+
+    // Добавляем метод для извлечения срока действия
+    public Date extractExpiration(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.getExpiration();
+        } catch (JwtException e) {
+            throw new JwtAuthenticationException("Не удалось извлечь срок действия токена", e);
+        }
+    }
+
+    // Обновленный метод генерации токена с JTI
     public String generateToken(String username) {
         Map<String, Object> claims = new HashMap<>();
+        String jti = UUID.randomUUID().toString(); // Генерируем уникальный ID
 
         return Jwts.builder()
                 .setClaims(claims)
+                .setId(jti) // Устанавливаем JTI
                 .setSubject(username)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10)) // 10 hours
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10)) // 10 часов
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
-        /*Этот метод генерирует JWT на основе информации о пользователе (UserDetails).
-        Он устанавливает claims (заявления) в JWT (например, имя пользователя),
-        время выдачи и срок действия. Затем он подписывает JWT с помощью секретного ключа
-        и возвращает его в виде строки.*/
     }
 
-
+    public String extractToken(HttpServletRequest request) {
+        final String authorizationHeader = request.getHeader("Authorization");
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7);
+        }
+        return null;
+    }
     public boolean validateToken(String token, UserDetails userDetails) {
         String username = getUsernameFromToken(token);
         return username != null && username.equals(userDetails.getUsername()) && !isTokenExpired(token);

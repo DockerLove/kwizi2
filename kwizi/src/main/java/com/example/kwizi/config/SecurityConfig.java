@@ -49,8 +49,8 @@ public class SecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
-
-
+    // Отключаем CSRF для API, так как используем JWT в заголовках.
+    // CSRF-атаки не применимы, когда аутентификация не на основе cookie.
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable())
