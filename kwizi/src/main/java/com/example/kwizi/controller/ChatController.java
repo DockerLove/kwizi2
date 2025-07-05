@@ -4,6 +4,7 @@ import com.example.kwizi.DTO.internal.ChatDto;
 import com.example.kwizi.DTO.request.AddChatMemberRequestDto;
 import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
+import com.example.kwizi.DTO.response.ApiResponse;
 import com.example.kwizi.model.User;
 import com.example.kwizi.security.UserDetailsImpl;
 import com.example.kwizi.service.ChatService;
@@ -18,7 +19,7 @@ import java.security.Principal;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/chats")
+@RequestMapping("/api/chats")
 public class ChatController {
 
     private final ChatService chatService;
@@ -30,43 +31,27 @@ public class ChatController {
 
     @PostMapping("/group")
     public ResponseEntity<?> createGroupChat(@Valid @RequestBody CreateGroupChatRequest createChatRequestDto, @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        try {
             chatService.createGroupChat(createChatRequestDto, userDetails.getUsername());
-            return ResponseEntity.ok().build();
-        }catch(IllegalArgumentException ex){
-            return ResponseEntity.badRequest().body(ex.getMessage());
-        }
+            return ResponseEntity.ok(ApiResponse.success("Групповой чат успешно создан",null));
     }
 
     @PostMapping("/private")
     public ResponseEntity<?> createPrivateChat(
             @Valid @RequestBody CreatePrivateChatRequest createPrivateChatRequest,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        try {
-            chatService.createPrivateChat(createPrivateChatRequest, userDetails.getUsername());
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        chatService.createPrivateChat(createPrivateChatRequest, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success("Приватный чат успешно создан",null));
+
     }
     @PostMapping("/{chatId}/members")
     public ResponseEntity<?> addChatMember(
             @PathVariable Long chatId,
             @RequestBody AddChatMemberRequestDto addChatMemberRequestDto
     ) {
-        try {
             addChatMemberRequestDto.setChatId(chatId);
             chatService.addChatMember(addChatMemberRequestDto);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Not Found", "message", e.getMessage())
-            );
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                    Map.of("error", "Conflict", "message", e.getMessage())
-            );
-        }
+            return ResponseEntity.ok(
+                    ApiResponse.success("Пользователь успешно добавлен в чат", null));
     }
 
     @PutMapping("/{chatId}/members/{userId}/admin")
@@ -74,13 +59,9 @@ public class ChatController {
             @PathVariable Long chatId,
             @PathVariable Long userId,
             @AuthenticationPrincipal UserDetailsImpl currentUser) {
-
-        try {
             chatService.setAdmin(chatId, userId, currentUser.getId());
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+            return ResponseEntity.ok(ApiResponse.success("Пользователь успешно назначен админом",null));
+
     }
 
     // Controller
@@ -90,11 +71,8 @@ public class ChatController {
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetailsImpl currentUser) {
 
-        try {
             chatService.removeChatMember(chatId, id, currentUser.getId());
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+            return ResponseEntity.ok(ApiResponse.success("Пользователь удален из чата",null));
+
     }
 }

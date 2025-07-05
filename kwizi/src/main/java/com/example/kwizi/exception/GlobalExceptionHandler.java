@@ -1,6 +1,7 @@
 package com.example.kwizi.exception;
 
 import com.example.kwizi.DTO.response.ApiResponse;
+import com.example.kwizi.controller.ChatController;
 import com.example.kwizi.controller.UserController;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,8 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@RestControllerAdvice(assignableTypes = UserController.class)
-public class GlobalExceptionHandler {
+@RestControllerAdvice(assignableTypes = {UserController.class, ChatController.class})public class GlobalExceptionHandler {
 
     // Обработка ошибок валидации (@Valid)
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -56,5 +56,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<?>> handleRateLimitError(RateLimitExceededException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .body(ApiResponse.error(ex.getMessage(), null));
+    }
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<?>> handleIllegalState(IllegalStateException ex){
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage(), null));
     }
 }

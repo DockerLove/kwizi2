@@ -3,6 +3,7 @@ package com.example.kwizi.service;
 import com.example.kwizi.DTO.request.AddChatMemberRequestDto;
 import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
+import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.Chat;
 import com.example.kwizi.model.ChatMember;
 import com.example.kwizi.model.ChatMember.ChatMemberId;
@@ -40,7 +41,7 @@ public class ChatService {
         if (uniqueUserIds.size() < createChatRequestDto.getInitialMemberIds().size()) {
             throw new IllegalArgumentException("Список участников содержит дубликаты");
         }
-        User creator = userRepository.findByUsername(creatorUsername).orElseThrow(() -> new IllegalArgumentException("Создатель чата не найден"));
+        User creator = userRepository.findByUsername(creatorUsername).orElseThrow(() -> new UserNotFoundException("Создатель чата не найден"));
 
         // Проверяем, что создатель не добавлен в список участников (он добавляется отдельно)
         if (uniqueUserIds.contains(creator.getId())) {
@@ -57,7 +58,7 @@ public class ChatService {
         chatMemberRepository.save(chatMemberCreator);
 
         for (Long userId : createChatRequestDto.getInitialMemberIds()) {
-            User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+            User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
             ChatMember chatMember = new ChatMember(chat, user);
             chatMember.setIsAdmin(false);
             chatMemberRepository.save(chatMember);
@@ -68,11 +69,11 @@ public class ChatService {
     public void createPrivateChat(CreatePrivateChatRequest createPrivateChatRequest, String creatorUsername) {
         // 1. Получаем информацию об отправителе
         User creator = userRepository.findByUsername(creatorUsername)
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь с username " + creatorUsername + " не найден"));
+                .orElseThrow(() -> new UserNotFoundException("Пользователь с username " + creatorUsername + " не найден"));
 
         // 2. Получаем информацию о получателе
         User recipient = userRepository.findByUsername(createPrivateChatRequest.getRecipientUsername())
-                .orElseThrow(() -> new IllegalArgumentException("Получатель с username " + createPrivateChatRequest.getRecipientUsername() + " не найден"));
+                .orElseThrow(() -> new UserNotFoundException("Получатель с username " + createPrivateChatRequest.getRecipientUsername() + " не найден"));
 
         if (creator.getId().equals(recipient.getId())) {
             throw new IllegalArgumentException("Нельзя создать приватный чат с самим собой");
@@ -103,13 +104,13 @@ public class ChatService {
 
         // 1. Проверяем существование чата и пользователя
         Chat chat = chatRepository.findById(chatId)
-                .orElseThrow(() -> new IllegalArgumentException("Chat not found"));
+                .orElseThrow(() -> new UserNotFoundException("Чат не найден"));
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
 
         // 2. Явная проверка на участие в чате
         if (chatMemberRepository.existsByChatIdAndUserId(chatId, userId)) {
-            throw new IllegalStateException("User " + userId + " is already a member of chat " + chatId);
+            throw new IllegalStateException("Пользователь " + userId + " уже находится в чате " + chatId);
         }
 
         // 3. Создаем новую запись
@@ -121,9 +122,9 @@ public class ChatService {
 
     @Transactional
     public void setAdmin(Long chatId, Long userId, Long requestingUserId) {
-        Chat chat = chatRepository.findById(chatId)
-                .orElseThrow(() -> new IllegalArgumentException("Чат не найден"));
 
+        Chat chat = chatRepository.findById(chatId)
+                .orElseThrow(() -> new UserNotFoundException("Чат не найден"));
         // Проверка, что чат групповой
         if (!chat.getGroup()) {
             throw new IllegalArgumentException("Приватные чаты не поддерживают администрирование");
@@ -139,7 +140,7 @@ public class ChatService {
 
         // Назначение админа
         ChatMember memberToPromote = chatMemberRepository.findByChatIdAndUserId(chatId, userId)
-                .orElseThrow(() -> new IllegalArgumentException("Участник не найден"));
+                .orElseThrow(() -> new UserNotFoundException("Участник не найден"));
 
         memberToPromote.setIsAdmin(true);
         chatMemberRepository.save(memberToPromote);
@@ -147,7 +148,7 @@ public class ChatService {
 
     @Transactional
     public void removeChatMember(Long chatId, Long id, Long requestingUserId) {
-        Chat chat = chatRepository.findById(chatId).orElseThrow(() -> new IllegalArgumentException("Chat not found"));
+        Chat chat = chatRepository.findById(chatId).orElseThrow(() -> new IllegalArgumentException("Чат не найден"));
         User userToRemove = userRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("User to remove not found"));
         User requestingUser = userRepository.findById(requestingUserId).orElseThrow(() -> new IllegalArgumentException("Requesting user not found"));
 
@@ -161,13 +162,13 @@ public class ChatService {
                 .orElseThrow(() -> new IllegalArgumentException("Запрашивающий пользователь не является участником чата"));
 
         if (!requestingUserChatMember.getIsAdmin()) {
-            throw new IllegalArgumentException("Только админ может назначать других админов");
+            throw new IllegalArgumentException("Только админ может удалять других пользователей");
         }
 
         // Проверяем, существует ли участник чата, которого нужно удалить
         ChatMemberId chatMemberIdToRemove = new ChatMemberId(chatId, id);
         if (!chatMemberRepository.existsById(chatMemberIdToRemove)) {
-            throw new IllegalArgumentException("Участник чата не найден");
+            throw new UserNotFoundException("Участник чата не найден");
         }
 
         chatMemberRepository.deleteById(chatMemberIdToRemove);
