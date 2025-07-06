@@ -63,6 +63,7 @@ public class ChatController {
             return ResponseEntity.ok(ApiResponse.success("Пользователь успешно назначен админом",null));
 
     }
+    //todo посмотреть про Put и Post
 
     // Controller
     @DeleteMapping("/{chatId}/members/{id}")

@@ -1,6 +1,7 @@
 package com.example.kwizi.aop;
 import com.example.kwizi.annotations.RateLimited;
 import com.example.kwizi.exception.RateLimitExceededException;
+import com.example.kwizi.util.TimeUnit;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
@@ -15,7 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-import com.example.kwizi.util.TimeUnit;
 
 import java.lang.reflect.Method;
 import java.time.Duration;

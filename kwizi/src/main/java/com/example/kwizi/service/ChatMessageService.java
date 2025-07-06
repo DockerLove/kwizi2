@@ -83,7 +83,7 @@ public class ChatMessageService implements ChatMessageServiceInterface {
     public List<Message> getChatHistory(Long chatId) {
         // Проверка существования чата
         chatRepository.findById(chatId)
-                .orElseThrow(() -> new IllegalArgumentException("Chat not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Чат не найден"));
 
         return messageRepository.findByChatIdAndIsDeleted(chatId, false);
     }

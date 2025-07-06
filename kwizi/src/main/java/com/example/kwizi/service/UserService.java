@@ -35,6 +35,20 @@ public class UserService {
 
     }
 
+    public String updateUsername(Long userId, String username) {
+        if (userRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("Имя пользователя занято");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
+
+        user.setUsername(username);
+        userRepository.save(user);
+
+        return jwtUtils.generateToken(username);
+    }
+
     public void updateBio(Long id, String bio){
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
@@ -54,20 +68,6 @@ public class UserService {
                 .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
         user.setLastName(lastName);
         userRepository.save(user);
-    }
-
-    public String updateUsername(Long userId, String username) {
-        if (userRepository.existsByUsername(username)) {
-            throw new IllegalArgumentException("Имя пользователя занято");
-        }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
-
-        user.setUsername(username);
-        userRepository.save(user);
-
-        return jwtUtils.generateToken(username);
     }
 
 
@@ -98,4 +98,6 @@ public class UserService {
     public Optional<User> findById(Long id) {
         return userRepository.findById(id);
     }
+
+
 }

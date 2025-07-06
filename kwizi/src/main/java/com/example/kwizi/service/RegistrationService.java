@@ -13,7 +13,6 @@ public class RegistrationService {
     }
 
     public void registerUser(RegistrationRequest registrationRequest) {
-        // 1. Check if username is already taken
         if (authenticationService.findByUsername(registrationRequest.getUsername()).isPresent()) {
             throw new IllegalStateException("Пользователь с таким username уже есть.");
         }
@@ -21,7 +20,6 @@ public class RegistrationService {
             throw new IllegalStateException("Пользователь с таким email уже есть.");
         }
 
-        // 2. Create user in auth service
         User user = new User();
         user.setUsername(registrationRequest.getUsername());
         user.setBio(registrationRequest.getBio());
@@ -30,10 +28,6 @@ public class RegistrationService {
         user.setLastName(registrationRequest.getLastName());
         user.setPassword(registrationRequest.getPassword());
         authenticationService.registerUser(user);
-        // 3. Create user in user-service
     }
 
-    public void deleteUser(User user){
-        authenticationService.delete(user);
-    }
 }
