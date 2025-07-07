@@ -64,8 +64,10 @@ public class ChatMessageService implements ChatMessageServiceInterface {
             Message savedMessage = messageRepository.save(message);
             return savedMessage;
 
+        } catch (IllegalArgumentException e) {
+            throw e; // Пробрасываем IllegalArgumentException дальше
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to send message", e);
         }
     }
 
