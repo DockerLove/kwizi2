@@ -9,6 +9,8 @@ import com.example.kwizi.model.User;
 import com.example.kwizi.security.UserDetailsImpl;
 import com.example.kwizi.service.ChatService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +25,8 @@ import java.util.Map;
 public class ChatController {
 
     private final ChatService chatService;
+    private static final Logger logger = LoggerFactory.getLogger(ChatController.class);
+
 
     @Autowired
     public ChatController(ChatService chatService) {
@@ -30,28 +34,38 @@ public class ChatController {
     }
 
     @PostMapping("/group")
-    public ResponseEntity<?> createGroupChat(@Valid @RequestBody CreateGroupChatRequest createChatRequestDto, @AuthenticationPrincipal UserDetailsImpl userDetails) {
-            chatService.createGroupChat(createChatRequestDto, userDetails.getUsername());
-            return ResponseEntity.ok(ApiResponse.success("Групповой чат успешно создан",null));
+    public ResponseEntity<?> createGroupChat(
+            @Valid @RequestBody CreateGroupChatRequest createChatRequestDto,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        String username = userDetails.getUsername();
+        logger.info("Запрос на создание группового чата. Инициатор: {}, название чата: {}", username, createChatRequestDto.getGroupName());
+        chatService.createGroupChat(createChatRequestDto, username);
+        logger.info("Групповой чат успешно создан. Название чата: {}, Инициатор: {}", createChatRequestDto.getGroupName(), username);
+        return ResponseEntity.ok(ApiResponse.success("Групповой чат успешно создан", null));
     }
 
     @PostMapping("/private")
     public ResponseEntity<?> createPrivateChat(
             @Valid @RequestBody CreatePrivateChatRequest createPrivateChatRequest,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        chatService.createPrivateChat(createPrivateChatRequest, userDetails.getUsername());
-        return ResponseEntity.ok(ApiResponse.success("Приватный чат успешно создан",null));
-
+        String username = userDetails.getUsername();
+        logger.info("Запрос на создание приватного чата. Инициатор: {}, получатель: {}", username, createPrivateChatRequest.getRecipientUsername());
+        chatService.createPrivateChat(createPrivateChatRequest, username);
+        logger.info("Приватный чат успешно создан. Инициатор: {}, получатель: {}", username, createPrivateChatRequest.getRecipientUsername());
+        return ResponseEntity.ok(ApiResponse.success("Приватный чат успешно создан", null));
     }
+
     @PostMapping("/{chatId}/members")
     public ResponseEntity<?> addChatMember(
             @PathVariable Long chatId,
             @RequestBody AddChatMemberRequestDto addChatMemberRequestDto
     ) {
-            addChatMemberRequestDto.setChatId(chatId);
-            chatService.addChatMember(addChatMemberRequestDto);
-            return ResponseEntity.ok(
-                    ApiResponse.success("Пользователь успешно добавлен в чат", null));
+        logger.info("Запрос на добавление участника в чат. ID чата: {}, ID пользователя для добавления: {}", chatId, addChatMemberRequestDto.getUserId());
+        addChatMemberRequestDto.setChatId(chatId);
+        chatService.addChatMember(addChatMemberRequestDto);
+        logger.info("Пользователь добавлен в чат. ID чата: {}, ID добавленного пользователя: {}", chatId, addChatMemberRequestDto.getUserId());
+        return ResponseEntity.ok(
+                ApiResponse.success("Пользователь успешно добавлен в чат", null));
     }
 
     @PutMapping("/{chatId}/members/{userId}/admin")
@@ -59,9 +73,11 @@ public class ChatController {
             @PathVariable Long chatId,
             @PathVariable Long userId,
             @AuthenticationPrincipal UserDetailsImpl currentUser) {
-            chatService.setAdmin(chatId, userId, currentUser.getId());
-            return ResponseEntity.ok(ApiResponse.success("Пользователь успешно назначен админом",null));
-
+        Long currentUserId = currentUser.getId();
+        logger.info("Запрос на назначение пользователя админом. ID чата: {}, ID пользователя: {}, инициатор: {}", chatId, userId, currentUserId);
+        chatService.setAdmin(chatId, userId, currentUserId);
+        logger.info("Пользователь успешно назначен админом. ID чата: {}, ID пользователя: {}, инициатор: {}", chatId, userId, currentUserId);
+        return ResponseEntity.ok(ApiResponse.success("Пользователь успешно назначен админом", null));
     }
     //todo посмотреть про Put и Post
 
@@ -71,9 +87,10 @@ public class ChatController {
             @PathVariable Long chatId,
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetailsImpl currentUser) {
-
-            chatService.removeChatMember(chatId, id, currentUser.getId());
-            return ResponseEntity.ok(ApiResponse.success("Пользователь удален из чата",null));
-
+        Long currentUserId = currentUser.getId();
+        logger.info("Запрос на удаление участника из чата. ID чата: {}, ID удаляемого пользователя: {}, инициатор: {}", chatId, id, currentUserId);
+        chatService.removeChatMember(chatId, id, currentUserId);
+        logger.info("Пользователь удален из чата. ID чата: {}, ID удаленного пользователя: {}, инициатор: {}", chatId, id, currentUserId);
+        return ResponseEntity.ok(ApiResponse.success("Пользователь удален из чата", null));
     }
 }

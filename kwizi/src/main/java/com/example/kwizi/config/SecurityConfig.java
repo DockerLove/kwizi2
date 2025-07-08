@@ -1,6 +1,8 @@
 package com.example.kwizi.config;
 
 import com.example.kwizi.security.JwtRequestFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +27,7 @@ public class SecurityConfig {
 Он настраивает AuthenticationManager для аутентификации пользователей.
 Он указывает, что приложение должно использовать STATELESS сессии (т.е., не использовать сессии на стороне сервера).*/
 
+    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
     private UserDetailsService userDetailsService;
 
 
@@ -42,17 +45,22 @@ public class SecurityConfig {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
+        logger.info("AuthenticationProvider configured with UserDetailsService and PasswordEncoder"); // Логируем конфигурацию
+
         return authProvider;
     }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
+        AuthenticationManager authenticationManager = config.getAuthenticationManager();
+        logger.info("AuthenticationManager configured successfully"); // Логируем инициализацию
+        return authenticationManager;
     }
     // Отключаем CSRF для API, так как используем JWT в заголовках.
     // CSRF-атаки не применимы, когда аутентификация не на основе cookie.
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        logger.info("Building SecurityFilterChain"); // Логируем начало построения
         http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login").permitAll()
@@ -65,12 +73,15 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
+        logger.info("SecurityFilterChain built successfully"); // Логируем успешное построение
         return http.build();
     }
 
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+        logger.info("PasswordEncoder (BCryptPasswordEncoder) configured"); // Логируем конфигурацию
+        return passwordEncoder;
     }
 }

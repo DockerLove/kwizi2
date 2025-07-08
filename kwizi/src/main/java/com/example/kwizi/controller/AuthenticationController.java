@@ -65,56 +65,71 @@ public class AuthenticationController {
             @Valid @RequestBody RegistrationRequest registrationRequest,
             BindingResult bindingResult
     ) {
+        logger.info("Received registration request for username: {}", registrationRequest.getUsername()); // Логируем начало обработки запроса
+
         // 1. Валидация входных данных
         if (bindingResult.hasErrors()) {
             List<String> errors = bindingResult.getFieldErrors()
                     .stream()
                     .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
                     .collect(Collectors.toList());
+            logger.warn("Registration validation failed for username {}. Errors: {}", registrationRequest.getUsername(), errors); // Логируем ошибку валидации
             return ResponseEntity.badRequest().body(errors);
         }
 
         // 2. Регистрация пользователя
         try {
             registrationService.registerUser(registrationRequest);
+            logger.info("User registered successfully: {}", registrationRequest.getUsername()); // Логируем успешную регистрацию
             return new ResponseEntity<>(HttpStatus.CREATED); // Успешное создание пользователя
         } catch (IllegalStateException e) {
-            // Обработка исключения, если username уже занят
+            logger.warn("Registration failed: username already exists: {}", registrationRequest.getUsername()); // Логируем ошибку, username занят
             return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT); // 409 Conflict
         } catch (Exception e) {
-            // Обработка других исключений (логирование, и т.д.)
+            logger.error("Error during user registration for username {}", registrationRequest.getUsername(), e); // Логируем другие ошибки
             return new ResponseEntity<>("Произошла ошибка при регистрации пользователя", HttpStatus.INTERNAL_SERVER_ERROR); // 500 Internal Server Error
         }
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(HttpServletRequest request, @AuthenticationPrincipal Principal principal) {
-        // 1. Извлекаем токен
-        String token = jwtUtils.extractToken(request);
-        if (token == null) {
-            throw new JwtAuthenticationException("Токен отсутствует");
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        String username = null;
+        try { //  Добавил try-catch чтобы  логировать в случае если что-то пойдет не так
+            // 1. Извлекаем токен
+            String token = jwtUtils.extractToken(request);
+            if (token == null) {
+                throw new JwtAuthenticationException("Токен отсутствует");
+            }
+
+            // 2. Проверяем и добавляем в чёрный список
+            String jti = jwtUtils.extractJti(token);
+            Date expiresAt = jwtUtils.extractExpiration(token);
+            username = jwtUtils.getUsernameFromToken(token);
+            Optional<User> user = authenticationService.findByUsername(username);
+
+            if (user.isEmpty()) {
+                throw new JwtAuthenticationException("Пользователь не найден");
+            }
+
+            // Создаем RevokedToken с userId
+            RevokedToken revokedToken = new RevokedToken(
+                    jti,
+                    user.get().getId(),  // Long userId
+                    expiresAt,
+                    username
+            );
+
+            revokedTokenRepo.save(revokedToken);
+            logger.info("User {} successfully logged out", username);
+        } catch (JwtAuthenticationException e) {
+            logger.warn("Logout failed: {}", e.getMessage()); // Логируем ошибки, связанные с JWT
+            if (username != null) { // если username был получен, логируем его для лучшей отладки
+                logger.warn("Logout failed for user {}: {}", username, e.getMessage());
+            }
+
+        } catch (Exception e) {
+            logger.error("Error during logout", e); // Логируем другие ошибки
         }
-
-        // 2. Проверяем и добавляем в чёрный список
-        String jti = jwtUtils.extractJti(token);
-        Date expiresAt = jwtUtils.extractExpiration(token);
-        String username = jwtUtils.getUsernameFromToken(token);
-        Optional<User> user = authenticationService.findByUsername(username);
-
-        if (user.isEmpty()) {
-            throw new JwtAuthenticationException("Пользователь не найден");
-        }
-
-        // Создаем RevokedToken с userId
-        RevokedToken revokedToken = new RevokedToken(
-                jti,
-                user.get().getId(),  // Long userId
-                expiresAt,
-                username
-        );
-
-        revokedTokenRepo.save(revokedToken);
-
         // 3. Возвращаем успешный ответ
         return ResponseEntity.noContent().build();
     }

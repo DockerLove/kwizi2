@@ -12,6 +12,8 @@ import com.example.kwizi.service.AuthenticationService;
 import com.example.kwizi.service.UserService;
 import com.example.kwizi.util.TimeUnit;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +28,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/user")
 public class UserController {
-
     private AuthenticationService authenticationService;
 
     private UserService userService;

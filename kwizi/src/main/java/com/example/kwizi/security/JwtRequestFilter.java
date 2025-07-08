@@ -3,10 +3,15 @@ package com.example.kwizi.security;
 import com.example.kwizi.exception.JwtAuthenticationException;
 import com.example.kwizi.repository.RevokedTokenRepository;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,17 +26,11 @@ import java.io.IOException;
 @Component
 public class JwtRequestFilter extends OncePerRequestFilter {
 
-/*Этот фильтр перехватывает все входящие HTTP-запросы.
-Он проверяет наличие заголовка Authorization в запросе.
-Если заголовок присутствует и начинается с Bearer , он извлекает JWT из заголовка.
-Он использует JwtUtils для проверки JWT.
-Если JWT валиден, он извлекает имя пользователя из JWT и создает объект UsernamePasswordAuthenticationToken.
-Он устанавливает этот объект в SecurityContextHolder, чтобы Spring Security знал, что пользователь аутентифицирован.*/
-    private UserDetailsService userDetailsService;
+    private static final Logger logger = LoggerFactory.getLogger(JwtRequestFilter.class);
 
-    private JwtUtils jwtUtils;
-
-    private final RevokedTokenRepository revokedTokenRepo; // Добавляем
+    private final UserDetailsService userDetailsService;
+    private final JwtUtils jwtUtils;
+    private final RevokedTokenRepository revokedTokenRepo;
 
     @Autowired
     public JwtRequestFilter(UserDetailsService userDetailsService,
@@ -41,7 +40,6 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         this.jwtUtils = jwtUtils;
         this.revokedTokenRepo = revokedTokenRepo;
     }
-
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -53,29 +51,56 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             String jwt = authorizationHeader.substring(7);
+            logger.debug("Получен JWT из заголовка: {}", jwt); // Логируем получение JWT
 
             try {
                 // Проверяем, не отозван ли токен
                 String jti = jwtUtils.extractJti(jwt);
                 if (revokedTokenRepo.existsById(jti)) {
+                    logger.warn("Токен отозван: {}", jti);
                     throw new JwtAuthenticationException("Токен был отозван");
                 }
 
                 String username = jwtUtils.getUsernameFromToken(jwt);
+                logger.debug("Извлечено имя пользователя из JWT: {}", username); // Логируем извлеченное имя пользователя
 
                 if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-
+                    logger.debug("Загружены детали пользователя для: {}", username); // Логируем загрузку деталей пользователя
                     if (jwtUtils.validateToken(jwt, userDetails)) {
                         UsernamePasswordAuthenticationToken authToken =
                                 new UsernamePasswordAuthenticationToken(
                                         userDetails, null, userDetails.getAuthorities());
                         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authToken);
+                        logger.info("Пользователь {} аутентифицирован с помощью JWT", username); // Логируем успешную аутентификацию
+                    } else {
+                        logger.warn("Не удалось проверить JWT для пользователя: {}", username); // Логируем невалидный токен
                     }
                 }
+            } catch (ExpiredJwtException e) {
+                logger.warn("JWT истек: {}", e.getMessage());
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "JWT has expired");
+                return;
+            } catch (UnsupportedJwtException e) {
+                logger.warn("Неподдерживаемый JWT: {}", e.getMessage());
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unsupported JWT");
+                return;
+            } catch (MalformedJwtException e) {
+                logger.warn("Неверный формат JWT: {}", e.getMessage());
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT format");
+                return;
+            } catch (SignatureException e) {
+                logger.warn("Неверная подпись JWT: {}", e.getMessage());
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT signature");
+                return;
             } catch (JwtAuthenticationException e) {
+                logger.warn("Ошибка аутентификации JWT: {}", e.getMessage());
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+                return;
+            } catch (Exception e) {
+                logger.error("Ошибка при обработке JWT", e);
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication failed");
                 return;
             }
         }
@@ -84,6 +109,6 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        return request.getServletPath().equals("/api/auth/login"); // Не фильтруем /api/users/authenticate
+        return request.getServletPath().equals("/api/auth/login"); // Не фильтруем /api/auth/login
     }
 }
