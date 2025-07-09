@@ -17,6 +17,7 @@ public class UserDetailsImpl implements UserDetails {
         this.user = user;
     }
 
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         //  В данном примере у нас нет ролей, поэтому возвращаем пустую коллекцию.

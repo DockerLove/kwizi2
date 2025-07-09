@@ -195,9 +195,15 @@
 				<configuration>
 					<excludes>
 						<!-- Исключаем DTO, конфиги и т.п. -->
-						<exclude>**/dto/**</exclude>
+						<exclude>**/DTO/request/*</exclude>
+						<exclude>**/DTO/internal/*</exclude>
+						<exclude>com/example/kwizi/DTO/response/UserProfileResponse.class</exclude>
+						<exclude>com/example/kwizi/controller/AuthenticationRequest.class</exclude>
+						<exclude>com/example/kwizi/controller/AuthenticationResponse.class</exclude>
 						<exclude>**/config/**</exclude>
 						<exclude>**/exception/**</exclude>
+						<exclude>**/model/**</exclude>
+						<exclude>**/enums/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

@@ -265,7 +265,7 @@ class ChatMessageServiceTest {
             chatMessageService.sendMessage(messageDto, userId);
         });
 
-        assertEquals("User not found", exception.getMessage());
+        assertEquals("Пользователь не найден", exception.getMessage());
     }
 
     @Test
@@ -287,7 +287,28 @@ class ChatMessageServiceTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             chatMessageService.sendMessage(messageDto, senderId);
         });
-        assertEquals("Chat not found", exception.getMessage());
+        assertEquals("Чат не найден", exception.getMessage());
+    }
+
+    @Test
+    void sendMessage_ShouldThrowRuntimeException_WhenExceptionOccurs() {
+        // Arrange
+        MessageDto messageDto = new MessageDto();
+        messageDto.setChatId(1L);
+        messageDto.setText("Test message");
+        Long senderId = 2L;
+
+        when(chatRepository.findById(messageDto.getChatId())).thenThrow(new RuntimeException("Database error"));
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            chatMessageService.sendMessage(messageDto, senderId);
+        });
+        assertEquals("Database error", exception.getCause().getMessage());
+
+        verify(chatRepository).findById(messageDto.getChatId());
+        verify(userRepository, never()).findById(any());
+        verify(messageRepository, never()).save(any(Message.class));
     }
 
 

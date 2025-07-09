@@ -1,5 +1,4 @@
-package com.example.kwizi.Dto.response;
-import com.example.kwizi.DTO.response.ApiResponse;
+package com.example.kwizi.DTO.response;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
