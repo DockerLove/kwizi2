@@ -200,6 +200,7 @@
 						<exclude>com/example/kwizi/DTO/response/UserProfileResponse.class</exclude>
 						<exclude>com/example/kwizi/controller/AuthenticationRequest.class</exclude>
 						<exclude>com/example/kwizi/controller/AuthenticationResponse.class</exclude>
+						<exclude>com/example/kwizi/security/UserDetailsImpl.class</exclude>
 						<exclude>**/config/**</exclude>
 						<exclude>**/exception/**</exclude>
 						<exclude>**/model/**</exclude>
