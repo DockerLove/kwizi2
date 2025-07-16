@@ -50,11 +50,6 @@ public class ChatMessageService implements ChatMessageServiceInterface {
             Long chatId = messageDto.getChatId();
             Chat chat = chatRepository.findById(chatId).orElse(null);
             if (chat == null) {
-                User creator = userRepository.findById(senderId)
-                        .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден"));
-                chat = getOrCreateChat(chatId, creator); // Передаем пользователя, создающего чат
-            }
-            if (chat == null) {
                 throw new IllegalArgumentException("Чат не найден");
             }
 
@@ -72,7 +67,7 @@ public class ChatMessageService implements ChatMessageServiceInterface {
             return savedMessage;
 
         }catch (IllegalArgumentException ex){
-            throw ex;
+            throw new IllegalArgumentException(ex.getMessage());
         } catch (Exception e) {
             logger.error("Ошибка при отправке сообщения. ID отправителя: {}, сообщение: {}", senderId, messageDto.getText(), e);
             throw new RuntimeException(e);
