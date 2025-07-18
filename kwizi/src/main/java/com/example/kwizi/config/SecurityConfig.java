@@ -63,10 +63,12 @@ public class SecurityConfig {
         logger.info("Building SecurityFilterChain"); // Логируем начало построения
         http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/kafka/**").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/register").permitAll()
                         .requestMatchers("/api/email-verification/verify-email").permitAll()
                         .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("http://localhost:8080/websocket-test.html").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

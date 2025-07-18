@@ -8,24 +8,26 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.WebSocketHandler;
-import org.springframework.web.socket.config.annotation.EnableWebSocket;
-import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
-import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
-
+import org.springframework.web.socket.config.annotation.*;
+import org.springframework.web.socket.messaging.SubProtocolWebSocketHandler;
 @Configuration
-@EnableWebSocket
+@EnableWebSocket // Важно: НЕ @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketConfigurer {
 
-    private final UniversalChatHandler chatHandler;
+    private UniversalChatHandler webSocketHandler;
 
-    public WebSocketConfig(UniversalChatHandler chatHandler) {
-        this.chatHandler = chatHandler;
+    @Autowired
+    public WebSocketConfig(UniversalChatHandler webSocketHandler) {
+        this.webSocketHandler = webSocketHandler;
     }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(chatHandler, "/ws")
+        registry.addHandler(webSocketHandler, "/ws")
                 .setAllowedOrigins("*");
     }
 }

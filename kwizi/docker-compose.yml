@@ -1,32 +1,20 @@
+version: '3.7'
 
 services:
-  app:
-    build: .
+  zookeeper:
+    image: wurstmeister/zookeeper
     ports:
-      - "8080:8080"
+      - "2181:2181"
+    restart: unless-stopped
+
+  kafka:
+    image: wurstmeister/kafka
+    ports:
+      - "9092:9092"  # Пробрасываем порт на localhost
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/monolit_docker_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 50432
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092  # Важно: localhost, а не kafka!
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
     depends_on:
-      postgres:
-        condition: service_healthy
-
-  postgres:
-    image: postgres:15
-    ports:
-      - "5433:5432"
-    environment:
-      POSTGRES_DB: monolit_docker_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 50432
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  postgres_data:
+      - zookeeper
+    restart: unless-stopped
