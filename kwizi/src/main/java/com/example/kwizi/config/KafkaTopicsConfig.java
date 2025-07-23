@@ -6,23 +6,29 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.TopicBuilder;
 
+import java.util.Map;
+
 @Configuration
 public class KafkaTopicsConfig {
 
     @Bean
     public NewTopic privateMessagesTopic() {
         return TopicBuilder.name("private-messages")
-                .partitions(3)
+                .partitions(7)  // Увеличено с 3 до 5
                 .replicas(1)
-                .config(TopicConfig.RETENTION_MS_CONFIG, "604800000") // 7 дней
+                .configs(Map.of(
+                        TopicConfig.RETENTION_MS_CONFIG, "604800000", // 7 дней
+                        TopicConfig.MAX_MESSAGE_BYTES_CONFIG, "1048576" // 1MB
+                ))
                 .build();
     }
 
     @Bean
     public NewTopic groupMessagesTopic() {
         return TopicBuilder.name("group-messages")
-                .partitions(5)
+                .partitions(7)  // Увеличено с 5 до 7
                 .replicas(1)
+                .config(TopicConfig.COMPRESSION_TYPE_CONFIG, "zstd") // Сжатие
                 .build();
     }
 }

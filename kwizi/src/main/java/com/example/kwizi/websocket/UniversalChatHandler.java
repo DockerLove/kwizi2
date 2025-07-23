@@ -51,13 +51,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
         this.userService = userService;
     }
 
-    @Override
-    public void afterConnectionEstablished(WebSocketSession session) {
-        logger.info("CONNECTED: {}", session.getId());
-        Long userId = extractUserIdFromUrl(session);
-        activeSessions.put(userId, session);
-        logger.info("User {} connected", userId);
-    }
+
 
     private Long extractUserIdFromUrl(WebSocketSession session) {
         String query = session.getUri().getQuery(); // "id=2"
@@ -134,6 +128,25 @@ public class UniversalChatHandler extends TextWebSocketHandler {
         }
     }
 
+    @Override
+    public void afterConnectionEstablished(WebSocketSession session) {
+        try {
+            logger.info("CONNECTED: {}", session.getId());
+            Long userId = extractUserIdFromUrl(session);
+            activeSessions.put(userId, session);
+            logger.info("User {} connected", userId);
+            session.setBinaryMessageSizeLimit(1024 * 1024); // 1MB
+            session.setTextMessageSizeLimit(1024 * 1024);
+            activeSessions.put(extractUserIdFromUrl(session), session);
+        } catch (Exception e) {
+            logger.error("Failed to init session: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public void handleTransportError(WebSocketSession session, Throwable exception) {
+        logger.warn("Transport error: {}", exception.getMessage()); // Не закрываем сессию явно!
+    }
     public Map<Long, WebSocketSession> getActiveSessions() {
         return this.activeSessions;
     }

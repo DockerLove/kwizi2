@@ -1,5 +1,7 @@
 package com.example.kwizi.service;
 import com.example.kwizi.DTO.internal.MessageDto;
+import com.example.kwizi.exception.ChatNotFoundException;
+import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.Chat;
 import com.example.kwizi.model.ChatMember;
 import com.example.kwizi.model.Message;
@@ -46,32 +48,22 @@ public class ChatMessageService implements ChatMessageServiceInterface {
     @Transactional
     public Message sendMessage(MessageDto messageDto, Long senderId) {
         logger.info("Запрос на отправку сообщения. ID отправителя: {}, ID чата: {}", senderId, messageDto.getChatId());
-        try {
-            Long chatId = messageDto.getChatId();
-            Chat chat = chatRepository.findById(chatId).orElse(null);
-            if (chat == null) {
-                throw new IllegalArgumentException("Чат не найден");
-            }
-
-            User sender = userRepository.findById(senderId)
-                    .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден"));
-
-            Message message = new Message();
-            message.setChat(chat);
-            message.setSender(sender);
-            message.setText(messageDto.getText());
-            message.setCreatedAt(OffsetDateTime.now());
-
-            Message savedMessage = messageRepository.save(message);
-            logger.info("Сообщение успешно отправлено. ID сообщения: {}, ID чата: {}", savedMessage.getId(), chatId);
-            return savedMessage;
-
-        }catch (IllegalArgumentException ex){
-            throw new IllegalArgumentException(ex.getMessage());
-        } catch (Exception e) {
-            logger.error("Ошибка при отправке сообщения. ID отправителя: {}, сообщение: {}", senderId, messageDto.getText(), e);
-            throw new RuntimeException(e);
+        Long chatId = messageDto.getChatId();
+        Chat chat = chatRepository.findById(chatId).orElse(null);
+        if (chat == null) {
+            throw new ChatNotFoundException("Чат не найден");
         }
+        User sender = userRepository.findById(senderId)
+                .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
+        Message message = new Message();
+        message.setChat(chat);
+        message.setSender(sender);
+        message.setText(messageDto.getText());
+        message.setCreatedAt(OffsetDateTime.now());
+
+        Message savedMessage = messageRepository.save(message);
+        logger.info("Сообщение успешно отправлено. ID сообщения: {}, ID чата: {}", savedMessage.getId(), chatId);
+        return savedMessage;
     }
 
     @Transactional
@@ -106,14 +98,14 @@ public class ChatMessageService implements ChatMessageServiceInterface {
 
         Chat chat;
         User sender = userRepository.findById(senderId)
-                .orElseThrow(() -> new IllegalArgumentException("Отправитель не найден"));
+                .orElseThrow(() -> new UserNotFoundException("Отправитель не найден"));
         User recipient = userRepository.findById(recipientId)
-                .orElseThrow(() -> new IllegalArgumentException("Получатель не найден"));
+                .orElseThrow(() -> new UserNotFoundException("Получатель не найден"));
 
         if (existingChatId.isPresent()) {
             // 2. Если чат существует - получаем его
             chat = chatRepository.findById(existingChatId.get())
-                    .orElseThrow(() -> new IllegalArgumentException("Чат не найден"));
+                    .orElseThrow(() -> new ChatNotFoundException("Чат не найден"));
             logger.debug("Найден существующий чат для личного сообщения. ID чата: {}", chat.getId());
         } else {
             // 3. Если чата нет - создаем новый
