@@ -45,7 +45,7 @@ public class RateLimiterAspect {
         TimeUnit timeUnit = rateLimited.timeUnit();
         long durationMillis = timeUnit.toMillis(rateLimited.duration());
 
-        logger.debug("Rate limit check for method: {}, IP: {}, limit: {}, duration: {}ms", method.getName(), ipAddress, limit, durationMillis);
+        logger.debug("Rat limit check for method: {}, IP: {}, limit: {}, duration: {}ms", method.getName(), ipAddress, limit, durationMillis);
 
         long now = System.currentTimeMillis();
         long lastRequestTime = lastRequestTimestamps.getOrDefault(key, 0L);
