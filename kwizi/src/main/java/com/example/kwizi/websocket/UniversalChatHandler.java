@@ -1,16 +1,5 @@
 package com.example.kwizi.websocket;
 
-import com.example.kwizi.DTO.internal.MessageDto;
-import com.example.kwizi.DTO.request.ChatMessageRequest;
-import com.example.kwizi.DTO.request.GroupMessageRequest;
-import com.example.kwizi.DTO.request.PrivateMessageRequest;
-import com.example.kwizi.DTO.response.WebSocketResponse;
-import com.example.kwizi.enums.MessageType;
-import com.example.kwizi.exception.UserNotFoundException;
-import com.example.kwizi.model.Message;
-import com.example.kwizi.model.User;
-import com.example.kwizi.repository.ChatMemberRepository;
-import com.example.kwizi.service.ChatMessageService;
 import com.example.kwizi.service.UserService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -27,8 +16,6 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;

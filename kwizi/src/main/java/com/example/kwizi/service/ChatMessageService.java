@@ -1,4 +1,5 @@
 package com.example.kwizi.service;
+
 import com.example.kwizi.DTO.internal.MessageDto;
 import com.example.kwizi.exception.ChatNotFoundException;
 import com.example.kwizi.exception.UserNotFoundException;
@@ -10,16 +11,12 @@ import com.example.kwizi.repository.ChatMemberRepository;
 import com.example.kwizi.repository.ChatRepository;
 import com.example.kwizi.repository.MessageRepository;
 import com.example.kwizi.repository.UserRepository;
-import jakarta.persistence.LockModeType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.OffsetDateTime;
 import java.util.List;
