@@ -1,9 +1,8 @@
 package com.example.kwizi.service.consumer;
 
 import com.example.kwizi.DTO.internal.MessageDto;
-import com.example.kwizi.exception.ChatNotFoundException;
 import com.example.kwizi.exception.UserNotFoundException;
-import com.example.kwizi.model.Chat;
+import com.example.kwizi.exception.UserOfflineException;
 import com.example.kwizi.model.Message;
 import com.example.kwizi.service.ChatMessageService;
 import com.example.kwizi.websocket.UniversalChatHandler;
@@ -31,6 +30,10 @@ public class PrivateMessageConsumer extends BaseMessageConsumer{
             JsonNode message = objectMapper.readTree(kafkaMessage);
             senderId = message.get("senderId").asLong();
             Long recipientId = message.get("recipientId").asLong();
+
+            if (!chatHandler.isUserOnline(recipientId)) {
+                throw new UserOfflineException("User " + recipientId + " offline");
+            }
             String text = message.get("text").asText();
 
             // 1. Сохраняем в БД
@@ -56,6 +59,9 @@ public class PrivateMessageConsumer extends BaseMessageConsumer{
             );
 
             logger.info("Private message processed: {} → {}", senderId, recipientId);
+        } catch (UserOfflineException e) {
+            logger.warn("Message delivery failed: {}", e.getMessage());
+            throw e; // Пойдёт в DLQ после 3 ретраев
         } catch (UserNotFoundException e) {
             logger.warn("User not found: {}", e.getMessage());
             sendErrorToSender(senderId, "USER_NOT_FOUND", e.getMessage());

@@ -45,6 +45,10 @@ public class UniversalChatHandler extends TextWebSocketHandler {
         return Long.parseLong(query.split("=")[1]);
     }
 
+    public boolean isUserOnline(Long userId) {
+        WebSocketSession session = activeSessions.get(userId);
+        return session != null && session.isOpen();
+    }
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         logger.info("Received message: {}", message.getPayload());
