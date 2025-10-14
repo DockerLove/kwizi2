@@ -16,7 +16,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 @Service
 public class AuthenticationService {
@@ -165,22 +164,7 @@ public class AuthenticationService {
             throw new IllegalStateException("Произошла ошибка при удалении пользователя: " + e.getMessage()); // Rethrow as IllegalStateException
         }
     }
-
-    public Optional<User> findByUsername(String username) {
-        logger.debug("Поиск пользователя по username: {}", username);
-        try {
-            Optional<User> user = authenticationRepository.findByUsername(username);
-            if (user.isPresent()) {
-                logger.debug("Пользователь {} найден", username);
-            } else {
-                logger.debug("Пользователь {} не найден", username);
-            }
-            return user;
-        } catch (Exception e) {
-            logger.error("Ошибка при поиске пользователя по username {}: {}", username, e.getMessage(), e);
-            throw new IllegalStateException("Произошла ошибка при поиске пользователя: " + e.getMessage()); // Rethrow as IllegalStateException
-        }
-    }
+    
 
     public boolean existsByUsername(String username) {
         logger.debug("Проверка существования пользователя с username: {}", username);

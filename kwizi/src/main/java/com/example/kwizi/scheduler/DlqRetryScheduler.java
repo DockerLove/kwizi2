@@ -10,16 +10,14 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Component
+//@Component
 public class DlqRetryScheduler {
     private static final Logger logger = LoggerFactory.getLogger(DlqRetryScheduler.class);
 
@@ -31,7 +29,7 @@ public class DlqRetryScheduler {
     private final Map<Long, Long> lastDeliveryTimeMap = new ConcurrentHashMap<>();
     private static final long DELIVERY_COOLDOWN_MS = 300000; // 5 минут
 
-    @Autowired
+    //@Autowired
     public DlqRetryScheduler(KafkaTemplate<String, String> kafkaTemplate,
                              UniversalChatHandler chatHandler,
                              ObjectMapper objectMapper) {
@@ -42,7 +40,7 @@ public class DlqRetryScheduler {
 
     @Scheduled(fixedRate = 30000)
     public void retryDlqMessages() {
-        logger.info("Starting DLQ retry process");
+        logger.info("PRIVATE DLQ отправляет сообщение");
 
         try (Consumer<String, String> consumer = createDlqConsumer()) {
             consumer.subscribe(Collections.singletonList("private-messages-dlq"));
@@ -63,6 +61,7 @@ public class DlqRetryScheduler {
         } catch (Exception e) {
             logger.error("DLQ processing failed", e);
         }
+        logger.info("PRIVATE DLQ отправил сообщение");
     }
 
     private Map<Long, List<String>> groupMessagesByRecipient(ConsumerRecords<String, String> records) {

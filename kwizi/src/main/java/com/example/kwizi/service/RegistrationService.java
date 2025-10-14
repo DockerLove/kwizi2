@@ -21,7 +21,7 @@ public class RegistrationService {
     public void registerUser(RegistrationRequest registrationRequest) {
         logger.info("Запрос на регистрацию пользователя с username: {}", registrationRequest.getUsername());
 
-        if (authenticationService.findByUsername(registrationRequest.getUsername()).isPresent()) {
+        if (authenticationService.existsByUsername(registrationRequest.getUsername())) {
             logger.warn("Попытка регистрации с существующим username: {}", registrationRequest.getUsername());
             throw new IllegalStateException("Пользователь с таким username уже есть.");
         }

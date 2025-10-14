@@ -1,96 +1,174 @@
 package com.example.kwizi.unit;
-import com.example.kwizi.util.TimeUnit;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
-import static org.junit.jupiter.api.Assertions.*;
 
+import com.example.kwizi.util.TimeUnit;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertAll;
+
+@DisplayName("TimeUnit Conversions")
 class TimeUnitTest {
 
-    @Test
-    void millisecondsConversions() {
-        assertEquals(1, TimeUnit.MILLISECONDS.toMillis(1));
-        assertEquals(0, TimeUnit.MILLISECONDS.toSeconds(999));
-        assertEquals(0, TimeUnit.MILLISECONDS.toMinutes(59_999));
-        assertEquals(0, TimeUnit.MILLISECONDS.toHours(3_599_999));
-        assertEquals(0, TimeUnit.MILLISECONDS.toDays(86_399_999));
+    @Nested
+    @DisplayName("Конвертации из MILLISECONDS")
+    class MillisecondsConversionsTest {
 
-        assertEquals(1, TimeUnit.MILLISECONDS.toSeconds(1000));
-        assertEquals(1, TimeUnit.MILLISECONDS.toMinutes(60_000));
-        assertEquals(1, TimeUnit.MILLISECONDS.toHours(3_600_000));
-        assertEquals(1, TimeUnit.MILLISECONDS.toDays(86_400_000));
+        @Test
+        @DisplayName("Должен корректно конвертировать миллисекунды в другие единицы")
+        void shouldConvertMillisecondsToOtherUnits() {
+            assertAll("Milliseconds conversions",
+                    () -> assertThat(TimeUnit.MILLISECONDS.toMillis(1L)).isOne(),
+                    () -> assertThat(TimeUnit.MILLISECONDS.toSeconds(999L)).isZero(),
+                    () -> assertThat(TimeUnit.MILLISECONDS.toMinutes(59_999L)).isZero(),
+                    () -> assertThat(TimeUnit.MILLISECONDS.toHours(3_599_999L)).isZero(),
+                    () -> assertThat(TimeUnit.MILLISECONDS.toDays(86_399_999L)).isZero()
+            );
+        }
+
+        @Test
+        @DisplayName("Должен корректно конвертировать граничные значения миллисекунд")
+        void shouldConvertMillisecondsBoundaries() {
+            assertAll("Milliseconds boundary conversions",
+                    () -> assertThat(TimeUnit.MILLISECONDS.toSeconds(1_000L)).isOne(),
+                    () -> assertThat(TimeUnit.MILLISECONDS.toMinutes(60_000L)).isOne(),
+                    () -> assertThat(TimeUnit.MILLISECONDS.toHours(3_600_000L)).isOne(),
+                    () -> assertThat(TimeUnit.MILLISECONDS.toDays(86_400_000L)).isOne()
+            );
+        }
     }
 
-    @Test
-    void secondsConversions() {
-        assertEquals(1000, TimeUnit.SECONDS.toMillis(1));
-        assertEquals(1, TimeUnit.SECONDS.toSeconds(1));
-        assertEquals(0, TimeUnit.SECONDS.toMinutes(59));
-        assertEquals(0, TimeUnit.SECONDS.toHours(3599));
-        assertEquals(0, TimeUnit.SECONDS.toDays(86_399));
+    @Nested
+    @DisplayName("Конвертации из SECONDS")
+    class SecondsConversionsTest {
 
-        assertEquals(1, TimeUnit.SECONDS.toMinutes(60));
-        assertEquals(1, TimeUnit.SECONDS.toHours(3600));
-        assertEquals(1, TimeUnit.SECONDS.toDays(86_400));
+        @Test
+        @DisplayName("Должен корректно конвертировать секунды в другие единицы")
+        void shouldConvertSecondsToOtherUnits() {
+            assertAll("Seconds conversions",
+                    () -> assertThat(TimeUnit.SECONDS.toMillis(1L)).isEqualTo(1_000L),
+                    () -> assertThat(TimeUnit.SECONDS.toSeconds(1L)).isOne(),
+                    () -> assertThat(TimeUnit.SECONDS.toMinutes(59L)).isZero(),
+                    () -> assertThat(TimeUnit.SECONDS.toHours(3_599L)).isZero(),
+                    () -> assertThat(TimeUnit.SECONDS.toDays(86_399L)).isZero()
+            );
+        }
+
+        @Test
+        @DisplayName("Должен корректно конвертировать граничные значения секунд")
+        void shouldConvertSecondsBoundaries() {
+            assertAll("Seconds boundary conversions",
+                    () -> assertThat(TimeUnit.SECONDS.toMinutes(60L)).isOne(),
+                    () -> assertThat(TimeUnit.SECONDS.toHours(3_600L)).isOne(),
+                    () -> assertThat(TimeUnit.SECONDS.toDays(86_400L)).isOne()
+            );
+        }
     }
 
-    @Test
-    void minutesConversions() {
-        assertEquals(60_000, TimeUnit.MINUTES.toMillis(1));
-        assertEquals(60, TimeUnit.MINUTES.toSeconds(1));
-        assertEquals(1, TimeUnit.MINUTES.toMinutes(1));
-        assertEquals(0, TimeUnit.MINUTES.toHours(59));
-        assertEquals(0, TimeUnit.MINUTES.toDays(1439));
+    @Nested
+    @DisplayName("Конвертации из MINUTES")
+    class MinutesConversionsTest {
 
-        assertEquals(1, TimeUnit.MINUTES.toHours(60));
-        assertEquals(1, TimeUnit.MINUTES.toDays(1440));
+        @Test
+        @DisplayName("Должен корректно конвертировать минуты в другие единицы")
+        void shouldConvertMinutesToOtherUnits() {
+            assertAll("Minutes conversions",
+                    () -> assertThat(TimeUnit.MINUTES.toMillis(1L)).isEqualTo(60_000L),
+                    () -> assertThat(TimeUnit.MINUTES.toSeconds(1L)).isEqualTo(60L),
+                    () -> assertThat(TimeUnit.MINUTES.toMinutes(1L)).isOne(),
+                    () -> assertThat(TimeUnit.MINUTES.toHours(59L)).isZero(),
+                    () -> assertThat(TimeUnit.MINUTES.toDays(1_439L)).isZero()
+            );
+        }
+
+        @Test
+        @DisplayName("Должен корректно конвертировать граничные значения минут")
+        void shouldConvertMinutesBoundaries() {
+            assertAll("Minutes boundary conversions",
+                    () -> assertThat(TimeUnit.MINUTES.toHours(60L)).isOne(),
+                    () -> assertThat(TimeUnit.MINUTES.toDays(1_440L)).isOne()
+            );
+        }
     }
 
-    @Test
-    void hoursConversions() {
-        assertEquals(3_600_000, TimeUnit.HOURS.toMillis(1));
-        assertEquals(3600, TimeUnit.HOURS.toSeconds(1));
-        assertEquals(60, TimeUnit.HOURS.toMinutes(1));
-        assertEquals(1, TimeUnit.HOURS.toHours(1));
-        assertEquals(0, TimeUnit.HOURS.toDays(23));
+    @Nested
+    @DisplayName("Конвертации из HOURS")
+    class HoursConversionsTest {
 
-        assertEquals(1, TimeUnit.HOURS.toDays(24));
+        @Test
+        @DisplayName("Должен корректно конвертировать часы в другие единицы")
+        void shouldConvertHoursToOtherUnits() {
+            assertAll("Hours conversions",
+                    () -> assertThat(TimeUnit.HOURS.toMillis(1L)).isEqualTo(3_600_000L),
+                    () -> assertThat(TimeUnit.HOURS.toSeconds(1L)).isEqualTo(3_600L),
+                    () -> assertThat(TimeUnit.HOURS.toMinutes(1L)).isEqualTo(60L),
+                    () -> assertThat(TimeUnit.HOURS.toHours(1L)).isOne(),
+                    () -> assertThat(TimeUnit.HOURS.toDays(23L)).isZero()
+            );
+        }
+
+        @Test
+        @DisplayName("Должен корректно конвертировать граничные значения часов")
+        void shouldConvertHoursBoundaries() {
+            assertThat(TimeUnit.HOURS.toDays(24L)).isOne();
+        }
     }
 
-    @Test
-    void daysConversions() {
-        assertEquals(86_400_000, TimeUnit.DAYS.toMillis(1));
-        assertEquals(86_400, TimeUnit.DAYS.toSeconds(1));
-        assertEquals(1440, TimeUnit.DAYS.toMinutes(1));
-        assertEquals(24, TimeUnit.DAYS.toHours(1));
-        assertEquals(1, TimeUnit.DAYS.toDays(1));
+    @Nested
+    @DisplayName("Конвертации из DAYS")
+    class DaysConversionsTest {
+
+        @Test
+        @DisplayName("Должен корректно конвертировать дни в другие единицы")
+        void shouldConvertDaysToOtherUnits() {
+            assertAll("Days conversions",
+                    () -> assertThat(TimeUnit.DAYS.toMillis(1L)).isEqualTo(86_400_000L),
+                    () -> assertThat(TimeUnit.DAYS.toSeconds(1L)).isEqualTo(86_400L),
+                    () -> assertThat(TimeUnit.DAYS.toMinutes(1L)).isEqualTo(1_440L),
+                    () -> assertThat(TimeUnit.DAYS.toHours(1L)).isEqualTo(24L),
+                    () -> assertThat(TimeUnit.DAYS.toDays(1L)).isOne()
+            );
+        }
     }
 
-    @ParameterizedTest
-    @EnumSource(TimeUnit.class)
-    void zeroDuration(TimeUnit unit) {
-        assertEquals(0, unit.toMillis(0));
-        assertEquals(0, unit.toSeconds(0));
-        assertEquals(0, unit.toMinutes(0));
-        assertEquals(0, unit.toHours(0));
-        assertEquals(0, unit.toDays(0));
+    @Nested
+    @DisplayName("Специальные случаи")
+    class SpecialCasesTest {
+
+        @ParameterizedTest
+        @EnumSource(TimeUnit.class)
+        @DisplayName("Должен возвращать 0 для нулевой длительности во всех единицах")
+        void shouldReturnZeroForZeroDuration(TimeUnit unit) {
+            assertAll("Zero duration for " + unit,
+                    () -> assertThat(unit.toMillis(0L)).isZero(),
+                    () -> assertThat(unit.toSeconds(0L)).isZero(),
+                    () -> assertThat(unit.toMinutes(0L)).isZero(),
+                    () -> assertThat(unit.toHours(0L)).isZero(),
+                    () -> assertThat(unit.toDays(0L)).isZero()
+            );
+        }
+
+        @Test
+        @DisplayName("Должен корректно обрабатывать граничные значения без переполнения")
+        void shouldHandleBoundaryValuesWithoutOverflow() {
+            assertAll("Boundary values",
+                    () -> assertThat(TimeUnit.MILLISECONDS.toMillis(Long.MAX_VALUE))
+                            .isEqualTo(Long.MAX_VALUE),
+                    () -> {
+                        long maxSecondsWithoutOverflow = 9_223_372_036_854_775L;
+                        assertThat(TimeUnit.SECONDS.toMillis(maxSecondsWithoutOverflow))
+                                .isEqualTo(maxSecondsWithoutOverflow * 1_000L);
+                    },
+                    () -> {
+                        long maxMinutesWithoutOverflow = 153_722_867_280_912L;
+                        assertThat(TimeUnit.MINUTES.toMillis(maxMinutesWithoutOverflow))
+                                .isEqualTo(maxMinutesWithoutOverflow * 60L * 1_000L);
+                    }
+            );
+        }
     }
 
-    @Test
-    void boundaryValues() {
-        // Проверка MILLISECONDS (нет умножения)
-        assertEquals(Long.MAX_VALUE, TimeUnit.MILLISECONDS.toMillis(Long.MAX_VALUE));
-
-        // Проверка SECONDS (умножение на 1000)
-        long maxSecondsWithoutOverflow = Long.MAX_VALUE / 1000;
-        assertEquals(maxSecondsWithoutOverflow * 1000, TimeUnit.SECONDS.toMillis(maxSecondsWithoutOverflow));
-
-        // Проверка MINUTES (умножение на 60*1000)
-        long maxMinutesWithoutOverflow = Long.MAX_VALUE / (60 * 1000L);
-        assertEquals(maxMinutesWithoutOverflow * 60 * 1000, TimeUnit.MINUTES.toMillis(maxMinutesWithoutOverflow));
-    }
 }
