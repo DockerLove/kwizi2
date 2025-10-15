@@ -1,7 +1,9 @@
 package com.example.kwizi.controller; // Замените на ваш пакет
 
 import com.example.kwizi.DTO.request.RegistrationRequest;
+import com.example.kwizi.exception.EmailAlreadyExistsException;
 import com.example.kwizi.exception.JwtAuthenticationException;
+import com.example.kwizi.exception.UsernameAlreadyExistsException;
 import com.example.kwizi.model.RevokedToken;
 import com.example.kwizi.model.User;
 import com.example.kwizi.repository.RevokedTokenRepository;
@@ -82,10 +84,16 @@ public class AuthenticationController {
             registrationService.registerUser(registrationRequest);
             logger.info("User registered successfully: {}", registrationRequest.getUsername()); // Логируем успешную регистрацию
             return new ResponseEntity<>(HttpStatus.CREATED); // Успешное создание пользователя
-        } catch (IllegalStateException e) {
+        } catch (UsernameAlreadyExistsException e) {
+            logger.warn("Ошибка регистрации: данный username уже занят {}", registrationRequest.getUsername()); // Логируем ошибку, username занят
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT); // 409 Conflict
+        } catch (EmailAlreadyExistsException e) {
+            logger.warn("Ошибка регистрации: данный email уже занят {}", registrationRequest.getEmail()); // Логируем ошибку, username занят
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT); // 409 Conflict
+        }  catch (IllegalStateException e) {
             logger.warn("Registration failed: username already exists: {}", registrationRequest.getUsername()); // Логируем ошибку, username занят
             return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT); // 409 Conflict
-        } catch (Exception e) {
+        }  catch (Exception e) {
             logger.error("Error during user registration for username {}", registrationRequest.getUsername(), e); // Логируем другие ошибки
             return new ResponseEntity<>("Произошла ошибка при регистрации пользователя", HttpStatus.INTERNAL_SERVER_ERROR); // 500 Internal Server Error
         }
