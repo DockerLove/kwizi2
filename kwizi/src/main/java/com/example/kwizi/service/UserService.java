@@ -59,14 +59,6 @@ public class UserService {
         });
     }
 
-    // Вспомогательный метод для проверки username
-    private void validateUsernameNotExists(String username) {
-        if (userRepository.existsByUsername(username)) {
-            logger.warn("Попытка использования занятого username: {}", username);
-            throw new IllegalArgumentException("Имя пользователя занято");
-        }
-    }
-
     public void updateBio(Long id, String bio) {
         executeWithLogging("обновление bio", id, () -> {
             User user = findUserById(id);
@@ -124,6 +116,12 @@ public class UserService {
         return user;
     }
 
+    private void validateUsernameNotExists(String username) {
+        if (userRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("Имя пользователя занято");
+        }
+    }
+
     public Optional<User> findById(Long id) {
         logger.debug("Поиск пользователя по ID: {}", id);
         Optional<User> user = userRepository.findById(id);
@@ -138,8 +136,7 @@ public class UserService {
     private User findUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> {
-                    logger.warn("Пользователь не найден, ID: {}", id);
-                    return new UserNotFoundException("Пользователь не найден");
+                    throw new UserNotFoundException("Пользователь не найден");
                 });
     }
 
@@ -149,7 +146,6 @@ public class UserService {
             action.run();
             logger.info("Успешное завершение {} для пользователя ID: {}", operation, userId);
         } catch (Exception e) {
-            logger.error("Ошибка при {} для пользователя ID: {}", operation, userId, e);
             throw e;
         }
     }
@@ -161,7 +157,6 @@ public class UserService {
             logger.info("Успешное завершение {} для пользователя ID: {}", operation, userId);
             return result;
         } catch (Exception e) {
-            logger.error("Ошибка при {} для пользователя ID: {}", operation, userId, e);
             throw e;
         }
     }
