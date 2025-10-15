@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.function.Supplier;
+
 @Service
 public class UserService {
 
@@ -28,109 +30,87 @@ public class UserService {
 
     @Transactional
     public void verifyUserEmail(Long id) {
-        logger.info("Верификация email пользователя с ID: {}", id);
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> {
-                    logger.warn("Пользователь не найден при верификации email, ID: {}", id);
-                    return new UserNotFoundException("Пользователь не найден");
-                });
-        if (user.isEmail_verified()) {
-            logger.warn("Попытка верификации уже подтвержденного email пользователя с ID: {}", id);
-            throw new IllegalArgumentException("Email уже подтвержден");
-        }
-        user.setEmail_verified(true);
-        userRepository.save(user);
-        logger.info("Email успешно верифицирован для пользователя с ID: {}", id);
+        executeWithLogging("верификация email", id, () -> {
+            User user = findUserById(id);
+            if (user.isEmail_verified()) {
+                throw new IllegalArgumentException("Email уже подтвержден");
+            }
+            user.setEmail_verified(true);
+        });
     }
 
     public String updateUsername(Long userId, String username) {
-        logger.info("Обновление username пользователя с ID: {}, новый username: {}", userId, username);
+        return executeWithLogging("обновление username", userId, () -> {
+            // Проверяем что новый username не занят
+            validateUsernameNotExists(username);
+
+            // Находим пользователя
+            User user = findUserById(userId);
+
+            // Обновляем username
+            user.setUsername(username);
+            userRepository.save(user);
+
+            // Генерируем новый токен
+            String token = jwtUtils.generateToken(username);
+            logger.info("Сгенерирован новый токен для пользователя ID: {}", userId);
+
+            return token;
+        });
+    }
+
+    // Вспомогательный метод для проверки username
+    private void validateUsernameNotExists(String username) {
         if (userRepository.existsByUsername(username)) {
-            logger.warn("Попытка обновления username на уже существующий: {}", username);
+            logger.warn("Попытка использования занятого username: {}", username);
             throw new IllegalArgumentException("Имя пользователя занято");
         }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    logger.warn("Пользователь не найден при обновлении username, ID: {}", userId);
-                    return new UserNotFoundException("Пользователь не найден");
-                });
-
-        user.setUsername(username);
-        userRepository.save(user);
-
-        String token = jwtUtils.generateToken(username);
-        logger.info("Username пользователя с ID {} успешно обновлен, сгенерирован новый токен", userId);
-        return token;
     }
 
     public void updateBio(Long id, String bio) {
-        logger.info("Обновление bio пользователя с ID: {}", id);
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> {
-                    logger.warn("Пользователь не найден при обновлении bio, ID: {}", id);
-                    return new UserNotFoundException("Пользователь не найден");
-                });
-        user.setBio(bio);
-        userRepository.save(user);
-        logger.info("Bio пользователя с ID {} успешно обновлен", id);
+        executeWithLogging("обновление bio", id, () -> {
+            User user = findUserById(id);
+            user.setBio(bio);
+            userRepository.save(user);
+        });
     }
 
     public void updateFirstName(Long id, String firstName) {
-        logger.info("Обновление firstName пользователя с ID: {}", id);
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> {
-                    logger.warn("Пользователь не найден при обновлении firstName, ID: {}", id);
-                    return new UserNotFoundException("Пользователь не найден");
-                });
-        user.setFirstName(firstName);
-        userRepository.save(user);
-        logger.info("FirstName пользователя с ID {} успешно обновлен", id);
+        executeWithLogging("обновление имени", id, () -> {
+            User user = findUserById(id);
+            user.setFirstName(firstName);
+            userRepository.save(user);
+        });
     }
 
     public void updateLastName(Long userId, String lastName) {
-        logger.info("Обновление lastName пользователя с ID: {}", userId);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    logger.warn("Пользователь не найден при обновлении lastName, ID: {}", userId);
-                    return new UserNotFoundException("Пользователь не найден");
-                });
-        user.setLastName(lastName);
-        userRepository.save(user);
-        logger.info("LastName пользователя с ID {} успешно обновлен", userId);
+        executeWithLogging("обновление фамилии", userId, () -> {
+            User user = findUserById(userId);
+            user.setLastName(lastName);
+            userRepository.save(user);
+        });
     }
 
-
     public UserProfileResponse getUserProfile(Long id) {
-        logger.info("Получение профиля пользователя с ID: {}", id);
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> {
-                    logger.warn("Пользователь не найден при получении профиля, ID: {}", id);
-                    return new UserNotFoundException("Пользователь не найден");
-                });
-
-        UserProfileResponse profile = new UserProfileResponse(
-                user.getId(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getUsername(),
-                user.getBio(),
-                user.getEmail()
-        );
-        logger.info("Профиль пользователя с ID {} успешно получен", id);
-        return profile;
+        return executeWithLogging("получение профиля", id, () -> {
+            User user = findUserById(id);
+            UserProfileResponse userProfileResponse = new UserProfileResponse(
+                    user.getId(),
+                    user.getFirstName(),
+                    user.getLastName(),
+                    user.getUsername(),
+                    user.getBio(),
+                    user.getEmail()
+            );
+            return userProfileResponse;
+        });
     }
 
     public boolean getEmailVerified(Long id) {
-        logger.info("Получение статуса верификации email пользователя с ID: {}", id);
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> {
-                    logger.warn("Пользователь не найден при получении статуса верификации email, ID: {}", id);
-                    return new UserNotFoundException("Пользователь не найден");
-                });
-        boolean isVerified = user.isEmail_verified();
-        logger.info("Статус верификации email пользователя с ID {}: {}", id, isVerified);
-        return isVerified;
+        return executeWithLogging("проверка верификации email", id, () -> {
+            User user = findUserById(id);
+            return user.isEmail_verified();
+        });
     }
 
     public Optional<User> findByUsername(String username) {
@@ -153,5 +133,36 @@ public class UserService {
             logger.debug("Пользователь с ID {} не найден", id);
         }
         return user;
+    }
+
+    private User findUserById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> {
+                    logger.warn("Пользователь не найден, ID: {}", id);
+                    return new UserNotFoundException("Пользователь не найден");
+                });
+    }
+
+    private void executeWithLogging(String operation, Long userId, Runnable action) {
+        logger.info("Начало {} для пользователя ID: {}", operation, userId);
+        try {
+            action.run();
+            logger.info("Успешное завершение {} для пользователя ID: {}", operation, userId);
+        } catch (Exception e) {
+            logger.error("Ошибка при {} для пользователя ID: {}", operation, userId, e);
+            throw e;
+        }
+    }
+
+    private <T> T executeWithLogging(String operation, Long userId, Supplier<T> action) {
+        logger.info("Начало {} для пользователя ID: {}", operation, userId);
+        try {
+            T result = action.get();
+            logger.info("Успешное завершение {} для пользователя ID: {}", operation, userId);
+            return result;
+        } catch (Exception e) {
+            logger.error("Ошибка при {} для пользователя ID: {}", operation, userId, e);
+            throw e;
+        }
     }
 }

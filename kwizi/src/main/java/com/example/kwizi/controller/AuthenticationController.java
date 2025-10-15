@@ -8,8 +8,8 @@ import com.example.kwizi.repository.RevokedTokenRepository;
 import com.example.kwizi.security.JwtUtils;
 import com.example.kwizi.service.AuthenticationService;
 import com.example.kwizi.service.RegistrationService;
+import com.example.kwizi.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +19,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.validation.BindingResult;
@@ -28,7 +27,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.security.Principal;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +42,7 @@ public class AuthenticationController {
     private UserDetailsService userDetailsService;
 
     private RegistrationService registrationService;
+    private UserService userService;
     private JwtUtils jwtUtils;
     private final RevokedTokenRepository revokedTokenRepo;
 
@@ -51,13 +50,14 @@ public class AuthenticationController {
     @Autowired
     public AuthenticationController(AuthenticationManager authenticationManager, UserDetailsService userDetailsService,
                                     JwtUtils jwtUtils, RegistrationService registrationService,
-                                    RevokedTokenRepository revokedTokenRepo,AuthenticationService authenticationService) {
+                                    RevokedTokenRepository revokedTokenRepo,AuthenticationService authenticationService,UserService userService) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtUtils = jwtUtils;
         this.registrationService = registrationService;
         this.revokedTokenRepo = revokedTokenRepo;
         this.authenticationService = authenticationService;
+        this.userService = userService;
     }
 
     @PostMapping("/register")
@@ -105,7 +105,7 @@ public class AuthenticationController {
             String jti = jwtUtils.extractJti(token);
             Date expiresAt = jwtUtils.extractExpiration(token);
             username = jwtUtils.getUsernameFromToken(token);
-            Optional<User> user = authenticationService.findByUsername(username);
+            Optional<User> user = userService.findByUsername(username);
 
             if (user.isEmpty()) {
                 throw new JwtAuthenticationException("Пользователь не найден");

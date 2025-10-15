@@ -67,6 +67,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
                         originalMessage.get("recipientId").asLong(),
                         escapeJsonString(originalMessage.get("text").asText())
                 );
+                logger.info("Отправляем сообщение в private-messages");
                 kafkaTemplate.send("private-messages", kafkaMessage);
             }
             else if ("GROUP".equals(type)) {
@@ -76,6 +77,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
                         originalMessage.get("chatId").asLong(),
                         escapeJsonString(originalMessage.get("text").asText())
                 );
+                logger.info("Отправляем сообщение в group-messages");
                 kafkaTemplate.send("group-messages", kafkaMessage);
             } else {
                 sendJsonError(session, "INVALID_TYPE", "Unknown message type");
@@ -140,5 +142,18 @@ public class UniversalChatHandler extends TextWebSocketHandler {
     }
     public Map<Long, WebSocketSession> getActiveSessions() {
         return this.activeSessions;
+    }
+
+    public void notifyUserByWebsocket(Long userId, String payload) {
+        WebSocketSession session = activeSessions.get(userId);
+        if (session != null && session.isOpen()) {
+            try {
+                session.sendMessage(new TextMessage(payload));
+            } catch (IOException e) {
+                logger.error("Ошибка отправки уведомления пользователю {}: {}", userId, e.getMessage());
+            }
+        } else {
+            logger.warn("Пользователь {} не активен, уведомление не отправлено.", userId);
+        }
     }
 }

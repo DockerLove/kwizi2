@@ -12,8 +12,6 @@ import com.example.kwizi.service.AuthenticationService;
 import com.example.kwizi.service.UserService;
 import com.example.kwizi.util.TimeUnit;
 import jakarta.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +20,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
+
 import java.util.Map;
 
 @RestController
@@ -62,12 +60,12 @@ public class UserController {
 
 
     @GetMapping("/find/{username}")
-    public ResponseEntity<ApiResponse<User>> getUserByUsername(@PathVariable String username) {
-        User user = authenticationService.findByUsername(username)
+    public ResponseEntity<ApiResponse<UserProfileResponse>> getUserByUsername(@PathVariable String username) {
+        User user = userService.findByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
-
+        UserProfileResponse userProfileResponse = new UserProfileResponse(user.getId(),user.getFirstName(), user.getLastName(),user.getUsername(),user.getBio(),user.getEmail());
         return ResponseEntity.ok(
-                ApiResponse.success("Пользователь найден", user)
+                ApiResponse.success("Пользователь найден", userProfileResponse)
         );
     }
 
