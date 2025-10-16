@@ -1,9 +1,7 @@
 package com.example.kwizi.security;
 
 import com.example.kwizi.model.User;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
@@ -20,14 +18,9 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        //  В данном примере у нас нет ролей, поэтому возвращаем пустую коллекцию.
-        //  В реальном приложении здесь нужно будет получить роли пользователя из базы данных
-        //  и преобразовать их в GrantedAuthority.
+        //у нас нет ролей, поэтому возвращаем пустую коллекцию.
         return List.of();
 
-        //Пример с ролями
-        //List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
-        //return authorities;
 
     }
 
@@ -43,17 +36,17 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return true; // Или user.isAccountNonExpired(), если у вас есть такое поле в User
+        return true;
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return true; // Или user.isAccountNonLocked()
+        return true;
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return true; // Или user.isCredentialsNonExpired()
+        return true;
     }
 
     // Дополнительные геттеры
