@@ -1,6 +1,9 @@
 package com.example.kwizi.controller;
 
-import com.example.kwizi.DTO.request.*;
+import com.example.kwizi.DTO.request.UpdateBioRequest;
+import com.example.kwizi.DTO.request.UpdateFirstNameRequest;
+import com.example.kwizi.DTO.request.UpdateLastNameRequest;
+import com.example.kwizi.DTO.request.UpdateUsernameRequest;
 import com.example.kwizi.DTO.response.ApiResponse;
 import com.example.kwizi.DTO.response.UserProfileResponse;
 import com.example.kwizi.annotations.RateLimited;
@@ -13,12 +16,8 @@ import com.example.kwizi.service.UserService;
 import com.example.kwizi.util.TimeUnit;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -41,22 +40,6 @@ public class UserController {
         this.jwtUtils = jwtUtils;
     }
 
-
-    @PostMapping("/password")
-    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
-        // 1. Получаем имя пользователя из контекста Spring Security
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName(); // Получаем имя пользователя из JWT
-
-        try {
-            authenticationService.changePassword(username, request);
-            return ResponseEntity.ok("Password changed successfully");
-        } catch (BadCredentialsException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid old password");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal server error");
-        }
-    }
 
 
     @GetMapping("/find/{username}")

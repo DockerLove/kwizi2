@@ -19,6 +19,7 @@ import com.example.kwizi.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
@@ -37,6 +38,7 @@ public class ChatService {
     private final ChatMemberRepository chatMemberRepository;
     private final UserRepository userRepository;
 
+    @Autowired
     public ChatService(ChatRepository chatRepository, ChatMemberRepository chatMemberRepository, UserRepository userRepository) {
         this.chatRepository = chatRepository;
         this.chatMemberRepository = chatMemberRepository;
@@ -110,7 +112,6 @@ public class ChatService {
     }
 
 
-    // ========== PRIVATE METHODS ==========
     private User findUserByUsername(String username) {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException("Пользователь не найден: " + username));

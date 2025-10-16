@@ -1,5 +1,6 @@
 package com.example.kwizi.controller; // Замените на ваш пакет
 
+import com.example.kwizi.DTO.request.ChangePasswordRequest;
 import com.example.kwizi.DTO.request.RegistrationRequest;
 import com.example.kwizi.exception.EmailAlreadyExistsException;
 import com.example.kwizi.exception.JwtAuthenticationException;
@@ -21,6 +22,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.validation.BindingResult;
@@ -60,6 +63,22 @@ public class AuthenticationController {
         this.revokedTokenRepo = revokedTokenRepo;
         this.authenticationService = authenticationService;
         this.userService = userService;
+    }
+
+    @PostMapping("/password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
+        // 1. Получаем имя пользователя из контекста Spring Security
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName(); // Получаем имя пользователя из JWT
+
+        try {
+            authenticationService.changePassword(username, request);
+            return ResponseEntity.ok("Password changed successfully");
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid old password");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal server error");
+        }
     }
 
     @PostMapping("/register")
