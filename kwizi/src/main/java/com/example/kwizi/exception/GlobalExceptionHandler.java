@@ -3,19 +3,16 @@ package com.example.kwizi.exception;
 import com.example.kwizi.DTO.response.ApiResponse;
 import com.example.kwizi.controller.ChatController;
 import com.example.kwizi.controller.UserController;
+import com.example.kwizi.exception.AuthenticationService.EmailAlreadyVerifiedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice(assignableTypes = {UserController.class, ChatController.class})
@@ -25,6 +22,16 @@ public class GlobalExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // Обработка ошибок валидации (@Valid)
+
+
+
+    @ExceptionHandler(EmailAlreadyVerifiedException.class)
+    public ResponseEntity<ApiResponse<?>> handleEmailAlreadyVerifiedException(EmailAlreadyVerifiedException ex) {
+        logger.warn("Email уже подтвержден: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getMessage(), null));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<List<String>>> handleValidationErrors(
             MethodArgumentNotValidException ex) {

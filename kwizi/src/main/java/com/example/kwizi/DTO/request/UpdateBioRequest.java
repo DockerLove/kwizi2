@@ -1,9 +1,11 @@
 package com.example.kwizi.DTO.request;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public class UpdateBioRequest {
 
+    @NotBlank(message = "Bio не должно быть пустым")
     @Size(max =500, message="Bio должно быть не более 500 символов")
     private String bio;
 
