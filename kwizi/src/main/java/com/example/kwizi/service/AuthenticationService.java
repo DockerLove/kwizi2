@@ -8,9 +8,12 @@ import com.example.kwizi.exception.AuthenticationService.InvalidTokenException;
 import com.example.kwizi.exception.AuthenticationService.TokenExpiredException;
 import com.example.kwizi.exception.JwtAuthenticationException;
 import com.example.kwizi.exception.UserNotFoundException;
+import com.example.kwizi.model.RevokedToken;
 import com.example.kwizi.model.User;
 import com.example.kwizi.repository.AuthenticationRepository;
+import com.example.kwizi.repository.RevokedTokenRepository;
 import com.example.kwizi.security.JwtEmailVerify;
+import com.example.kwizi.security.JwtUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.util.Optional;
 
 @Service
@@ -31,18 +35,47 @@ public class AuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtEmailVerify jwtEmailVerify;
     private final EmailService emailService;
+    private final JwtUtils jwtUtils;
+    private UserService userService;
+    private final RevokedTokenRepository revokedTokenRepo;
 
 
     @Autowired
     public AuthenticationService(AuthenticationRepository authenticationRepository,
                                  PasswordEncoder passwordEncoder,
                                  JwtEmailVerify jwtEmailVerify,
-                                 EmailService emailService) {
+                                 EmailService emailService,JwtUtils jwtUtils,RevokedTokenRepository revokedTokenRepo,UserService userService) {
         this.authenticationRepository = authenticationRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtEmailVerify = jwtEmailVerify;
         this.emailService = emailService;
+        this.revokedTokenRepo = revokedTokenRepo;
+        this.userService = userService;
+        this.jwtUtils = jwtUtils;
     }
+
+    public void logout(String token) {
+        logger.debug("Достаем данные из токена");
+
+        String jti = jwtUtils.extractJti(token);
+        Date expiresAt = jwtUtils.extractExpiration(token);
+        String username = jwtUtils.getUsernameFromToken(token);
+
+        logger.debug("Данные токена - JTI: {}, username: {}, expires: {}",
+                jti, username, expiresAt);
+
+        User user = userService.findByUsername(username)
+                .orElseThrow(() -> {
+                    throw new UserNotFoundException("Пользователь не найден: " + username);
+                });
+
+        logger.debug("Создаем запись об отозванном токене");
+        RevokedToken revokedToken = new RevokedToken(jti, user.getId(), expiresAt, username);
+        revokedTokenRepo.save(revokedToken);
+
+        logger.info("Токен отозван для пользователя: {}", username);
+    }
+
 
     public void sendVerificationEmail(Long userId) {
         logger.info("Отправка письма подтверждения для пользователя: {}", userId);
@@ -71,6 +104,7 @@ public class AuthenticationService {
 
         User user = findUserByUsername(username);
         validateOldPassword(user, request.getOldPassword());
+        validateNewPassword(user, request.getNewPassword());
 
         updateUserPassword(user, request.getNewPassword());
         logger.info("Пароль изменен для пользователя: {}", username);
@@ -151,5 +185,11 @@ public class AuthenticationService {
     private void encodeUserPassword(User user) {
         String encodedPassword = passwordEncoder.encode(user.getPassword());
         user.setPassword(encodedPassword);
+    }
+
+    private void validateNewPassword(User user, String newPassword) {
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Новый пароль не должен совпадать со старым");
+        }
     }
 }
