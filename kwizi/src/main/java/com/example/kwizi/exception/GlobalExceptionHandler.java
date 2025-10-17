@@ -1,13 +1,16 @@
 package com.example.kwizi.exception;
 
 import com.example.kwizi.DTO.response.ApiResponse;
+import com.example.kwizi.controller.AuthenticationController;
 import com.example.kwizi.controller.ChatController;
 import com.example.kwizi.controller.UserController;
 import com.example.kwizi.exception.AuthenticationService.EmailAlreadyVerifiedException;
+import com.example.kwizi.exception.AuthenticationService.InvalidPasswordException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -15,7 +18,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@RestControllerAdvice(assignableTypes = {UserController.class, ChatController.class})
+@RestControllerAdvice(assignableTypes = {UserController.class, ChatController.class, AuthenticationController.class})
 public class GlobalExceptionHandler {
 
     // Обработка ошибок валидации (@Valid)
@@ -24,6 +27,19 @@ public class GlobalExceptionHandler {
     // Обработка ошибок валидации (@Valid)
 
 
+    @ExceptionHandler(UsernameAlreadyExistsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUsernameAlreadyExists(UsernameAlreadyExistsException ex) {
+        logger.warn("Конфликт username: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getMessage(),null));
+    }
+
+    @ExceptionHandler(EmailAlreadyExistsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
+        logger.warn("Конфликт email: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getMessage(),null));
+    }
 
     @ExceptionHandler(EmailAlreadyVerifiedException.class)
     public ResponseEntity<ApiResponse<?>> handleEmailAlreadyVerifiedException(EmailAlreadyVerifiedException ex) {
@@ -81,4 +97,26 @@ public class GlobalExceptionHandler {
         logger.warn("Ошибка состояния: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage(), null));
     }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {
+        logger.warn("Ошибка аутентификации: Неверный логин или пароль");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("Неверный логин или пароль",null));
+    }
+
+    @ExceptionHandler(JwtAuthenticationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleJwtAuthentication(JwtAuthenticationException ex) {
+        logger.warn("Ошибка JWT аутентификации: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(ex.getMessage(),null));
+    }
+
+    @ExceptionHandler(InvalidPasswordException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidPassword(InvalidPasswordException ex) {
+        logger.warn("Ошибка при попытке смены пароля: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage(),null));
+    }
+
 }
