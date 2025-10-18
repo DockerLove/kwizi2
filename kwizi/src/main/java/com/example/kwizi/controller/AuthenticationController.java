@@ -63,7 +63,7 @@ public class AuthenticationController {
         authenticationService.changePassword(userDetails.getUsername(), request);
 
         logger.info("Пароль успешно изменен для пользователя: {}", userDetails.getUsername());
-        return ResponseEntity.ok("Пароль успешно изменен");
+        return ResponseEntity.ok(ApiResponse.success("Пароль успешно изменен",null));
 
     }
 
@@ -75,7 +75,7 @@ public class AuthenticationController {
         registrationService.registerUser(registrationRequest);
 
         logger.info("Пользователь успешно зарегистрирован: {}", registrationRequest.getUsername());
-        return ResponseEntity.ok("Пользователь успешно зарегистрирован");
+        return ResponseEntity.ok(ApiResponse.success("Пользователь успешно зарегистрирован",null));
 
     }
 
@@ -97,7 +97,7 @@ public class AuthenticationController {
         final String jwt = jwtUtils.generateToken(userDetails.getUsername());
 
         logger.info("Успешная аутентификация пользователя: {}", username);
-        return ResponseEntity.ok(new AuthenticationResponse(jwt));
+        return ResponseEntity.ok(ApiResponse.success("token: " + new AuthenticationResponse(jwt),null));
 
     }
     @PostMapping("/logout")

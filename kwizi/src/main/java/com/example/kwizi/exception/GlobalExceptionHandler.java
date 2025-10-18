@@ -21,10 +21,7 @@ import java.util.stream.Collectors;
 @RestControllerAdvice(assignableTypes = {UserController.class, ChatController.class, AuthenticationController.class})
 public class GlobalExceptionHandler {
 
-    // Обработка ошибок валидации (@Valid)
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-
-    // Обработка ошибок валидации (@Valid)
 
 
     @ExceptionHandler(UsernameAlreadyExistsException.class)

@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Optional;
 
 
 @Lazy
@@ -35,7 +34,10 @@ public class ChatMessageService implements ChatMessageServiceInterface {
     private final ChatMemberRepository chatMemberRepository;
 
     @Autowired
-    public ChatMessageService(MessageRepository messageRepository, ChatRepository chatRepository, UserRepository userRepository, ChatMemberRepository chatMemberRepository) {
+    public ChatMessageService(MessageRepository messageRepository,
+                              ChatRepository chatRepository,
+                              UserRepository userRepository,
+                              ChatMemberRepository chatMemberRepository) {
         this.messageRepository = messageRepository;
         this.chatRepository = chatRepository;
         this.userRepository = userRepository;
@@ -44,98 +46,137 @@ public class ChatMessageService implements ChatMessageServiceInterface {
 
     @Transactional
     public Message sendMessage(MessageDto messageDto, Long senderId) {
-        logger.info("Запрос на отправку сообщения. ID отправителя: {}, ID чата: {}", senderId, messageDto.getChatId());
-        Long chatId = messageDto.getChatId();
-        Chat chat = chatRepository.findById(chatId).orElse(null);
-        if (chat == null) {
-            throw new ChatNotFoundException("Чат не найден");
-        }
-        User sender = userRepository.findById(senderId)
-                .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
-        Message message = new Message();
-        message.setChat(chat);
-        message.setSender(sender);
-        message.setText(messageDto.getText());
-        message.setCreatedAt(OffsetDateTime.now());
+        logger.info("Запрос на отправку сообщения. ID отправителя: {}, ID чата: {}",
+                senderId, messageDto.getChatId());
 
-        Message savedMessage = messageRepository.save(message);
-        logger.info("Сообщение успешно отправлено. ID сообщения: {}, ID чата: {}", savedMessage.getId(), chatId);
-        return savedMessage;
+        Long chatId = messageDto.getChatId();
+        Chat chat = chatRepository.findById(chatId)
+                .orElseThrow(() -> new ChatNotFoundException("Чат с ID " + chatId + " не найден"));
+
+        User sender = userRepository.findById(senderId)
+                .orElseThrow(() -> new UserNotFoundException("Пользователь с ID " + senderId + " не найден"));
+
+        validateUserInChat(senderId, chatId);
+
+        return createAndSaveMessage(chat, sender, messageDto.getText());
     }
 
     @Transactional
     public Chat getOrCreateChat(Long chatId, User creator) {
-        logger.debug("Получение или создание чата. ID чата: {}, ID создателя: {}", chatId, creator.getId());
-        chatRepository.createChatIfNotExists(chatId); // Сначала убеждаемся, что чат существует
-        Chat chat = chatRepository.findById(chatId).orElse(null);
-        if (chat != null && chat.getCreatedBy() == null) { // Проверяем, установлен ли createdBy
+        logger.debug("Получение или создание чата. ID чата: {}, ID создателя: {}",
+                chatId, creator.getId());
+
+        Chat chat = chatRepository.findById(chatId)
+                .orElseGet(() -> createNewChat(chatId, creator));
+
+        if (chat.getCreatedBy() == null) {
             chat.setCreatedBy(creator);
-            chat = chatRepository.save(chat); // Сохраняем чат с установленным createdBy
-            logger.info("Чат создан и инициализирован. ID чата: {}, ID создателя: {}", chatId, creator.getId());
-        } else {
-            logger.debug("Чат уже существует или создан, createdBy уже установлен. ID чата: {}", chatId);
+            chat = chatRepository.save(chat);
+            logger.info("Чат инициализирован создателем. ID чата: {}, ID создателя: {}",
+                    chatId, creator.getId());
         }
+
         return chat;
     }
 
     public List<Message> getChatHistory(Long chatId) {
         logger.info("Запрос истории сообщений для чата. ID чата: {}", chatId);
-        // Проверка существования чата
-        chatRepository.findById(chatId)
-                .orElseThrow(() -> new IllegalArgumentException("Чат не найден"));
-        logger.info("История сообщений для чата {} получена", chatId);
-        return messageRepository.findByChatIdAndIsDeleted(chatId, false);
+
+        // Проверяем существование чата
+        if (!chatRepository.existsById(chatId)) {
+            throw new ChatNotFoundException("Чат с ID " + chatId + " не найден");
+        }
+
+        List<Message> messages = messageRepository.findByChatIdAndIsDeleted(chatId, false);
+        logger.info("История сообщений для чата {} получена, количество: {}",
+                chatId, messages.size());
+
+        return messages;
     }
 
     @Transactional
     public Message sendPrivateMessage(MessageDto messageDto, Long senderId, Long recipientId) {
-        logger.info("Запрос на отправку личного сообщения. ID отправителя: {}, ID получателя: {}", senderId, recipientId);
-        // 1. Проверяем существование чата
-        Optional<Long> existingChatId = chatMemberRepository.findPrivateChatIdByUserIds(senderId, recipientId);
+        logger.info("Запрос на отправку личного сообщения. ID отправителя: {}, ID получателя: {}",
+                senderId, recipientId);
 
-        Chat chat;
         User sender = userRepository.findById(senderId)
-                .orElseThrow(() -> new UserNotFoundException("Отправитель не найден"));
+                .orElseThrow(() -> new UserNotFoundException("Отправитель с ID " + senderId + " не найден"));
         User recipient = userRepository.findById(recipientId)
-                .orElseThrow(() -> new UserNotFoundException("Получатель не найден"));
+                .orElseThrow(() -> new UserNotFoundException("Получатель с ID " + recipientId + " не найден"));
 
-        if (existingChatId.isPresent()) {
-            // 2. Если чат существует - получаем его
-            chat = chatRepository.findById(existingChatId.get())
-                    .orElseThrow(() -> new ChatNotFoundException("Чат не найден"));
-            logger.debug("Найден существующий чат для личного сообщения. ID чата: {}", chat.getId());
-        } else {
-            // 3. Если чата нет - создаем новый
-            chat = new Chat();
-            chat.setCreatedBy(sender); // Устанавливаем создателя чата
-            chat.setCreatedAt(OffsetDateTime.now());
-            chat = chatRepository.save(chat);
-            logger.info("Создан новый чат для личного сообщения. ID чата: {}", chat.getId());
+        Chat chat = findOrCreatePrivateChat(senderId, recipientId, sender, recipient);
 
-            // 4. Добавляем участников
-            ChatMember chatMemberSender = new ChatMember(chat, sender);
-            ChatMember chatMemberRecipient = new ChatMember(chat, recipient);
-
-            chatMemberRepository.saveAll(List.of(chatMemberSender, chatMemberRecipient));
-            logger.debug("Добавлены участники в новый приватный чат. ID чата: {}, ID отправителя: {}, ID получателя: {}", chat.getId(), senderId, recipientId);
-        }
-
-        // 5. Создаем и сохраняем сообщение
-        Message message = new Message();
-        message.setChat(chat);
-        message.setSender(sender);
-        message.setText(messageDto.getText());
-        message.setCreatedAt(OffsetDateTime.now());
-
-        Message savedMessage = messageRepository.save(message);
-        logger.info("Личное сообщение успешно отправлено. ID сообщения: {}, ID чата: {}", savedMessage.getId(), chat.getId());
-        return messageRepository.save(message);
+        return createAndSaveMessage(chat, sender, messageDto.getText());
     }
 
     public List<Long> getChatMembers(Long chatId) {
         logger.info("Запрос на получение участников чата. ID чата: {}", chatId);
+
+        if (!chatRepository.existsById(chatId)) {
+            throw new ChatNotFoundException("Чат с ID " + chatId + " не найден");
+        }
+
         List<Long> members = chatMemberRepository.findUserIdsByChatId(chatId);
-        logger.info("Получен список участников чата. ID чата: {}, количество участников: {}", chatId, members.size());
+        logger.info("Получен список участников чата. ID чата: {}, количество участников: {}",
+                chatId, members.size());
+
         return members;
+    }
+
+    // ========== PRIVATE HELPER METHODS ==========
+
+    private Message createAndSaveMessage(Chat chat, User sender, String text) {
+        Message message = new Message();
+        message.setChat(chat);
+        message.setSender(sender);
+        message.setText(text);
+        message.setCreatedAt(OffsetDateTime.now());
+
+        Message savedMessage = messageRepository.save(message);
+        logger.info("Сообщение успешно отправлено. ID сообщения: {}, ID чата: {}",
+                savedMessage.getId(), chat.getId());
+        return savedMessage;
+    }
+
+    private Chat createNewChat(Long chatId, User creator) {
+        Chat chat = new Chat();
+        chat.setId(chatId);
+        chat.setCreatedBy(creator);
+        chat.setCreatedAt(OffsetDateTime.now());
+
+        Chat savedChat = chatRepository.save(chat);
+        logger.info("Создан новый чат. ID чата: {}, ID создателя: {}",
+                chatId, creator.getId());
+        return savedChat;
+    }
+
+    private Chat findOrCreatePrivateChat(Long senderId, Long recipientId, User sender, User recipient) {
+        return chatMemberRepository.findPrivateChatIdByUserIds(senderId, recipientId)
+                .map(chatId -> chatRepository.findById(chatId)
+                        .orElseThrow(() -> new ChatNotFoundException("Чат не найден")))
+                .orElseGet(() -> createPrivateChat(sender, recipient));
+    }
+
+    private Chat createPrivateChat(User sender, User recipient) {
+        Chat chat = new Chat();
+        chat.setCreatedBy(sender);
+        chat.setCreatedAt(OffsetDateTime.now());
+        Chat savedChat = chatRepository.save(chat);
+
+        ChatMember chatMemberSender = new ChatMember(savedChat, sender);
+        ChatMember chatMemberRecipient = new ChatMember(savedChat, recipient);
+
+        chatMemberRepository.saveAll(List.of(chatMemberSender, chatMemberRecipient));
+        logger.info("Создан новый приватный чат. ID чата: {}, участники: {}, {}",
+                savedChat.getId(), sender.getId(), recipient.getId());
+
+        return savedChat;
+    }
+
+    private void validateUserInChat(Long userId, Long chatId) {
+        boolean isUserInChat = chatMemberRepository.existsByChatIdAndUserId(chatId, userId);
+        if (!isUserInChat) {
+            throw new SecurityException("Пользователь " + userId + " не является участником чата " + chatId);
+        }
     }
 }
