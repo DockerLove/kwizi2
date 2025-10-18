@@ -1,24 +1,18 @@
 package com.example.kwizi.controller;
 
-import com.example.kwizi.DTO.internal.ChatDto;
 import com.example.kwizi.DTO.request.AddChatMemberRequestDto;
 import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
 import com.example.kwizi.DTO.response.ApiResponse;
-import com.example.kwizi.model.User;
 import com.example.kwizi.security.UserDetailsImpl;
 import com.example.kwizi.service.ChatService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.security.Principal;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/chats")
@@ -79,9 +73,7 @@ public class ChatController {
         logger.info("Пользователь успешно назначен админом. ID чата: {}, ID пользователя: {}, инициатор: {}", chatId, userId, currentUserId);
         return ResponseEntity.ok(ApiResponse.success("Пользователь успешно назначен админом", null));
     }
-    //todo посмотреть про Put и Post
 
-    // Controller
     @DeleteMapping("/{chatId}/members/{id}")
     public ResponseEntity<?> removeChatMember(
             @PathVariable Long chatId,
