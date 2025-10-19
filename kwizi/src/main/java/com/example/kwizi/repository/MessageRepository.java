@@ -8,12 +8,6 @@ import java.util.List;
 //Управление сообщениями (сохранение, получение, поиск по чату, фильтрация по статусу удаления).
 @Repository
 public interface MessageRepository extends JpaRepository<Message, Long> {
-
-
-    List<Message> findByChatId(Long chatId);
-
     List<Message> findByChatIdAndIsDeleted(Long chatId, boolean isDeleted);
 
-    // Дополнительные методы можно добавить по мере необходимости, например:
-    // List<Message> findBySenderId(Long senderId);
 }

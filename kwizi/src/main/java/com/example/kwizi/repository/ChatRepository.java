@@ -8,7 +8,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ChatRepository extends JpaRepository<Chat, Long> {
-    // Дополнительные методы можно добавлять по мере необходимости
     @Modifying
     @Query(
             value = "INSERT INTO chats (id) VALUES (:chatId) ON CONFLICT (id) DO NOTHING",
