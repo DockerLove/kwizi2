@@ -1,9 +1,5 @@
 package com.example.kwizi.DTO.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
-
 public class ApiResponse<T> {
     private boolean success;
     private String message;

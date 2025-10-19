@@ -97,7 +97,7 @@ public class AuthenticationController {
         final String jwt = jwtUtils.generateToken(userDetails.getUsername());
 
         logger.info("Успешная аутентификация пользователя: {}", username);
-        return ResponseEntity.ok(ApiResponse.success("token: " + new AuthenticationResponse(jwt),null));
+        return ResponseEntity.ok((new AuthenticationResponse(jwt)));
 
     }
     @PostMapping("/logout")

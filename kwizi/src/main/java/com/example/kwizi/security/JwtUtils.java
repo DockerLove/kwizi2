@@ -8,14 +8,13 @@ import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 @Component
 public class JwtUtils {
@@ -26,6 +25,12 @@ public class JwtUtils {
     private String secret;
 
     private Key key;
+    private final JwtExceptionHandler jwtExceptionHandler;
+
+    @Autowired
+    public JwtUtils(JwtExceptionHandler jwtExceptionHandler) {
+        this.jwtExceptionHandler = jwtExceptionHandler;
+    }
 
     @PostConstruct
     public void setSecret() {
@@ -39,75 +44,15 @@ public class JwtUtils {
         }
     }
 
-    public String getUsernameFromToken(String token) {
-        logger.debug("Получение имени пользователя из токена.");
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            String username = claims.getSubject();
-            logger.debug("Имя пользователя из токена: {}", username);
-            return username;
-        } catch (ExpiredJwtException e) {
-            logger.warn("Срок действия JWT токена истек: {}", e.getMessage());
-            throw new JwtAuthenticationException("Срок действия JWT токена истек", e);
-        } catch (MalformedJwtException e) {
-            logger.warn("JWT токен имеет неверный формат: {}", e.getMessage());
-            throw new JwtAuthenticationException("JWT токен имеет неверный формат", e);
-        } catch (SignatureException e) {
-            logger.warn("Неверная подпись JWT токена: {}", e.getMessage());
-            throw new JwtAuthenticationException("Неверная подпись JWT токена", e);
-        } catch (UnsupportedJwtException e) {
-            logger.warn("Неподдерживаемый JWT токен: {}", e.getMessage());
-            throw new JwtAuthenticationException("Неподдерживаемый JWT токен", e);
-        } catch (IllegalArgumentException e) {
-            logger.warn("JWT токен недействителен: {}", e.getMessage());
-            throw new JwtAuthenticationException("JWT токен недействителен", e);
-        }
-    }
-
-    public String extractJti(String token) {
-        logger.debug("Извлечение JTI из токена.");
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            String jti = claims.getId();
-            logger.debug("JTI из токена: {}", jti);
-            return jti;
-        } catch (Exception e) {
-            logger.warn("Не удалось извлечь JTI из токена: {}", e.getMessage());
-            throw new JwtAuthenticationException("Не удалось извлечь JTI из токена", e);
-        }
-    }
-
-    public Date extractExpiration(String token) {
-        logger.debug("Извлечение срока действия токена.");
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            Date expiration = claims.getExpiration();
-            logger.debug("Срок действия токена: {}", expiration);
-            return expiration;
-        } catch (Exception e) {
-            logger.warn("Не удалось извлечь срок действия токена: {}", e.getMessage());
-            throw new JwtAuthenticationException("Не удалось извлечь срок действия токена", e);
-        }
-    }
-
     public String generateToken(String username) {
         logger.info("Генерация JWT для пользователя: {}", username);
-        Map<String, Object> claims = new HashMap<>();
+
+        if (username == null || username.trim().isEmpty()) {
+            throw new IllegalArgumentException("Имя пользователя не может быть пустым");
+        }
+
         String jti = UUID.randomUUID().toString();
         String token = Jwts.builder()
-                .setClaims(claims)
                 .setId(jti)
                 .setSubject(username)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
@@ -118,53 +63,115 @@ public class JwtUtils {
         return token;
     }
 
-    public String extractToken(HttpServletRequest request) {
-        logger.debug("Извлечение токена из заголовка Authorization.");
-        final String authorizationHeader = request.getHeader("Authorization");
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            String token = authorizationHeader.substring(7);
-            logger.debug("Извлеченный токен: {}", token);
-            return token;
+    public String extractJti(String token) {
+        logger.debug("Извлечение JTI из токена.");
+
+        if (token == null || token.trim().isEmpty()) {
+            throw new IllegalArgumentException("Токен не может быть пустым");
         }
-        logger.debug("Заголовок Authorization отсутствует или не начинается с Bearer.");
-        return null;
+
+        try {
+            Claims claims = extractAllClaims(token);
+
+            String jti = claims.getId();
+            if (jti == null) {
+                logger.warn("Токен не содержит JTI");
+                throw new JwtAuthenticationException("Токен не содержит JTI");
+            }
+
+            logger.debug("JTI из токена: {}", jti);
+            return jti;
+        } catch (JwtException | IllegalArgumentException e) {
+            throw new JwtAuthenticationException("Не удалось извлечь JTI из токена: " + e.getMessage(), e);
+        }
+    }
+
+    public Date extractExpiration(String token) {
+        logger.debug("Извлечение срока действия токена.");
+        try {
+            Claims claims = extractAllClaims(token);
+            Date expiration = claims.getExpiration();
+            logger.debug("Срок действия токена: {}", expiration);
+            return expiration;
+        } catch (JwtException | IllegalArgumentException e) {
+            logger.warn("Не удалось извлечь срок действия токена: {}", e.getMessage());
+            throw new JwtAuthenticationException("Не удалось извлечь срок действия токена", e);
+        }
+    }
+
+    public String extractToken(HttpServletRequest request) {
+        logger.debug("Извлечение токена из заголовка Authorization");
+
+        if (request == null) {
+            throw new IllegalArgumentException("HttpServletRequest не может быть null");
+        }
+
+        final String authorizationHeader = request.getHeader("Authorization");
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new JwtAuthenticationException("Отсутствует или невалидный заголовок Authorization");
+        }
+
+        String token = authorizationHeader.substring(7);
+
+        if (token.trim().isEmpty()) {
+            throw new JwtAuthenticationException("Токен не может быть пустым");
+        }
+
+        logger.debug("Токен успешно извлечен из заголовка");
+        return token;
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {
+
+        if (token == null || userDetails == null) {
+            logger.debug("Токен или UserDetails не могут быть null");
+            return false;
+        }
         logger.debug("Валидация токена для пользователя: {}", userDetails.getUsername());
         String username = getUsernameFromToken(token);
+
         boolean isValid = username != null && username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+
         logger.debug("Валидация токена для пользователя {}: {}", userDetails.getUsername(), isValid);
         return isValid;
     }
 
+    public String getUsernameFromToken(String token) {
+        return jwtExceptionHandler.handleJwtOperation(() -> {
+            logger.debug("Получение имени пользователя из токена.");
+            Claims claims = extractAllClaims(token);
+            String username = claims.getSubject();
+            logger.debug("Имя пользователя из токена: {}", username);
+            return username;
+        }, "получении имени пользователя из токена");
+    }
+
     public boolean isTokenExpired(String token) {
         logger.debug("Проверка срока действия токена.");
+
         try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+            Claims claims = jwtExceptionHandler.handleJwtOperation(() ->
+                            extractAllClaims(token),
+                    "проверке срока действия токена"
+            );
+
             Date expiration = claims.getExpiration();
             boolean expired = expiration.before(new Date());
             logger.debug("Токен истек: {}", expired);
             return expired;
-        } catch (ExpiredJwtException e) {
-            logger.warn("Срок действия токена истек: {}", e.getMessage());
-            return true;
-        } catch (MalformedJwtException e) {
-            logger.warn("JWT токен имеет неверный формат: {}", e.getMessage());
-            return true;
-        } catch (SignatureException e) {
-            logger.warn("Неверная подпись JWT токена: {}", e.getMessage());
-            return true;
-        } catch (UnsupportedJwtException e) {
-            logger.warn("Неподдерживаемый JWT токен: {}", e.getMessage());
-            return true;
-        } catch (IllegalArgumentException e) {
-            logger.warn("JWT токен недействителен: {}", e.getMessage());
-            return true;
+
+        } catch (JwtAuthenticationException e) {
+            throw new JwtAuthenticationException("Токен невалиден при проверке срока действия: " + e.getMessage());
         }
+    }
+
+
+
+    private Claims extractAllClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 }
