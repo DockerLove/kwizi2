@@ -2,10 +2,6 @@ package com.example.kwizi.security;
 
 import com.example.kwizi.exception.JwtAuthenticationException;
 import com.example.kwizi.repository.RevokedTokenRepository;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.UnsupportedJwtException;
-import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,14 +27,16 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     private final UserDetailsService userDetailsService;
     private final JwtUtils jwtUtils;
     private final RevokedTokenRepository revokedTokenRepo;
+    private final JwtFilterExceptionHandler jwtFilterExceptionHandler;
 
     @Autowired
     public JwtRequestFilter(UserDetailsService userDetailsService,
                             JwtUtils jwtUtils,
-                            RevokedTokenRepository revokedTokenRepo) {
+                            RevokedTokenRepository revokedTokenRepo,JwtFilterExceptionHandler jwtFilterExceptionHandler) {
         this.userDetailsService = userDetailsService;
         this.jwtUtils = jwtUtils;
         this.revokedTokenRepo = revokedTokenRepo;
+        this.jwtFilterExceptionHandler = jwtFilterExceptionHandler;
     }
 
     @Override
@@ -47,68 +45,91 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                                     FilterChain chain)
             throws ServletException, IOException {
 
-        final String authorizationHeader = request.getHeader("Authorization");
+        String jwtToken = extractJwtToken(request);
 
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            String jwt = authorizationHeader.substring(7);
-            logger.debug("Получен JWT из заголовка: {}", jwt); // Логируем получение JWT
-
+        if (jwtToken != null) {
             try {
-                // Проверяем, не отозван ли токен
-                String jti = jwtUtils.extractJti(jwt);
-                if (revokedTokenRepo.existsById(jti)) {
-                    logger.warn("Токен отозван: {}", jti);
-                    throw new JwtAuthenticationException("Токен был отозван");
-                }
-
-                String username = jwtUtils.getUsernameFromToken(jwt);
-                logger.debug("Извлечено имя пользователя из JWT: {}", username); // Логируем извлеченное имя пользователя
-
-                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                    logger.debug("Загружены детали пользователя для: {}", username); // Логируем загрузку деталей пользователя
-                    if (jwtUtils.validateToken(jwt, userDetails)) {
-                        UsernamePasswordAuthenticationToken authToken =
-                                new UsernamePasswordAuthenticationToken(
-                                        userDetails, null, userDetails.getAuthorities());
-                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                        SecurityContextHolder.getContext().setAuthentication(authToken);
-                        logger.info("Пользователь {} аутентифицирован с помощью JWT", username); // Логируем успешную аутентификацию
-                    } else {
-                        logger.warn("Не удалось проверить JWT для пользователя: {}", username); // Логируем невалидный токен
-                    }
-                }
-            } catch (ExpiredJwtException e) {
-                logger.warn("JWT истек: {}", e.getMessage());
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "JWT has expired");
-                return;
-            } catch (UnsupportedJwtException e) {
-                logger.warn("Неподдерживаемый JWT: {}", e.getMessage());
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unsupported JWT");
-                return;
-            } catch (MalformedJwtException e) {
-                logger.warn("Неверный формат JWT: {}", e.getMessage());
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT format");
-                return;
-            } catch (SignatureException e) {
-                logger.warn("Неверная подпись JWT: {}", e.getMessage());
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT signature");
-                return;
-            } catch (JwtAuthenticationException e) {
-                logger.warn("Ошибка аутентификации JWT: {}", e.getMessage());
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
-                return;
+                processJwtAuthentication(jwtToken, request);
             } catch (Exception e) {
-                logger.error("Ошибка при обработке JWT", e);
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication failed");
+                jwtFilterExceptionHandler.handleJwtException(e, response);
                 return;
             }
         }
+
         chain.doFilter(request, response);
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         return request.getServletPath().equals("/api/auth/login"); // Не фильтруем /api/auth/login
+    }
+
+    private String extractJwtToken(HttpServletRequest request) {
+        final String authorizationHeader = request.getHeader("Authorization");
+
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            String jwt = authorizationHeader.substring(7);
+            logger.debug("Получен JWT из заголовка: {}", jwt);
+            return jwt;
+        }
+
+        return null;
+    }
+
+    private void processJwtAuthentication(String jwtToken, HttpServletRequest request) {
+        validateTokenNotRevoked(jwtToken);
+
+        String username = extractUsernameFromToken(jwtToken);
+
+        if (shouldAuthenticateUser(username)) {
+            authenticateUser(jwtToken, username, request);
+        }
+    }
+
+    private void validateTokenNotRevoked(String jwtToken) {
+        String jti = jwtUtils.extractJti(jwtToken);
+        if (revokedTokenRepo.existsById(jti)) {
+            logger.warn("Токен отозван: {}", jti);
+            throw new JwtAuthenticationException("Токен был отозван");
+        }
+    }
+
+    private String extractUsernameFromToken(String jwtToken) {
+        String username = jwtUtils.getUsernameFromToken(jwtToken);
+        logger.debug("Извлечено имя пользователя из JWT: {}", username);
+        return username;
+    }
+
+    private boolean shouldAuthenticateUser(String username) {
+        return username != null && SecurityContextHolder.getContext().getAuthentication() == null;
+    }
+
+    private void authenticateUser(String jwtToken, String username, HttpServletRequest request) {
+        UserDetails userDetails = loadUserDetails(username);
+
+        if (isTokenValid(jwtToken, userDetails)) {
+            setAuthenticationInContext(userDetails, request);
+            logger.info("Пользователь {} аутентифицирован с помощью JWT", username);
+        } else {
+            logger.warn("Не удалось проверить JWT для пользователя: {}", username);
+        }
+    }
+
+    private UserDetails loadUserDetails(String username) {
+        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        logger.debug("Загружены детали пользователя для: {}", username);
+        return userDetails;
+    }
+
+    private boolean isTokenValid(String jwtToken, UserDetails userDetails) {
+        return jwtUtils.validateToken(jwtToken, userDetails);
+    }
+
+    private void setAuthenticationInContext(UserDetails userDetails, HttpServletRequest request) {
+        UsernamePasswordAuthenticationToken authToken =
+                new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities());
+        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authToken);
     }
 }
