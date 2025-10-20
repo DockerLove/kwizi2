@@ -21,12 +21,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-/*Этот класс настраивает Spring Security.
-Он определяет, какие endpoint-ы требуют аутентификации, а какие - нет.
-Он настраивает JwtRequestFilter для перехвата запросов и аутентификации на основе JWT.
-Он настраивает AuthenticationManager для аутентификации пользователей.
-Он указывает, что приложение должно использовать STATELESS сессии (т.е., не использовать сессии на стороне сервера).*/
-
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
     private UserDetailsService userDetailsService;
 
@@ -45,22 +39,19 @@ public class SecurityConfig {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
-        logger.info("AuthenticationProvider configured with UserDetailsService and PasswordEncoder"); // Логируем конфигурацию
-
+        logger.info("AuthenticationProvider сконфигурирован с UserDetailsService и PasswordEncoder");
         return authProvider;
     }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        AuthenticationManager authenticationManager = config.getAuthenticationManager();
-        logger.info("AuthenticationManager configured successfully"); // Логируем инициализацию
-        return authenticationManager;
+        logger.info("AuthenticationManager успешно сконфигурирован");
+        return config.getAuthenticationManager();
     }
-    // Отключаем CSRF для API, так как используем JWT в заголовках.
-    // CSRF-атаки не применимы, когда аутентификация не на основе cookie.
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        logger.info("Building SecurityFilterChain"); // Логируем начало построения
+        logger.info("Настройка SecurityFilterChain");
+
         http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/kafka/**").permitAll()
@@ -75,15 +66,14 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
-        logger.info("SecurityFilterChain built successfully"); // Логируем успешное построение
+        logger.info("SecurityFilterChain успешно настроен");
         return http.build();
     }
 
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-        logger.info("PasswordEncoder (BCryptPasswordEncoder) configured"); // Логируем конфигурацию
-        return passwordEncoder;
+        logger.info("PasswordEncoder (BCryptPasswordEncoder) сконфигурирован");
+        return new BCryptPasswordEncoder();
     }
 }
