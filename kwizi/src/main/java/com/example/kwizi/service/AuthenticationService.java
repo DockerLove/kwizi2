@@ -26,7 +26,7 @@ import java.util.Date;
 import java.util.Optional;
 
 @Service
-@Transactional
+@Transactional(readOnly = true)
 public class AuthenticationService {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthenticationService.class);
@@ -54,6 +54,7 @@ public class AuthenticationService {
         this.jwtUtils = jwtUtils;
     }
 
+    @Transactional
     public void logout(String token) {
         logger.debug("Достаем данные из токена");
 
@@ -77,6 +78,7 @@ public class AuthenticationService {
     }
 
 
+    @Transactional
     public void sendVerificationEmail(Long userId) {
         logger.info("Отправка письма подтверждения для пользователя: {}", userId);
 
@@ -89,16 +91,20 @@ public class AuthenticationService {
         logger.info("Письмо подтверждения отправлено пользователю: {}", userId);
     }
 
+    @Transactional
     public void verifyEmail(String token) {
         logger.info("Подтверждение email по токену");
 
         validateTokenNotExpired(token);
         Long userId = extractUserIdFromToken(token);
-        verifyUserEmail(userId);
+
+        User user = findUserById(userId);
+        user.setEmail_verified(true);
 
         logger.info("Email подтвержден для пользователя: {}", userId);
     }
 
+    @Transactional
     public void changePassword(String username, ChangePasswordRequest request) {
         logger.info("Смена пароля для пользователя: {}", username);
 
@@ -110,6 +116,7 @@ public class AuthenticationService {
         logger.info("Пароль изменен для пользователя: {}", username);
     }
 
+    @Transactional
     public User registerUser(User user) {
         logger.info("Регистрация пользователя: {}", user.getUsername());
 
@@ -143,7 +150,7 @@ public class AuthenticationService {
 
     private void validateEmailNotVerified(User user) {
         if (user.isEmail_verified()) {
-            throw new EmailAlreadyVerifiedException("Email уже подтвержден для пользователя: " + user.getId());
+            throw new EmailAlreadyVerifiedException("Email уже подтвержден для пользователя: " + user.getUsername());
         }
     }
 
@@ -164,12 +171,6 @@ public class AuthenticationService {
         }
     }
 
-    private void verifyUserEmail(Long userId) {
-        User user = findUserById(userId);
-        user.setEmail_verified(true);
-        authenticationRepository.save(user);
-    }
-
     private void validateOldPassword(User user, String oldPassword) {
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new InvalidPasswordException("Неверный старый пароль");
@@ -179,7 +180,6 @@ public class AuthenticationService {
     private void updateUserPassword(User user, String newPassword) {
         String encodedPassword = passwordEncoder.encode(newPassword);
         user.setPassword(encodedPassword);
-        authenticationRepository.save(user);
     }
 
     private void encodeUserPassword(User user) {

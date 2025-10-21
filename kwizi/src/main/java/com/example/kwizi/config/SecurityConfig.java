@@ -23,16 +23,14 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
     private UserDetailsService userDetailsService;
-
-
     private JwtRequestFilter jwtRequestFilter;
-
 
     @Autowired
     public SecurityConfig(UserDetailsService userDetailsService, JwtRequestFilter jwtRequestFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtRequestFilter = jwtRequestFilter;
     }
+
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -43,11 +41,13 @@ public class SecurityConfig {
         return authProvider;
     }
 
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         logger.info("AuthenticationManager успешно сконфигурирован");
         return config.getAuthenticationManager();
     }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         logger.info("Настройка SecurityFilterChain");
@@ -69,7 +69,6 @@ public class SecurityConfig {
         logger.info("SecurityFilterChain успешно настроен");
         return http.build();
     }
-
 
     @Bean
     public PasswordEncoder passwordEncoder() {

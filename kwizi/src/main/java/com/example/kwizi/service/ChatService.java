@@ -229,7 +229,6 @@ public class ChatService {
 
     private void promoteToAdmin(ChatMember member) {
         member.setIsAdmin(true);
-        chatMemberRepository.save(member);
     }
 
     private void removeChatMember(Long chatId, Long userId) {

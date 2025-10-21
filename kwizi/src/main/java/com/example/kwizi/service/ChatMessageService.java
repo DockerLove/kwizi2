@@ -24,6 +24,7 @@ import java.util.List;
 
 @Lazy
 @Service
+@Transactional(readOnly = true)
 public class ChatMessageService implements ChatMessageServiceInterface {
 
     private static final Logger logger = LoggerFactory.getLogger(ChatMessageService.class);
@@ -122,8 +123,6 @@ public class ChatMessageService implements ChatMessageServiceInterface {
 
         return members;
     }
-
-    // ========== PRIVATE HELPER METHODS ==========
 
     private Message createAndSaveMessage(Chat chat, User sender, String text) {
         Message message = new Message();

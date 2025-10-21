@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 @Service
+@Transactional(readOnly = true)
 public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
@@ -38,7 +39,7 @@ public class UserService {
             user.setEmail_verified(true);
         });
     }
-
+    @Transactional
     public String updateUsername(Long userId, String username) {
         return executeWithLogging("обновление username", userId, () -> {
             // Проверяем что новый username не занят
@@ -49,7 +50,6 @@ public class UserService {
 
             // Обновляем username
             user.setUsername(username);
-            userRepository.save(user);
 
             // Генерируем новый токен
             String token = jwtUtils.generateToken(username);
@@ -58,28 +58,26 @@ public class UserService {
             return token;
         });
     }
-
+    @Transactional
     public void updateBio(Long id, String bio) {
         executeWithLogging("обновление bio", id, () -> {
             User user = findUserById(id);
             user.setBio(bio);
-            userRepository.save(user);
         });
     }
-
+    @Transactional
     public void updateFirstName(Long id, String firstName) {
         executeWithLogging("обновление имени", id, () -> {
             User user = findUserById(id);
             user.setFirstName(firstName);
-            userRepository.save(user);
         });
     }
 
+    @Transactional
     public void updateLastName(Long userId, String lastName) {
         executeWithLogging("обновление фамилии", userId, () -> {
             User user = findUserById(userId);
             user.setLastName(lastName);
-            userRepository.save(user);
         });
     }
 
