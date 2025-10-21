@@ -116,8 +116,6 @@ public class AuthenticationController {
         return ResponseEntity.ok(ApiResponse.success("Выход выполнен успешно", null));
     }
 
-
-    // Классы для представления запроса и ответа (вложенные классы для простоты)
 }
 
 
