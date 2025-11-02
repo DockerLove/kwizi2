@@ -23,22 +23,22 @@ public class ChatMember {
     @JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "fk_chat_member_user"))
     private User user;
 
-    @Column(name = "is_admin", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
-    private Boolean isAdmin = false;
+    @Column(name = "is_admin", nullable = false)
+    private boolean isAdmin = false;
 
     @CreationTimestamp
-    @Column(name = "joined_at", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE DEFAULT NOW()")
+    @Column(name = "joined_at", nullable = false)
     private OffsetDateTime joinedAt;
 
     public void setId(ChatMemberId id) {
         this.id = id;
     }
 
-    public Boolean getAdmin() {
+    public boolean getAdmin() {
         return isAdmin;
     }
 
-    public void setAdmin(Boolean admin) {
+    public void setAdmin(boolean admin) {
         isAdmin = admin;
     }
 

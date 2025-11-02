@@ -13,8 +13,8 @@ public class Chat {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "is_group", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
-    private Boolean isGroup = false;
+    @Column(name = "is_group", nullable = false)
+    private boolean isGroup = false;
 
     @Column(name = "group_name", length = 100)
     private String groupName;
@@ -25,15 +25,15 @@ public class Chat {
     private User createdBy;
 
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false,
-            columnDefinition = "TIMESTAMP WITH TIME ZONE DEFAULT NOW()")
+    @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
+    //todo - добавить updateAt мб
 
     // Конструкторы
     public Chat() {
     }
 
-    public Chat(Boolean isGroup, String groupName, User createdBy) {
+    public Chat(boolean isGroup, String groupName, User createdBy) {
         this.isGroup = isGroup;
         this.groupName = groupName;
         this.createdBy = createdBy;
@@ -43,11 +43,11 @@ public class Chat {
         this.id = id;
     }
 
-    public Boolean getGroup() {
+    public boolean getGroup() {
         return isGroup;
     }
 
-    public void setGroup(Boolean group) {
+    public void setGroup(boolean group) {
         isGroup = group;
     }
 

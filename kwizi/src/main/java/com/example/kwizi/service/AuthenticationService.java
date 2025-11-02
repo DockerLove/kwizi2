@@ -71,7 +71,7 @@ public class AuthenticationService {
                 });
 
         logger.debug("Создаем запись об отозванном токене");
-        RevokedToken revokedToken = new RevokedToken(jti, user.getId(), expiresAt, username);
+        RevokedToken revokedToken = new RevokedToken(jti, user.getId(), expiresAt.toInstant(), username);
         revokedTokenRepo.save(revokedToken);
 
         logger.info("Токен отозван для пользователя: {}", username);
