@@ -1,7 +1,8 @@
 package com.example.kwizi.model;
-import jakarta.persistence.*;
 
+import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
+
 import java.time.OffsetDateTime;
 
 @Entity
@@ -38,9 +39,12 @@ public class Message {
     @Column(
             name = "created_at",
             nullable = false,
-            columnDefinition = "TIMESTAMP WITH TIME ZONE DEFAULT NOW()"
+            updatable = false
     )
     private OffsetDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
 
     @Column(
             name = "is_deleted",
@@ -57,15 +61,6 @@ public class Message {
         this.chat = chat;
         this.sender = sender;
         this.text = text;
-    }
-
-    // Бизнес-методы
-    public void markAsDeleted() {
-        this.isDeleted = true;
-    }
-
-    public boolean isOwnedBy(User user) {
-        return this.sender != null && this.sender.equals(user);
     }
 
     @Override
@@ -127,5 +122,13 @@ public class Message {
 
     public void setDeleted(boolean deleted) {
         isDeleted = deleted;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(OffsetDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

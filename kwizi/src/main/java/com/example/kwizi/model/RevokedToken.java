@@ -5,7 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-import java.util.Date;
+import java.time.Instant;
 
 @Entity
 @Table(name = "revoked_access_tokens")
@@ -19,22 +19,23 @@ public class RevokedToken {
     private String username;
 
     @Column(nullable = false)
-    private Date expiresAt;
+    private Instant expiresAt;
 
     @Column(nullable = false)
-    private Date revokedAt = new Date();
+    private Instant revokedAt = Instant.now();
 
     public RevokedToken() {
-        this.revokedAt = new Date(); // Инициализация даты отзыва
+        this.revokedAt = Instant.now(); // Инициализация даты отзыва
     }
 
     // Конструктор для удобного создания объектов
 
-    public RevokedToken(String jti, Long userId, Date expiresAt, String username) {
+    public RevokedToken(String jti, Long userId, Instant expiresAt, String username) {
         this.jti = jti;
         this.userId = userId;
         this.expiresAt = expiresAt;
         this.username = username;
+        this.revokedAt = Instant.now();
     }
 
     public Long getUserId() {
@@ -61,19 +62,19 @@ public class RevokedToken {
         this.username = username;
     }
 
-    public Date getExpiresAt() {
+    public Instant getExpiresAt() {
         return expiresAt;
     }
 
-    public void setExpiresAt(Date expiresAt) {
+    public void setExpiresAt(Instant expiresAt) {
         this.expiresAt = expiresAt;
     }
 
-    public Date getRevokedAt() {
+    public Instant getRevokedAt() {
         return revokedAt;
     }
 
-    public void setRevokedAt(Date revokedAt) {
+    public void setRevokedAt(Instant revokedAt) {
         this.revokedAt = revokedAt;
     }
 }

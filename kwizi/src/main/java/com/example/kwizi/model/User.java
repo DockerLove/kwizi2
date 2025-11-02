@@ -3,7 +3,7 @@ package com.example.kwizi.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.OffsetDateTime;
 
@@ -42,13 +42,17 @@ public class User {
     private String bio;
 
 
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    private OffsetDateTime createdAt = OffsetDateTime.now();
+    private OffsetDateTime createdAt;
 
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
-
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = OffsetDateTime.now();
+    }
 
     public Long getId() {
         return id;
