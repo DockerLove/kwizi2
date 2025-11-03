@@ -6,10 +6,13 @@ import com.example.kwizi.controller.ChatController;
 import com.example.kwizi.controller.UserController;
 import com.example.kwizi.exception.AuthenticationService.EmailAlreadyVerifiedException;
 import com.example.kwizi.exception.AuthenticationService.InvalidPasswordException;
+import com.example.kwizi.exception.MessageService.MessageEditTimeExpiredException;
+import com.example.kwizi.exception.MessageService.MessageNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -112,6 +115,27 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidPasswordException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidPassword(InvalidPasswordException ex) {
         logger.warn("Ошибка при попытке смены пароля: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage(),null));
+    }
+
+    @ExceptionHandler(MessageNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMessageNotFound(MessageNotFoundException ex) {
+        logger.warn("Сообщение не найдено: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(ex.getMessage(),null));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        logger.warn("Попытка редактирования чужого сообщения: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(ex.getMessage(),null));
+    }
+
+    @ExceptionHandler(MessageEditTimeExpiredException.class)
+    public ResponseEntity<ApiResponse<Void>> handleEditTimeExpired(MessageEditTimeExpiredException ex) {
+        logger.warn("Попытка редактирования просроченного сообщения: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(ex.getMessage(),null));
     }

@@ -3,14 +3,17 @@ package com.example.kwizi.controller;
 import com.example.kwizi.DTO.request.AddChatMemberRequestDto;
 import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
+import com.example.kwizi.DTO.request.EditMessageRequest;
 import com.example.kwizi.DTO.response.ApiResponse;
 import com.example.kwizi.security.UserDetailsImpl;
+import com.example.kwizi.service.ChatMessageService;
 import com.example.kwizi.service.ChatService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,13 +22,36 @@ import org.springframework.web.bind.annotation.*;
 public class ChatController {
 
     private final ChatService chatService;
+    private final ChatMessageService chatMessageService;
     private static final Logger logger = LoggerFactory.getLogger(ChatController.class);
 
 
     @Autowired
-    public ChatController(ChatService chatService) {
+    public ChatController(ChatService chatService,ChatMessageService chatMessageService) {
         this.chatService = chatService;
+        this.chatMessageService = chatMessageService;
     }
+
+    @PatchMapping("/messages/{messageId}")
+    public ResponseEntity<?> editMessage(
+            @PathVariable Long messageId,
+            @RequestBody @Valid EditMessageRequest request,
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
+
+        logger.info("Запрос на редактирование сообщения. Message ID: {}, User: {}",
+                messageId, username);
+
+        chatMessageService.editMessage(messageId, request.getText(), username);
+
+        logger.info("Сообщение успешно отредактировано. Message ID: {}, User: {}",
+                messageId, username);
+
+        return ResponseEntity.ok(ApiResponse.success("Сообщение изменено",null));
+    }
+
+
 
     @PostMapping("/group")
     public ResponseEntity<?> createGroupChat(
