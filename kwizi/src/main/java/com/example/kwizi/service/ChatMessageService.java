@@ -227,7 +227,7 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         response.setText(message.getText());
         response.setSenderId(message.getSender().getId());
         response.setSenderName(message.getSender().getUsername());
-        response.setCreatedAt(message.getCreatedAt());
+        response.setCreatedAt(message.getCreatedAt().toLocalDateTime());
         response.setUpdatedAt(message.getUpdatedAt());
         response.setEdited(message.isEdited());
         return response;
