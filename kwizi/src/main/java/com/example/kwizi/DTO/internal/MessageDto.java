@@ -1,13 +1,13 @@
 package com.example.kwizi.DTO.internal;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public class MessageDto {
     private Long id;
     private Long chatId;
     private Long senderId;
     private String text;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     public Long getId() {
         return id;
@@ -41,11 +41,11 @@ public class MessageDto {
         this.text = text;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
     }
 

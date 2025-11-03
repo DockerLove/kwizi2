@@ -5,6 +5,7 @@ import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
 import com.example.kwizi.DTO.request.EditMessageRequest;
 import com.example.kwizi.DTO.response.ApiResponse;
+import com.example.kwizi.DTO.response.ChatHistoryResponse;
 import com.example.kwizi.security.UserDetailsImpl;
 import com.example.kwizi.service.ChatMessageService;
 import com.example.kwizi.service.ChatService;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -32,6 +34,24 @@ public class ChatController {
         this.chatMessageService = chatMessageService;
     }
 
+    @GetMapping("/{chatId}/messages")
+    public ResponseEntity<ApiResponse<Page<ChatHistoryResponse>>> getChatHistory(
+            @PathVariable Long chatId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(defaultValue = "createdAt,desc") String sort,
+            Authentication authentication
+    ) {
+        logger.info("Запрос истории чата. ID чата: {}, страница: {}, размер: {}, пользователь: {}",
+                chatId, page, size, authentication.getName());
+
+        Page<ChatHistoryResponse> messages = chatMessageService.getChatHistory(chatId, page, size, sort, authentication.getName());
+
+        logger.info("История чата успешно получена. ID чата: {}, сообщений на странице: {}",
+                chatId, messages.getNumberOfElements());
+
+        return ResponseEntity.ok(ApiResponse.success("История чата успешно загружена", messages));
+    }
     @PatchMapping("/messages/{messageId}")
     public ResponseEntity<?> editMessage(
             @PathVariable Long messageId,
@@ -50,8 +70,6 @@ public class ChatController {
 
         return ResponseEntity.ok(ApiResponse.success("Сообщение изменено",null));
     }
-
-
 
     @PostMapping("/group")
     public ResponseEntity<?> createGroupChat(

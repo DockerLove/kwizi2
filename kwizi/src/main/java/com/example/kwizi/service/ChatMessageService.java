@@ -1,6 +1,7 @@
 package com.example.kwizi.service;
 
 import com.example.kwizi.DTO.internal.MessageDto;
+import com.example.kwizi.DTO.response.ChatHistoryResponse;
 import com.example.kwizi.exception.ChatNotFoundException;
 import com.example.kwizi.exception.MessageService.MessageEditTimeExpiredException;
 import com.example.kwizi.exception.MessageService.MessageNotFoundException;
@@ -17,6 +18,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -83,20 +88,30 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         return chat;
     }
 
-    public List<Message> getChatHistory(Long chatId) {
-        logger.info("Запрос истории сообщений для чата. ID чата: {}", chatId);
+    @Transactional(readOnly = true)
+    public Page<ChatHistoryResponse> getChatHistory(Long chatId, int page, int size, String sort, String username) {
+        logger.debug("Получение истории чата. ID чата: {}, пользователь: {}", chatId, username);
 
-        // Проверяем существование чата
-        if (!chatRepository.existsById(chatId)) {
-            throw new ChatNotFoundException("Чат с ID " + chatId + " не найден");
+        // Проверка доступа
+        if (!chatMemberRepository.existsByChatIdAndUsername(chatId, username)) {
+            logger.warn("Попытка доступа к чужому чату. ID чата: {}, пользователь: {}", chatId, username);
+            throw new AccessDeniedException("Нет доступа к чату");
         }
 
-        List<Message> messages = messageRepository.findByChatIdAndIsDeleted(chatId, false);
-        logger.info("История сообщений для чата {} получена, количество: {}",
-                chatId, messages.size());
+        // Создание pageable
+        Sort sorting = Sort.by(Sort.Order.desc("createdAt"));
+        Pageable pageable = PageRequest.of(page, size, sorting);
 
-        return messages;
+        // Получение данных
+        Page<Message> messages = messageRepository.findByChatId(chatId, pageable);
+
+        logger.debug("Найдено сообщений в чате {}: {} из {}",
+                chatId, messages.getNumberOfElements(), messages.getTotalElements());
+
+        return messages.map(this::convertToChatHistoryResponse);
     }
+
+
 
     @Transactional
     public Message sendPrivateMessage(MessageDto messageDto, Long senderId, Long recipientId) {
@@ -204,5 +219,17 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         if (!isUserInChat) {
             throw new SecurityException("Пользователь " + userId + " не является участником чата " + chatId);
         }
+    }
+
+    protected ChatHistoryResponse convertToChatHistoryResponse(Message message) {
+        ChatHistoryResponse response = new ChatHistoryResponse();
+        response.setMessageId(message.getId());
+        response.setText(message.getText());
+        response.setSenderId(message.getSender().getId());
+        response.setSenderName(message.getSender().getUsername());
+        response.setCreatedAt(message.getCreatedAt());
+        response.setUpdatedAt(message.getUpdatedAt());
+        response.setEdited(message.isEdited());
+        return response;
     }
 }
