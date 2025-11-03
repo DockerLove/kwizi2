@@ -3,6 +3,7 @@ package com.example.kwizi.model;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -44,7 +45,10 @@ public class Message {
     private OffsetDateTime createdAt;
 
     @Column(name = "updated_at")
-    private OffsetDateTime updatedAt;
+    private Instant updatedAt;
+
+    @Column(name = "is_edited")
+    private boolean isEdited = false;
 
     @Column(
             name = "is_deleted",
@@ -74,6 +78,12 @@ public class Message {
     @Override
     public int hashCode() {
         return getClass().hashCode();
+    }
+
+    public void edit(String newText) {
+        this.text = newText;
+        this.isEdited = true;
+        this.updatedAt = Instant.now();
     }
 
     public Long getId() {
@@ -124,11 +134,19 @@ public class Message {
         isDeleted = deleted;
     }
 
-    public OffsetDateTime getUpdatedAt() {
+    public Instant getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(OffsetDateTime updatedAt) {
+    public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public boolean isEdited() {
+        return isEdited;
+    }
+
+    public void setEdited(boolean edited) {
+        isEdited = edited;
     }
 }
