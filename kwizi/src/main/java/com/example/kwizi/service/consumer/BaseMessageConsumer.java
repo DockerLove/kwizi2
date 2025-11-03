@@ -13,7 +13,6 @@ import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.Map;
 
 public abstract class BaseMessageConsumer {
@@ -61,7 +60,7 @@ public abstract class BaseMessageConsumer {
         MessageDto dto = new MessageDto();
         dto.setId(message.getId());
         dto.setText(message.getText());
-        dto.setCreatedAt(OffsetDateTime.from(message.getCreatedAt().toOffsetTime()));
+        dto.setCreatedAt(message.getCreatedAt().toLocalDateTime());
 
         if (message.getSender() != null) {
             dto.setSenderId(message.getSender().getId());

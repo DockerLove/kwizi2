@@ -159,7 +159,7 @@ class ChatMessageServiceTest {
         messageDto.setChatId(chatId);
         messageDto.setId(1L);
         messageDto.setText(messageText);
-        messageDto.setCreatedAt(OffsetDateTime.now());
+        messageDto.setCreatedAt(OffsetDateTime.now().toLocalDateTime());
         messageDto.setSenderId(testUser.getId());
 
         Chat existingChat = new Chat();
