@@ -1,7 +1,11 @@
 package com.example.kwizi.DTO.request;
 
+import jakarta.validation.constraints.NotNull;
+
 public class AddChatMemberRequestDto {
+
     private Long chatId;
+    @NotNull(message = "Поле userId не должно быть пустое")
     private Long userId;
 
     // Getters and setters

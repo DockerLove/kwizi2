@@ -29,6 +29,20 @@ public class GlobalExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
 
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<List<String>>> handleValidationErrors(
+            MethodArgumentNotValidException ex) {
+        List<String> errors = ex.getBindingResult().getFieldErrors()
+                .stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(Collectors.toList());
+
+        logger.warn("Ошибка валидации: {}", errors); // Логируем ошибки валидации
+
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error("Ошибка валидации", errors));
+    }
+
     @ExceptionHandler(UsernameAlreadyExistsException.class)
     public ResponseEntity<ApiResponse<Void>> handleUsernameAlreadyExists(UsernameAlreadyExistsException ex) {
         logger.warn("Конфликт username: {}", ex.getMessage());
@@ -48,20 +62,6 @@ public class GlobalExceptionHandler {
         logger.warn("Email уже подтвержден: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error(ex.getMessage(), null));
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<List<String>>> handleValidationErrors(
-            MethodArgumentNotValidException ex) {
-        List<String> errors = ex.getBindingResult().getFieldErrors()
-                .stream()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .collect(Collectors.toList());
-
-        logger.warn("Ошибка валидации: {}", errors); // Логируем ошибки валидации
-
-        return ResponseEntity.badRequest()
-                .body(ApiResponse.error("Ошибка валидации", errors));
     }
 
     // Обработка UserNotFoundException
@@ -144,7 +144,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ChatMemberNotFoundException.class)
     public ResponseEntity<ApiResponse<?>> handleUserNotFound(ChatMemberNotFoundException ex) {
-        logger.warn("Пользователь не является участником чата: {}", ex.getMessage()); // Логируем UserNotFoundException
+        logger.warn("Пользователь не является участником чата: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error(ex.getMessage(), null));
     }

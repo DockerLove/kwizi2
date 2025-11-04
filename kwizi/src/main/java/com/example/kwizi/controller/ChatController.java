@@ -52,7 +52,7 @@ public class ChatController {
     @PostMapping("/{chatId}/members")
     public ResponseEntity<?> addChatMember(
             @PathVariable Long chatId,
-            @RequestBody AddChatMemberRequestDto addChatMemberRequestDto
+            @Valid @RequestBody AddChatMemberRequestDto addChatMemberRequestDto
     ) {
         logger.info("Запрос на добавление участника в чат. ID чата: {}, ID пользователя для добавления: {}", chatId, addChatMemberRequestDto.getUserId());
         addChatMemberRequestDto.setChatId(chatId);

@@ -1,7 +1,11 @@
 package com.example.kwizi.DTO.request;
 
+import jakarta.validation.constraints.NotBlank;
+
 public class AuthenticationRequest {
+    @NotBlank(message = "Поле username не должно быть пустое")
     private String username;
+    @NotBlank(message = "Поле password не должно быть пустое")
     private String password;
 
     public AuthenticationRequest() {
