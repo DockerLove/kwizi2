@@ -159,7 +159,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
     }
 
     public void broadcastToChat(Long chatId, String payload) {
-        logger.info("Broadcasting to chat {}: {}", chatId, payload);
+        logger.info("Трансляция в чат {}: {}", chatId, payload);
 
         // Нужно найти всех участников чата и отправить им уведомление
         // Для этого понадобится сервис для получения участников чата

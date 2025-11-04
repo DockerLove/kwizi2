@@ -172,6 +172,8 @@ public class ChatMessageService implements ChatMessageServiceInterface {
 
         validateDeletePermissions(message, user.getId());
 
+        notificationService.notifyMessageDeleted(message.getChat().getId(), messageId, username);
+
         messageRepository.delete(message);
         logger.info("Сообщение ID: {} успешно удалено пользователем ID: {}", messageId, user.getId());
     }
