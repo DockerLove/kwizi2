@@ -1,6 +1,6 @@
 package com.example.kwizi.websocket;
 
-import com.example.kwizi.service.UserService;
+import com.example.kwizi.repository.ChatMemberRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,6 +16,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,15 +28,15 @@ public class UniversalChatHandler extends TextWebSocketHandler {
     private final Map<Long, WebSocketSession> activeSessions = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final UserService userService;
+    private final ChatMemberRepository chatMemberRepository;
 
     @Autowired
     public UniversalChatHandler(ObjectMapper objectMapper,
                                 KafkaTemplate<String, String> kafkaTemplate,
-                                UserService userService) {
+                                ChatMemberRepository chatMemberRepository) {
         this.objectMapper = objectMapper;
         this.kafkaTemplate = kafkaTemplate;
-        this.userService = userService;
+        this.chatMemberRepository = chatMemberRepository;
     }
 
 
@@ -155,6 +156,24 @@ public class UniversalChatHandler extends TextWebSocketHandler {
         } else {
             logger.warn("Пользователь {} не активен, уведомление не отправлено.", userId);
         }
+    }
+
+    public void broadcastToChat(Long chatId, String payload) {
+        logger.info("Broadcasting to chat {}: {}", chatId, payload);
+
+        // Нужно найти всех участников чата и отправить им уведомление
+        // Для этого понадобится сервис для получения участников чата
+        List<Long> chatMemberIds = getChatMemberIds(chatId); // Нужно реализовать
+
+        for (Long memberId : chatMemberIds) {
+            if (isUserOnline(memberId)) {
+                notifyUserByWebsocket(memberId, payload);
+            }
+        }
+    }
+
+    private List<Long> getChatMemberIds(Long chatId) {
+        return chatMemberRepository.findUserIdsByChatId(chatId);
     }
 }
 //todo - при отправке сообщения оно сохраняется только после того

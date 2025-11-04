@@ -41,17 +41,19 @@ public class ChatMessageService implements ChatMessageServiceInterface {
     private final MessageRepository messageRepository;
     private final ChatRepository chatRepository;
     private final UserRepository userRepository;
+    private NotificationService notificationService;
     private final ChatMemberRepository chatMemberRepository;
 
     @Autowired
     public ChatMessageService(MessageRepository messageRepository,
                               ChatRepository chatRepository,
                               UserRepository userRepository,
-                              ChatMemberRepository chatMemberRepository) {
+                              ChatMemberRepository chatMemberRepository,NotificationService notificationService) {
         this.messageRepository = messageRepository;
         this.chatRepository = chatRepository;
         this.userRepository = userRepository;
         this.chatMemberRepository = chatMemberRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -149,10 +151,17 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         message.edit(newText);
         messageRepository.save(message);
 
+        notificationService.notifyMessageEdited(
+                message.getChat().getId(),
+                messageId,
+                newText,
+                username
+        );
+
+
         logger.debug("Сообщение обновлено в БД. ID: {}, Новый текст: {} символов",
                 messageId, newText.length());
     }
-
 
     @Transactional
     public void deleteMessage(Long messageId, String username) {
