@@ -3,9 +3,11 @@ package com.example.kwizi.exception;
 import com.example.kwizi.DTO.response.ApiResponse;
 import com.example.kwizi.controller.AuthenticationController;
 import com.example.kwizi.controller.ChatController;
+import com.example.kwizi.controller.MessageController;
 import com.example.kwizi.controller.UserController;
 import com.example.kwizi.exception.AuthenticationService.EmailAlreadyVerifiedException;
 import com.example.kwizi.exception.AuthenticationService.InvalidPasswordException;
+import com.example.kwizi.exception.ChatService.ChatMemberNotFoundException;
 import com.example.kwizi.exception.MessageService.MessageEditTimeExpiredException;
 import com.example.kwizi.exception.MessageService.MessageNotFoundException;
 import org.slf4j.Logger;
@@ -21,7 +23,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@RestControllerAdvice(assignableTypes = {UserController.class, ChatController.class, AuthenticationController.class})
+@RestControllerAdvice(assignableTypes = {UserController.class, ChatController.class, AuthenticationController.class, MessageController.class})
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -128,7 +130,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
-        logger.warn("Попытка редактирования чужого сообщения: {}", ex.getMessage());
+        logger.warn("Попытка редактирования или удаления чужого сообщения: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error(ex.getMessage(),null));
     }
@@ -138,6 +140,13 @@ public class GlobalExceptionHandler {
         logger.warn("Попытка редактирования просроченного сообщения: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(ex.getMessage(),null));
+    }
+
+    @ExceptionHandler(ChatMemberNotFoundException.class)
+    public ResponseEntity<ApiResponse<?>> handleUserNotFound(ChatMemberNotFoundException ex) {
+        logger.warn("Пользователь не является участником чата: {}", ex.getMessage()); // Логируем UserNotFoundException
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(ex.getMessage(), null));
     }
 
 }

@@ -3,6 +3,7 @@ package com.example.kwizi.service;
 import com.example.kwizi.DTO.internal.MessageDto;
 import com.example.kwizi.DTO.response.ChatHistoryResponse;
 import com.example.kwizi.exception.ChatNotFoundException;
+import com.example.kwizi.exception.ChatService.ChatMemberNotFoundException;
 import com.example.kwizi.exception.MessageService.MessageEditTimeExpiredException;
 import com.example.kwizi.exception.MessageService.MessageNotFoundException;
 import com.example.kwizi.exception.UserNotFoundException;
@@ -152,6 +153,77 @@ public class ChatMessageService implements ChatMessageServiceInterface {
                 messageId, newText.length());
     }
 
+
+    @Transactional
+    public void deleteMessage(Long messageId, String username) {
+        logger.info("Попытка удаления сообщения ID: {} пользователем: {}", messageId, username);
+
+        User user = findUserByUsername(username);
+        Message message = findMessageById(messageId);
+
+        validateDeletePermissions(message, user.getId());
+
+        messageRepository.delete(message);
+        logger.info("Сообщение ID: {} успешно удалено пользователем ID: {}", messageId, user.getId());
+    }
+
+    private void validateDeletePermissions(Message message, Long userId) {
+        Long chatId = message.getChat().getId();
+
+        // Проверяем участие в чате
+        ChatMember requester = findChatMember(chatId, userId);
+        logger.debug("Пользователь ID: {} является участником чата ID: {}", userId, chatId);
+
+        // Проверяем права на удаление
+        if (isMessageSender(message, userId)) {
+            logger.info("Пользователь ID: {} удаляет своё сообщение ID: {}", userId, message.getId());
+            return; // Отправитель может удалять
+        }
+
+        if (isChatAdmin(requester)) {
+            logger.info("Админ ID: {} удаляет сообщение ID: {} в чате ID: {}",
+                    userId, message.getId(), chatId);
+            return; // Админ может удалять
+        }
+
+        // Если не отправитель и не админ - ошибка доступа
+        logger.warn("Доступ запрещён - попытка удаления чужого сообщения без прав. Сообщение ID: {}, пользователь ID: {}",
+                message.getId(), userId);
+        throw new AccessDeniedException("Недостаточно прав для удаления этого сообщения");
+    }
+
+    private User findUserByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> {
+                    logger.warn("Пользователь не найден: {}", username);
+                    return new UserNotFoundException("Пользователь не найден");
+                });
+    }
+
+    private Message findMessageById(Long messageId) {
+        return messageRepository.findById(messageId)
+                .orElseThrow(() -> {
+                    logger.warn("Сообщение не найдено ID: {}", messageId);
+                    return new MessageNotFoundException("Сообщение не найдено");
+                });
+    }
+    private boolean isMessageSender(Message message, Long userId) {
+        return message.getSender().getId().equals(userId);
+    }
+
+    private boolean isChatAdmin(ChatMember chatMember) {
+        return chatMember.getIsAdmin();
+    }
+
+    private ChatMember findChatMember(Long chatId, Long userId) {
+        logger.debug("Поиск участника чата - chatId: {}, userId: {}", chatId, userId);
+        return chatMemberRepository.findByChatIdAndUserId(chatId, userId)
+                .orElseThrow(() -> {
+                    logger.warn("Участник чата не найден - chatId: {}, userId: {}", chatId, userId);
+                    throw new ChatMemberNotFoundException("Вы не являетесь участником этого чата");
+                });
+    }
+
     public List<Long> getChatMembers(Long chatId) {
         logger.info("Запрос на получение участников чата. ID чата: {}", chatId);
 
@@ -233,3 +305,9 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         return response;
     }
 }
+
+
+
+
+
+
