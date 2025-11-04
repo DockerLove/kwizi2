@@ -1,4 +1,5 @@
 package com.example.kwizi.DTO.request;
+
 import com.example.kwizi.enums.MessageType;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
