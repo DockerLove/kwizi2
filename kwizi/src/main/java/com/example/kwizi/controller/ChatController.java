@@ -85,4 +85,15 @@ public class ChatController {
         logger.info("Пользователь удален из чата. ID чата: {}, ID удаленного пользователя: {}, инициатор: {}", chatId, id, currentUserId);
         return ResponseEntity.ok(ApiResponse.success("Пользователь удален из чата", null));
     }
+
+    @DeleteMapping("/{chatId}/members/me")
+    public ResponseEntity<?> leaveChat(
+            @PathVariable Long chatId,
+            @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        Long currentUserId = currentUser.getId();
+        logger.info("Запрос на выход из чата. ID чата: {}, ID пользователя: {}", chatId, currentUserId);
+        chatService.leaveChat(chatId, currentUserId);
+        logger.info("Пользователь вышел из чата. ID чата: {}, ID пользователя: {}", chatId, currentUserId);
+        return ResponseEntity.ok(ApiResponse.success("Вы вышли из чата", null));
+    }
 }

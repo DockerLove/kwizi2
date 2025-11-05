@@ -63,7 +63,7 @@ public class MessageController {
         return ResponseEntity.ok(ApiResponse.success("Сообщение изменено",null));
     }
 
-    @DeleteMapping("/{messageId}")
+    @DeleteMapping("/delete/{messageId}")
     public ResponseEntity<ApiResponse<Void>> deleteMessage(
             @PathVariable Long messageId,
             Authentication authentication) {
