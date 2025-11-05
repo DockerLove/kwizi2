@@ -4,10 +4,7 @@ import com.example.kwizi.DTO.request.AddChatMemberRequestDto;
 import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
 import com.example.kwizi.exception.ChatNotFoundException;
-import com.example.kwizi.exception.ChatService.ChatMemberNotFoundException;
-import com.example.kwizi.exception.ChatService.ChatOperationNotAllowedException;
-import com.example.kwizi.exception.ChatService.DuplicateChatMemberException;
-import com.example.kwizi.exception.ChatService.InsufficientPermissionsException;
+import com.example.kwizi.exception.ChatService.*;
 import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.Chat;
 import com.example.kwizi.model.ChatMember;
@@ -111,6 +108,40 @@ public class ChatService {
         logger.info("Пользователь с ID {} успешно удален из чата с ID {}", userIdToRemove, chatId);
     }
 
+
+    public void leaveChat(Long chatId, Long userId) {
+        logger.info("Начало процедуры выхода пользователя из чата. ChatID: {}, UserID: {}", chatId, userId);
+
+        Chat chat = chatRepository.findById(chatId)
+                .orElseThrow(() -> {
+                    throw new ChatNotFoundException("Чат не найден");
+                });
+
+        logger.debug("Чат найден. ChatID: {}, Название: {}", chatId, chat.getGroup());
+
+        if(!chat.getGroup()){
+            throw new NotGroupChatException("Вы не можете покинуть приватный чат");
+        }
+
+        ChatMember member = chatMemberRepository.findByChatIdAndUserId(chatId, userId)
+                .orElseThrow(() -> {
+                    throw new ChatMemberNotFoundException("Пользователь не является участником чата");
+                });
+
+        if (chat.getCreatedBy().getId().equals(userId)) {
+            throw new BusinessLogicException("Создатель чата не может его покинуть. Передайте права или удалите чат");
+        }
+
+        // Удаляем пользователя из чата
+        chatMemberRepository.delete(member);
+        logger.info("Пользователь удален из членов чата. ChatID: {}, UserID: {}", chatId, userId);
+
+
+        chatRepository.save(chat);
+
+        // Логируем успешное завершение операции
+        logger.info("Пользователя успешно покинул чат. ChatID: {}, UserID: {}", chatId, userId);
+    }
 
     private User findUserByUsername(String username) {
         return userRepository.findByUsername(username)

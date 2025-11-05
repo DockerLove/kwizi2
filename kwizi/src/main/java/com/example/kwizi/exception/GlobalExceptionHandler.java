@@ -7,7 +7,10 @@ import com.example.kwizi.controller.MessageController;
 import com.example.kwizi.controller.UserController;
 import com.example.kwizi.exception.AuthenticationService.EmailAlreadyVerifiedException;
 import com.example.kwizi.exception.AuthenticationService.InvalidPasswordException;
+import com.example.kwizi.exception.ChatService.BusinessLogicException;
 import com.example.kwizi.exception.ChatService.ChatMemberNotFoundException;
+import com.example.kwizi.exception.ChatService.DuplicateChatMemberException;
+import com.example.kwizi.exception.ChatService.NotGroupChatException;
 import com.example.kwizi.exception.MessageService.MessageEditTimeExpiredException;
 import com.example.kwizi.exception.MessageService.MessageNotFoundException;
 import org.slf4j.Logger;
@@ -149,4 +152,19 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(), null));
     }
 
+    @ExceptionHandler(BusinessLogicException.class)
+    public ResponseEntity<?> handleBusinessLogicException(BusinessLogicException ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ex.getMessage(),null));
+    }
+    @ExceptionHandler(NotGroupChatException.class)
+    public ResponseEntity<?> handleNotGroupChatException(NotGroupChatException ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ex.getMessage(),null));
+    }
+    @ExceptionHandler(DuplicateChatMemberException.class)
+    public ResponseEntity<?> handleDuplicateChatMemberException(DuplicateChatMemberException ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ex.getMessage(),null));
+    }
 }
