@@ -52,17 +52,19 @@ public class ChatController {
     @PostMapping("/{chatId}/members")
     public ResponseEntity<?> addChatMember(
             @PathVariable Long chatId,
-            @Valid @RequestBody AddChatMemberRequestDto addChatMemberRequestDto
+            @Valid @RequestBody AddChatMemberRequestDto addChatMemberRequestDto,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
+        String username = userDetails.getUsername();
         logger.info("Запрос на добавление участника в чат. ID чата: {}, ID пользователя для добавления: {}", chatId, addChatMemberRequestDto.getUserId());
         addChatMemberRequestDto.setChatId(chatId);
-        chatService.addChatMember(addChatMemberRequestDto);
+        chatService.addChatMember(addChatMemberRequestDto,username);
         logger.info("Пользователь добавлен в чат. ID чата: {}, ID добавленного пользователя: {}", chatId, addChatMemberRequestDto.getUserId());
         return ResponseEntity.ok(
                 ApiResponse.success("Пользователь успешно добавлен в чат", null));
     }
 
-    @PutMapping("/{chatId}/members/{userId}/admin")
+    @PatchMapping("/{chatId}/members/{userId}/admin")
     public ResponseEntity<?> setAdmin(
             @PathVariable Long chatId,
             @PathVariable Long userId,

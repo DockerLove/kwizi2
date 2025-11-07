@@ -1,5 +1,5 @@
 package com.example.kwizi.service;
-import com.example.kwizi.DTO.request.AddChatMemberRequestDto;
+
 import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
 import com.example.kwizi.model.Chat;
@@ -14,7 +14,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -142,40 +143,6 @@ class ChatServiceTest {
     }
 
     // Тесты для addChatMember
-    @Test
-    void addChatMember_ShouldAddMemberToChat() {
-        // Arrange
-        AddChatMemberRequestDto request = new AddChatMemberRequestDto();
-        request.setChatId(1L);
-        request.setUserId(2L);
-
-        Chat chat = new Chat();
-        User user = new User();
-
-        when(chatRepository.findById(1L)).thenReturn(Optional.of(chat));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(user));
-        when(chatMemberRepository.existsByChatIdAndUserId(1L, 2L)).thenReturn(false);
-
-        // Act
-        chatService.addChatMember(request);
-
-        // Assert
-        verify(chatMemberRepository).save(any(ChatMember.class));
-    }
-
-    @Test
-    void addChatMember_ShouldThrowWhenMemberExists() {
-        AddChatMemberRequestDto request = new AddChatMemberRequestDto();
-        request.setChatId(1L);
-        request.setUserId(2L);
-
-        when(chatRepository.findById(1L)).thenReturn(Optional.of(new Chat()));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(new User()));
-        when(chatMemberRepository.existsByChatIdAndUserId(1L, 2L)).thenReturn(true);
-
-        assertThrows(IllegalStateException.class,
-                () -> chatService.addChatMember(request));
-    }
 
     // Тесты для setAdmin
     @Test

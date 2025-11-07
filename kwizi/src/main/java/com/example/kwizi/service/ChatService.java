@@ -34,12 +34,18 @@ public class ChatService {
     private final ChatRepository chatRepository;
     private final ChatMemberRepository chatMemberRepository;
     private final UserRepository userRepository;
+    private final SystemMessageService systemMessageService;
+    private final NotificationService notificationService;
 
     @Autowired
-    public ChatService(ChatRepository chatRepository, ChatMemberRepository chatMemberRepository, UserRepository userRepository) {
+    public ChatService(ChatRepository chatRepository, ChatMemberRepository chatMemberRepository,
+                       UserRepository userRepository,SystemMessageService systemMessageService,
+                       NotificationService notificationService) {
         this.chatRepository = chatRepository;
         this.chatMemberRepository = chatMemberRepository;
         this.userRepository = userRepository;
+        this.systemMessageService = systemMessageService;
+        this.notificationService = notificationService;
     }
 
     public void createGroupChat(CreateGroupChatRequest createChatRequestDto, String creatorUsername) {
@@ -70,7 +76,7 @@ public class ChatService {
         logger.info("Приватный чат успешно создан между {} и {}", creatorUsername, createPrivateChatRequest.getRecipientUsername());
     }
 
-    public void addChatMember(AddChatMemberRequestDto addChatMemberRequestDto) {
+    public void addChatMember(AddChatMemberRequestDto addChatMemberRequestDto,String addedByUsername) {
         Long chatId = addChatMemberRequestDto.getChatId();
         Long userId = addChatMemberRequestDto.getUserId();
         logger.info("Добавление участника в чат с ID: {}, ID пользователя: {}", chatId, userId);
@@ -81,6 +87,10 @@ public class ChatService {
         validateChatMemberAdditionAndChatIsGroup(chat, userId);
 
         addChatMember(chat, user);
+
+        systemMessageService.createUserAddedMessage(chat, user.getUsername(), addedByUsername);
+
+        notificationService.notifyUserAdded(chatId, user.getUsername(), addedByUsername);
         logger.info("Пользователь с ID {} успешно добавлен в чат с ID {}", userId, chatId);
     }
 
@@ -88,11 +98,25 @@ public class ChatService {
         logger.info("Назначение администратора в чате с ID: {}, ID пользователя: {}, инициатор: {}", chatId, userId, requestingUserId);
 
         Chat chat = findChatById(chatId);
+        User requestingUser = findUserById(requestingUserId);
+        User targetUser = findUserById(userId);
 
         validateAdminRightsAndGroupChat(chat,chatId, requestingUserId);
         ChatMember memberToPromote = findChatMember(chatId, userId);
 
         promoteToAdmin(memberToPromote);
+
+        systemMessageService.createUserPromotedMessage(
+                chat,
+                targetUser.getUsername(),
+                requestingUser.getUsername()
+        );
+
+        notificationService.notifyUserPromoted(
+                chatId,
+                targetUser.getUsername(),
+                requestingUser.getUsername()
+        );
         logger.info("Пользователь с ID {} успешно назначен администратором в чате с ID {}", userId, chatId);
     }
 
@@ -100,11 +124,26 @@ public class ChatService {
         logger.info("Удаление участника из чата с ID: {}, ID удаляемого: {}, инициатор: {}", chatId, userIdToRemove, requestingUserId);
 
         Chat chat = findChatById(chatId);
+        User requestingUser = findUserById(requestingUserId);
+        User removedUser = findUserById(userIdToRemove);
 
         validateAdminRightsAndGroupChat(chat,chatId, requestingUserId);
         validateChatMemberExists(chatId, userIdToRemove);
 
         removeChatMember(chatId, userIdToRemove);
+
+        systemMessageService.createUserRemovedMessage(
+                chat,
+                removedUser.getUsername(),
+                requestingUser.getUsername()
+        );
+
+        // 2. Отправляем WebSocket уведомление
+        notificationService.notifyUserRemoved(
+                chatId,
+                removedUser.getUsername(),
+                requestingUser.getUsername()
+        );
         logger.info("Пользователь с ID {} успешно удален из чата с ID {}", userIdToRemove, chatId);
     }
 
@@ -112,10 +151,9 @@ public class ChatService {
     public void leaveChat(Long chatId, Long userId) {
         logger.info("Начало процедуры выхода пользователя из чата. ChatID: {}, UserID: {}", chatId, userId);
 
-        Chat chat = chatRepository.findById(chatId)
-                .orElseThrow(() -> {
-                    throw new ChatNotFoundException("Чат не найден");
-                });
+        Chat chat = findChatById(chatId);
+        User user = findUserById(userId);
+
 
         logger.debug("Чат найден. ChatID: {}, Название: {}", chatId, chat.getGroup());
 
@@ -139,8 +177,20 @@ public class ChatService {
 
         chatRepository.save(chat);
 
+        systemMessageService.createUserLeftMessage(
+                chat,
+                user.getUsername()  // Кто вышел
+        );
+
+        // 2. Отправляем WebSocket уведомление
+        notificationService.notifyUserLeft(
+                chatId,
+                user.getUsername()  // Кто вышел
+        );
+
         // Логируем успешное завершение операции
-        logger.info("Пользователя успешно покинул чат. ChatID: {}, UserID: {}", chatId, userId);
+        logger.info("Пользователь успешно покинул чат. ChatID: {}, UserID: {}", chatId, userId);
+        logger.info("Системное сообщение и уведомление отправлены для выхода пользователя");
     }
 
     private User findUserByUsername(String username) {
