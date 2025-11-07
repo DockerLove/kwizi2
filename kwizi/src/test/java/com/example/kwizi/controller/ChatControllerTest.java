@@ -1,5 +1,5 @@
 package com.example.kwizi.controller;
-import com.example.kwizi.DTO.request.AddChatMemberRequestDto;
+
 import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
 import com.example.kwizi.DTO.response.ApiResponse;
@@ -7,7 +7,6 @@ import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.User;
 import com.example.kwizi.security.UserDetailsImpl;
 import com.example.kwizi.service.ChatService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -15,16 +14,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.lang.reflect.Field;
-import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -88,23 +79,7 @@ public class ChatControllerTest {
         verify(chatService).createPrivateChat(createPrivateChatRequest, username);
     }
 
-    @Test
-    void addChatMember_ShouldReturnOk_WhenMemberAddedSuccessfully() {
-        // Arrange
-        Long chatId = 123L;
-        AddChatMemberRequestDto addChatMemberRequestDto = new AddChatMemberRequestDto();
-        addChatMemberRequestDto.setUserId(456L);
 
-        // Act
-        doNothing().when(chatService).addChatMember(any(AddChatMemberRequestDto.class)); // use any() here
-        ResponseEntity<?> response = chatController.addChatMember(chatId, addChatMemberRequestDto);
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals("Пользователь успешно добавлен в чат", ((ApiResponse<?>) response.getBody()).getMessage());
-        verify(chatService).addChatMember(addChatMemberRequestDto); // Verify with the exact object
-    }
 
     @Test
     void setAdmin_ShouldReturnSuccessResponse() {

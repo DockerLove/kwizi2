@@ -42,18 +42,22 @@ public class ChatMessageService implements ChatMessageServiceInterface {
     private final ChatRepository chatRepository;
     private final UserRepository userRepository;
     private NotificationService notificationService;
+    private final SystemMessageService systemMessageService;
     private final ChatMemberRepository chatMemberRepository;
 
     @Autowired
     public ChatMessageService(MessageRepository messageRepository,
                               ChatRepository chatRepository,
                               UserRepository userRepository,
-                              ChatMemberRepository chatMemberRepository,NotificationService notificationService) {
+                              ChatMemberRepository chatMemberRepository,
+                              NotificationService notificationService,
+                              SystemMessageService systemMessageService) {
         this.messageRepository = messageRepository;
         this.chatRepository = chatRepository;
         this.userRepository = userRepository;
         this.chatMemberRepository = chatMemberRepository;
         this.notificationService = notificationService;
+        this.systemMessageService = systemMessageService;
     }
 
     @Transactional

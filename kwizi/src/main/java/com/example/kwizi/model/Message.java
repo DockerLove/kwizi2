@@ -1,5 +1,6 @@
 package com.example.kwizi.model;
 
+import com.example.kwizi.enums.MessageSystemType;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -56,6 +57,10 @@ public class Message {
             columnDefinition = "BOOLEAN DEFAULT FALSE"
     )
     private boolean isDeleted = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "message_type")
+    private MessageSystemType messageType = MessageSystemType.REGULAR;
 
     // Конструкторы
     public Message() {
@@ -148,5 +153,13 @@ public class Message {
 
     public void setEdited(boolean edited) {
         isEdited = edited;
+    }
+
+    public MessageSystemType getMessageType() {
+        return messageType;
+    }
+
+    public void setMessageType(MessageSystemType messageType) {
+        this.messageType = messageType;
     }
 }
