@@ -99,5 +99,18 @@ public class ChatController {
         return ResponseEntity.ok(ApiResponse.success("Вы вышли из чата", null));
     }
 
-    //todo эндпоинт для разжалования, но сначала сделать роли
-}
+    @PatchMapping("/{chatId}/members/{userId}/demote")
+    public ResponseEntity<?> demoteAdminToMember(
+            @PathVariable Long chatId,
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        Long currentUserId = currentUser.getId();
+        logger.info("Запрос на разжалование администратора. ID чата: {}, ID пользователя: {}, инициатор: {}",
+                chatId, userId, currentUserId);
+
+        chatService.demoteAdminToMember(chatId, userId, currentUserId);
+
+        logger.info("Администратор разжалован. ID чата: {}, ID пользователя: {}, инициатор: {}",
+                chatId, userId, currentUserId);
+        return ResponseEntity.ok(ApiResponse.success("Администратор разжалован до обычного участника", null));
+    }}
