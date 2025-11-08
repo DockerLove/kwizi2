@@ -227,7 +227,7 @@ public class ChatMessageService implements ChatMessageServiceInterface {
     }
 
     private boolean isChatAdmin(ChatMember chatMember) {
-        return chatMember.getIsAdmin();
+        return chatMember.isAdmin();
     }
 
     private ChatMember findChatMember(Long chatId, Long userId) {

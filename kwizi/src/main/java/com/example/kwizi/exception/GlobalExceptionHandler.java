@@ -7,10 +7,7 @@ import com.example.kwizi.controller.MessageController;
 import com.example.kwizi.controller.UserController;
 import com.example.kwizi.exception.AuthenticationService.EmailAlreadyVerifiedException;
 import com.example.kwizi.exception.AuthenticationService.InvalidPasswordException;
-import com.example.kwizi.exception.ChatService.BusinessLogicException;
-import com.example.kwizi.exception.ChatService.ChatMemberNotFoundException;
-import com.example.kwizi.exception.ChatService.DuplicateChatMemberException;
-import com.example.kwizi.exception.ChatService.NotGroupChatException;
+import com.example.kwizi.exception.ChatService.*;
 import com.example.kwizi.exception.MessageService.MessageEditTimeExpiredException;
 import com.example.kwizi.exception.MessageService.MessageNotFoundException;
 import org.slf4j.Logger;
@@ -167,4 +164,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error(ex.getMessage(),null));
     }
+    @ExceptionHandler(ChatOperationNotAllowedException.class)
+    public ResponseEntity<?> handleChatOperationNotAllowedException(ChatOperationNotAllowedException ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ex.getMessage(),null));
+    }
+    @ExceptionHandler(InsufficientPermissionsException.class)
+    public ResponseEntity<?> handleInsufficientPermissionsException(InsufficientPermissionsException ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ex.getMessage(),null));
+    }
+
+
 }
