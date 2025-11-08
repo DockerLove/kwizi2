@@ -9,7 +9,6 @@ import com.example.kwizi.exception.ChatService.*;
 import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.Chat;
 import com.example.kwizi.model.ChatMember;
-import com.example.kwizi.model.ChatMember.ChatMemberId;
 import com.example.kwizi.model.User;
 import com.example.kwizi.repository.ChatMemberRepository;
 import com.example.kwizi.repository.ChatRepository;
@@ -127,19 +126,41 @@ public class ChatService {
         logger.info("Пользователь с ID {} успешно назначен администратором в чате с ID {}", userId, chatId);
     }
 
-    private void validatePromotionRights(Chat chat,Long chatId, Long requestingUserId, Long targetUserId) {
-        ChatMember requester = findChatMember(chatId, requestingUserId);
+    public void demoteAdminToMember(Long chatId, Long targetUserId, Long requestingUserId) {
+        logger.info("Разжалование администратора в чате с ID: {}, ID пользователя: {}, инициатор: {}",
+                chatId, targetUserId, requestingUserId);
+
+        Chat chat = findChatById(chatId);
+        User requestingUser = findUserById(requestingUserId);
+        User targetUser = findUserById(targetUserId);
+
         if (!chat.getIsGroup()) {
             throw new ChatOperationNotAllowedException("Операция не поддерживается для приватных чатов");
         }
 
-        if ((!requester.isAdmin() || requester.isAdmin()) && !requester.isOwner()) {
-            throw new AccessDeniedException("Только владелец может назначать администраторов");
-        }
+        // Проверяем права на разжалование
+        validateDemotionRights(chatId, requestingUserId, targetUserId);
 
-        if (requester.isOwner() && requestingUserId.equals(targetUserId)) {
-            throw new BusinessLogicException("Владелец не может назначить себя администратором");
-        }
+        ChatMember memberToDemote = findChatMember(chatId, targetUserId);
+
+        // Выполняем разжалование
+        demoteToMember(memberToDemote);
+
+        // Системное сообщение о разжаловании
+        systemMessageService.createUserDemotedMessage(
+                chat,
+                targetUser.getUsername(),
+                requestingUser.getUsername()
+        );
+
+        // Уведомление участникам чата
+        notificationService.notifyUserDemoted(
+                chatId,
+                targetUser.getUsername(),
+                requestingUser.getUsername()
+        );
+
+        logger.info("Пользователь с ID {} разжалован из администраторов в чате с ID {}", targetUserId, chatId);
     }
 
 
@@ -173,41 +194,6 @@ public class ChatService {
                 requestingUser.getUsername()
         );
         logger.info("Пользователь с ID {} успешно удален из чата с ID {}", userIdToRemove, chatId);
-    }
-
-    private void removeMemberFromChat(ChatMember member) {
-        chatMemberRepository.delete(member);
-
-        logger.debug("Участник с ID {} удален из чата с ID {}",
-                member.getUser().getId(), member.getChat().getId());
-    }
-
-    private void validateRemovalRights(Long chatId, Long requestingUserId, Long targetUserId) {
-        ChatMember requester = findChatMember(chatId, requestingUserId);
-        ChatMember target = findChatMember(chatId, targetUserId);
-
-        // Владелец может удалить кого угодно (кроме себя)
-        if (requester.isOwner()) {
-            if (requester.getUser().getId().equals(target.getUser().getId())) {
-                throw new BusinessLogicException("Владелец не может удалить сам себя");
-            }
-            return; // Владелец может удалить любого
-        }
-
-        // Админ может удалить только обычных участников
-        if (requester.isAdmin()) {
-            if (target.isOwner() || target.isAdmin()) {
-                throw new AccessDeniedException("Администратор не может удалить владельца или другого администратора");
-            }
-            // Админ не может удалить себя
-            if (requester.getUser().getId().equals(target.getUser().getId())) {
-                throw new BusinessLogicException("Администратор не может удалить сам себя");
-            }
-            return;
-        }
-
-        // Обычный участник не может никого удалять
-        throw new AccessDeniedException("Только владелец и администраторы могут удалять участников");
     }
 
     public void leaveChat(Long chatId, Long userId) {
@@ -374,8 +360,79 @@ public class ChatService {
         member.setRole(ChatRole.ADMIN);
     }
 
-    private void removeChatMember(Long chatId, Long userId) {
-        ChatMemberId chatMemberId = new ChatMemberId(chatId, userId);
-        chatMemberRepository.deleteById(chatMemberId);
+    private void validatePromotionRights(Chat chat,Long chatId, Long requestingUserId, Long targetUserId) {
+        ChatMember requester = findChatMember(chatId, requestingUserId);
+        if (!chat.getIsGroup()) {
+            throw new ChatOperationNotAllowedException("Операция не поддерживается для приватных чатов");
+        }
+
+        if ((!requester.isAdmin() || requester.isAdmin()) && !requester.isOwner()) {
+            throw new AccessDeniedException("Только владелец может назначать администраторов");
+        }
+
+        if (requester.isOwner() && requestingUserId.equals(targetUserId)) {
+            throw new BusinessLogicException("Владелец не может назначить себя администратором");
+        }
+    }
+
+    private void removeMemberFromChat(ChatMember member) {
+        chatMemberRepository.delete(member);
+
+        logger.debug("Участник с ID {} удален из чата с ID {}",
+                member.getUser().getId(), member.getChat().getId());
+    }
+
+    private void validateRemovalRights(Long chatId, Long requestingUserId, Long targetUserId) {
+        ChatMember requester = findChatMember(chatId, requestingUserId);
+        ChatMember target = findChatMember(chatId, targetUserId);
+
+        // Владелец может удалить кого угодно (кроме себя)
+        if (requester.isOwner()) {
+            if (requester.getUser().getId().equals(target.getUser().getId())) {
+                throw new BusinessLogicException("Владелец не может удалить сам себя");
+            }
+            return; // Владелец может удалить любого
+        }
+
+        // Админ может удалить только обычных участников
+        if (requester.isAdmin()) {
+            if (target.isOwner() || target.isAdmin()) {
+                throw new AccessDeniedException("Администратор не может удалить владельца или другого администратора");
+            }
+            // Админ не может удалить себя
+            if (requester.getUser().getId().equals(target.getUser().getId())) {
+                throw new BusinessLogicException("Администратор не может удалить сам себя");
+            }
+            return;
+        }
+
+        // Обычный участник не может никого удалять
+        throw new AccessDeniedException("Только владелец и администраторы могут удалять участников");
+    }
+
+    private void validateDemotionRights(Long chatId, Long requestingUserId, Long targetUserId) {
+        ChatMember requester = findChatMember(chatId, requestingUserId);
+        ChatMember target = findChatMember(chatId, targetUserId);
+
+        if (!requester.isOwner()) {
+            throw new AccessDeniedException("Только владелец может разжаловать администратора");
+        }
+
+        if (target.isOwner()) {
+            throw new BusinessLogicException("Нельзя разжаловать владельца чата");
+        }
+
+        if (requestingUserId.equals(targetUserId)) {
+            throw new BusinessLogicException("Владелец не может разжаловать сам себя");
+        }
+
+        if (!target.isAdmin() || target.isOwner()) {
+            throw new BusinessLogicException("Пользователь не является администратором");
+        }
+    }
+
+    private void demoteToMember(ChatMember member) {
+        member.setRole(ChatRole.MEMBER);
+        chatMemberRepository.save(member);
     }
 }
