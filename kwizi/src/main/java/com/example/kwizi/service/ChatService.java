@@ -3,6 +3,7 @@ package com.example.kwizi.service;
 import com.example.kwizi.DTO.request.AddChatMemberRequestDto;
 import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
+import com.example.kwizi.enums.ChatRole;
 import com.example.kwizi.exception.ChatNotFoundException;
 import com.example.kwizi.exception.ChatService.*;
 import com.example.kwizi.exception.UserNotFoundException;
@@ -17,6 +18,7 @@ import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
@@ -101,8 +103,13 @@ public class ChatService {
         User requestingUser = findUserById(requestingUserId);
         User targetUser = findUserById(userId);
 
-        validateAdminRightsAndGroupChat(chat,chatId, requestingUserId);
+        validatePromotionRights(chat,chatId, requestingUserId, userId);
+
         ChatMember memberToPromote = findChatMember(chatId, userId);
+
+        if (memberToPromote.isAdmin()) {
+            throw new BusinessLogicException("Пользователь уже является администратором");
+        }
 
         promoteToAdmin(memberToPromote);
 
@@ -120,6 +127,22 @@ public class ChatService {
         logger.info("Пользователь с ID {} успешно назначен администратором в чате с ID {}", userId, chatId);
     }
 
+    private void validatePromotionRights(Chat chat,Long chatId, Long requestingUserId, Long targetUserId) {
+        ChatMember requester = findChatMember(chatId, requestingUserId);
+        if (!chat.getIsGroup()) {
+            throw new ChatOperationNotAllowedException("Операция не поддерживается для приватных чатов");
+        }
+
+        if ((!requester.isAdmin() || requester.isAdmin()) && !requester.isOwner()) {
+            throw new AccessDeniedException("Только владелец может назначать администраторов");
+        }
+
+        if (requester.isOwner() && requestingUserId.equals(targetUserId)) {
+            throw new BusinessLogicException("Владелец не может назначить себя администратором");
+        }
+    }
+
+
     public void removeChatMember(Long chatId, Long userIdToRemove, Long requestingUserId) {
         logger.info("Удаление участника из чата с ID: {}, ID удаляемого: {}, инициатор: {}", chatId, userIdToRemove, requestingUserId);
 
@@ -127,10 +150,16 @@ public class ChatService {
         User requestingUser = findUserById(requestingUserId);
         User removedUser = findUserById(userIdToRemove);
 
-        validateAdminRightsAndGroupChat(chat,chatId, requestingUserId);
-        validateChatMemberExists(chatId, userIdToRemove);
+        if (!chat.getIsGroup()) {
+            throw new ChatOperationNotAllowedException("Операция не поддерживается для приватных чатов");
+        }
 
-        removeChatMember(chatId, userIdToRemove);
+        validateRemovalRights(chatId, requestingUserId, userIdToRemove);
+
+        ChatMember memberToRemove = findChatMember(chatId, userIdToRemove);
+
+        // Удаляем участника
+        removeMemberFromChat(memberToRemove);
 
         systemMessageService.createUserRemovedMessage(
                 chat,
@@ -138,7 +167,6 @@ public class ChatService {
                 requestingUser.getUsername()
         );
 
-        // 2. Отправляем WebSocket уведомление
         notificationService.notifyUserRemoved(
                 chatId,
                 removedUser.getUsername(),
@@ -147,6 +175,40 @@ public class ChatService {
         logger.info("Пользователь с ID {} успешно удален из чата с ID {}", userIdToRemove, chatId);
     }
 
+    private void removeMemberFromChat(ChatMember member) {
+        chatMemberRepository.delete(member);
+
+        logger.debug("Участник с ID {} удален из чата с ID {}",
+                member.getUser().getId(), member.getChat().getId());
+    }
+
+    private void validateRemovalRights(Long chatId, Long requestingUserId, Long targetUserId) {
+        ChatMember requester = findChatMember(chatId, requestingUserId);
+        ChatMember target = findChatMember(chatId, targetUserId);
+
+        // Владелец может удалить кого угодно (кроме себя)
+        if (requester.isOwner()) {
+            if (requester.getUser().getId().equals(target.getUser().getId())) {
+                throw new BusinessLogicException("Владелец не может удалить сам себя");
+            }
+            return; // Владелец может удалить любого
+        }
+
+        // Админ может удалить только обычных участников
+        if (requester.isAdmin()) {
+            if (target.isOwner() || target.isAdmin()) {
+                throw new AccessDeniedException("Администратор не может удалить владельца или другого администратора");
+            }
+            // Админ не может удалить себя
+            if (requester.getUser().getId().equals(target.getUser().getId())) {
+                throw new BusinessLogicException("Администратор не может удалить сам себя");
+            }
+            return;
+        }
+
+        // Обычный участник не может никого удалять
+        throw new AccessDeniedException("Только владелец и администраторы могут удалять участников");
+    }
 
     public void leaveChat(Long chatId, Long userId) {
         logger.info("Начало процедуры выхода пользователя из чата. ChatID: {}, UserID: {}", chatId, userId);
@@ -210,7 +272,7 @@ public class ChatService {
 
     private ChatMember findChatMember(Long chatId, Long userId) {
         return chatMemberRepository.findByChatIdAndUserId(chatId, userId)
-                .orElseThrow(() -> new ChatMemberNotFoundException("Участник чата не найден"));
+                .orElseThrow(() -> new ChatMemberNotFoundException("Пользователь не является участником чата"));
     }
 
     private void validateGroupChatRequest(CreateGroupChatRequest request, User creator) {
@@ -237,11 +299,11 @@ public class ChatService {
 
 
     private void validateChatMemberAdditionAndChatIsGroup(Chat chat, Long userId) {
-        if (chatMemberRepository.existsByChatIdAndUserId(chat.getId(), userId)) {
-            throw new DuplicateChatMemberException("Пользователь уже находится в чате");
-        }
         if (chat.getGroupName() == null) {
             throw new ChatOperationNotAllowedException("Добавлять участников можно только в групповые чаты");
+        }
+        if (chatMemberRepository.existsByChatIdAndUserId(chat.getId(), userId)) {
+            throw new DuplicateChatMemberException("Пользователь уже находится в чате");
         }
     }
 
@@ -251,8 +313,8 @@ public class ChatService {
         if (!chat.getIsGroup()) {
             throw new ChatOperationNotAllowedException("Операция не поддерживается для приватных чатов");
         }
-        if (!requester.getIsAdmin()) {
-            throw new InsufficientPermissionsException("Недостаточно прав для выполнения операции");
+        if (requester.getRole().equals(ChatRole.MEMBER)) {
+            throw new InsufficientPermissionsException("Только владелец или администратор могут удалять пользователей");
         }
     }
 
@@ -278,7 +340,7 @@ public class ChatService {
 
     private void addCreatorAsAdmin(Chat chat, User creator) {
         ChatMember chatMemberCreator = new ChatMember(chat, creator);
-        chatMemberCreator.setIsAdmin(true);
+        chatMemberCreator.setRole(ChatRole.OWNER);
         chatMemberRepository.save(chatMemberCreator);
     }
 
@@ -293,7 +355,7 @@ public class ChatService {
         List<ChatMember> chatMembers = users.stream()
                 .map(user -> {
                     ChatMember member = new ChatMember(chat, user);
-                    member.setIsAdmin(false);
+                    member.setRole(ChatRole.MEMBER);
                     return member;
                 })
                 .collect(Collectors.toList());
@@ -303,13 +365,13 @@ public class ChatService {
 
     private void addChatMember(Chat chat, User user) {
         ChatMember chatMember = new ChatMember(chat, user);
-        chatMember.setIsAdmin(false);
+        chatMember.setRole(ChatRole.MEMBER);
         chatMember.setJoinedAt(OffsetDateTime.now());
         chatMemberRepository.save(chatMember);
     }
 
     private void promoteToAdmin(ChatMember member) {
-        member.setIsAdmin(true);
+        member.setRole(ChatRole.ADMIN);
     }
 
     private void removeChatMember(Long chatId, Long userId) {

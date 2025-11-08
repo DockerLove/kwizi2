@@ -73,7 +73,7 @@ public class ChatController {
         logger.info("Запрос на назначение пользователя админом. ID чата: {}, ID пользователя: {}, инициатор: {}", chatId, userId, currentUserId);
         chatService.setAdmin(chatId, userId, currentUserId);
         logger.info("Пользователь успешно назначен админом. ID чата: {}, ID пользователя: {}, инициатор: {}", chatId, userId, currentUserId);
-        return ResponseEntity.ok(ApiResponse.success("Пользователь успешно назначен админом", null));
+        return ResponseEntity.ok(ApiResponse.success("Пользователь успешно назначен администратором", null));
     }
 
     @DeleteMapping("/{chatId}/members/{id}")
@@ -98,4 +98,6 @@ public class ChatController {
         logger.info("Пользователь вышел из чата. ID чата: {}, ID пользователя: {}", chatId, currentUserId);
         return ResponseEntity.ok(ApiResponse.success("Вы вышли из чата", null));
     }
+
+    //todo эндпоинт для разжалования, но сначала сделать роли
 }

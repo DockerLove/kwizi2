@@ -1,7 +1,9 @@
 package com.example.kwizi.model;
 
+import com.example.kwizi.enums.ChatRole;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
+
 import java.io.Serializable;
 import java.time.OffsetDateTime;
 import java.util.Objects;
@@ -23,28 +25,13 @@ public class ChatMember {
     @JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "fk_chat_member_user"))
     private User user;
 
-    @Column(name = "is_admin", nullable = false)
-    private boolean isAdmin = false;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
+    private ChatRole role = ChatRole.MEMBER;
 
     @CreationTimestamp
     @Column(name = "joined_at", nullable = false)
     private OffsetDateTime joinedAt;
-
-    public void setId(ChatMemberId id) {
-        this.id = id;
-    }
-
-    public boolean getAdmin() {
-        return isAdmin;
-    }
-
-    public void setAdmin(boolean admin) {
-        isAdmin = admin;
-    }
-
-    public void setJoinedAt(OffsetDateTime joinedAt) {
-        this.joinedAt = joinedAt;
-    }
 
     // Конструкторы
     public ChatMember() {
@@ -56,9 +43,20 @@ public class ChatMember {
         this.user = user;
     }
 
+    public ChatMember(Chat chat, User user, ChatRole role) {
+        this.id = new ChatMemberId(chat.getId(), user.getId());
+        this.chat = chat;
+        this.user = user;
+        this.role = role;
+    }
+
     // Геттеры и сеттеры
     public ChatMemberId getId() {
         return id;
+    }
+
+    public void setId(ChatMemberId id) {
+        this.id = id;
     }
 
     public Chat getChat() {
@@ -77,16 +75,33 @@ public class ChatMember {
         this.user = user;
     }
 
-    public Boolean getIsAdmin() {
-        return isAdmin;
+    public ChatRole getRole() {
+        return role;
     }
 
-    public void setIsAdmin(Boolean admin) {
-        isAdmin = admin;
+    public void setRole(ChatRole role) {
+        this.role = role;
     }
 
     public OffsetDateTime getJoinedAt() {
         return joinedAt;
+    }
+
+    public void setJoinedAt(OffsetDateTime joinedAt) {
+        this.joinedAt = joinedAt;
+    }
+
+    // Вспомогательные методы для проверки ролей
+    public boolean isOwner() {
+        return ChatRole.OWNER.equals(this.role);
+    }
+
+    public boolean isAdmin() {
+        return ChatRole.ADMIN.equals(this.role) || isOwner();
+    }
+
+    public boolean isMember() {
+        return ChatRole.MEMBER.equals(this.role);
     }
 
     @Override
@@ -146,5 +161,4 @@ public class ChatMember {
             return Objects.hash(chatId, userId);
         }
     }
-
 }

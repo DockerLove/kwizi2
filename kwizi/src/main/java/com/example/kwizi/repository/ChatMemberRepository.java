@@ -15,9 +15,6 @@ public interface ChatMemberRepository extends JpaRepository<ChatMember, Long> {
     List<ChatMember> findByChatId(Long chatId);
     Optional<ChatMember> findById(ChatMember.ChatMemberId id);
 
-    @Query("SELECT cm.isAdmin FROM ChatMember cm WHERE cm.chat.id = :chatId AND cm.user.id = :userId")
-    Boolean isAdmin(@Param("chatId") Long chatId, @Param("userId") Long userId);
-
     @Query("SELECT DISTINCT c.id FROM Chat c " +
             "WHERE c.id IN (SELECT cm.chat.id FROM ChatMember cm WHERE cm.user.id = :userId1) " +
             "AND c.id IN (SELECT cm.chat.id FROM ChatMember cm WHERE cm.user.id = :userId2) " +
