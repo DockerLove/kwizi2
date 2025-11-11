@@ -3,6 +3,7 @@ package com.example.kwizi.controller;
 import com.example.kwizi.DTO.request.AddChatMemberRequestDto;
 import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
+import com.example.kwizi.DTO.request.UpdateGroupNameRequest;
 import com.example.kwizi.DTO.response.ApiResponse;
 import com.example.kwizi.security.UserDetailsImpl;
 import com.example.kwizi.service.ChatService;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/chats")
@@ -113,4 +115,36 @@ public class ChatController {
         logger.info("Администратор разжалован. ID чата: {}, ID пользователя: {}, инициатор: {}",
                 chatId, userId, currentUserId);
         return ResponseEntity.ok(ApiResponse.success("Администратор разжалован до обычного участника", null));
-    }}
+    }
+
+    @PatchMapping("/{chatId}/group-name")
+    public ResponseEntity<ApiResponse<String>> updateGroupName(
+            @PathVariable Long chatId,
+            @Valid @RequestBody UpdateGroupNameRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        Long userId = userDetails.getId();
+
+        chatService.updateGroupName(chatId, request.getGroupName(), userId);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                "Название группы успешно изменено",
+                request.getGroupName()
+        ));
+    }
+
+    @PatchMapping("/{chatId}/avatar")
+    public ResponseEntity<?> updateAvatar(
+            @PathVariable Long chatId,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        logger.info("Запрос на изменение фото чата ID: {}", chatId);
+
+        chatService.updateChatAvatar(chatId, file, userDetails.getId());
+
+        logger.info("Запрос на изменение фото чата ID успешно изменено {}", chatId);
+
+        return ResponseEntity.ok(ApiResponse.success("Фото группы успешно изменено",null));
+    }
+}

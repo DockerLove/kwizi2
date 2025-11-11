@@ -77,24 +77,6 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         return createAndSaveMessage(chat, sender, messageDto.getText());
     }
 
-    @Transactional
-    public Chat getOrCreateChat(Long chatId, User creator) {
-        logger.debug("Получение или создание чата. ID чата: {}, ID создателя: {}",
-                chatId, creator.getId());
-
-        Chat chat = chatRepository.findById(chatId)
-                .orElseGet(() -> createNewChat(chatId, creator));
-
-        if (chat.getCreatedBy() == null) {
-            chat.setCreatedBy(creator);
-            chat = chatRepository.save(chat);
-            logger.info("Чат инициализирован создателем. ID чата: {}, ID создателя: {}",
-                    chatId, creator.getId());
-        }
-
-        return chat;
-    }
-
     @Transactional(readOnly = true)
     public Page<ChatHistoryResponse> getChatHistory(Long chatId, int page, int size, String sort, String username) {
         logger.debug("Получение истории чата. ID чата: {}, пользователь: {}", chatId, username);
@@ -181,7 +163,6 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         messageRepository.delete(message);
         logger.info("Сообщение ID: {} успешно удалено пользователем ID: {}", messageId, user.getId());
     }
-
     private void validateDeletePermissions(Message message, Long userId) {
         Long chatId = message.getChat().getId();
 
@@ -192,13 +173,13 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         // Проверяем права на удаление
         if (isMessageSender(message, userId)) {
             logger.info("Пользователь ID: {} удаляет своё сообщение ID: {}", userId, message.getId());
-            return; // Отправитель может удалять
+            return;
         }
 
-        if (isChatAdmin(requester)) {
-            logger.info("Админ ID: {} удаляет сообщение ID: {} в чате ID: {}",
+        if ((requester.isAdmin()) || (requester.isAdmin())) {
+            logger.info("Админ или Владелец ID: {} удаляет сообщение ID: {} в чате ID: {}",
                     userId, message.getId(), chatId);
-            return; // Админ может удалять
+            return;
         }
 
         // Если не отправитель и не админ - ошибка доступа
@@ -224,10 +205,6 @@ public class ChatMessageService implements ChatMessageServiceInterface {
     }
     private boolean isMessageSender(Message message, Long userId) {
         return message.getSender().getId().equals(userId);
-    }
-
-    private boolean isChatAdmin(ChatMember chatMember) {
-        return chatMember.isAdmin();
     }
 
     private ChatMember findChatMember(Long chatId, Long userId) {

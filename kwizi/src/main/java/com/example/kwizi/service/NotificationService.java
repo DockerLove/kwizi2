@@ -1,6 +1,5 @@
 package com.example.kwizi.service;
 
-import com.example.kwizi.model.Message;
 import com.example.kwizi.websocket.UniversalChatHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -81,12 +80,18 @@ public class NotificationService {
         chatHandler.broadcastToChat(chatId, payload);
     }
 
-    // Дополнительный метод для уведомления о новом сообщении (для системных сообщений)
-    public void notifyNewSystemMessage(Long chatId, Message systemMessage) {
+    public void notifyGroupNameChanged(Long chatId, String oldName, String newName, String changedByUsername) {
         String payload = String.format(
-                "{\"type\":\"NEW_SYSTEM_MESSAGE\", \"data\":{\"messageId\":%d, \"chatId\":%d, \"text\":\"%s\", \"messageType\":\"%s\", \"sender\":\"%s\", \"timestamp\":\"%s\"}}",
-                systemMessage.getId(), chatId, systemMessage.getText(), systemMessage.getMessageType(),
-                systemMessage.getSender().getUsername(), Instant.now().toString()
+                "{\"type\":\"GROUP_NAME_CHANGED\", \"data\":{\"chatId\":%d, \"oldName\":\"%s\", \"newName\":\"%s\", \"changedBy\":\"%s\", \"timestamp\":\"%s\"}}",
+                chatId, oldName, newName, changedByUsername, Instant.now().toString()
+        );
+        chatHandler.broadcastToChat(chatId, payload);
+    }
+
+    public void notifyGroupPhotoChanged(Long chatId, String changedByUsername) {
+        String payload = String.format(
+                "{\"type\":\"GROUP_PHOTO_CHANGED\", \"data\":{\"chatId\":%d, \"changedBy\":\"%s\", \"timestamp\":\"%s\"}}",
+                chatId, changedByUsername, Instant.now().toString()
         );
         chatHandler.broadcastToChat(chatId, payload);
     }

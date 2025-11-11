@@ -29,6 +29,12 @@ public class Chat {
     private OffsetDateTime createdAt;
     //todo - добавить updateAt мб
 
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
     // Конструкторы
     public Chat() {
     }
@@ -38,6 +44,24 @@ public class Chat {
         this.groupName = groupName;
         this.createdBy = createdBy;
     }
+
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(OffsetDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+        this.updatedAt = OffsetDateTime.now();
+    }
+    //todo добавил поля ава и время обновления но не добавил их в бд также нет эндпоинта для авы
 
     public void setId(Long id) {
         this.id = id;
@@ -74,6 +98,7 @@ public class Chat {
 
     public void setGroupName(String groupName) {
         this.groupName = groupName;
+        this.updatedAt = OffsetDateTime.now();
     }
 
     public User getCreatedBy() {
@@ -82,6 +107,10 @@ public class Chat {
 
     public void setCreatedBy(User createdBy) {
         this.createdBy = createdBy;
+    }
+
+    public boolean isGroup() {
+        return isGroup;
     }
 
     public OffsetDateTime getCreatedAt() {

@@ -8,6 +8,5 @@ public enum MessageSystemType {
     GROUP_TITLE_CHANGED,    // Название группы изменено
     USER_PROMOTED,          // Пользователь назначен администратором
     USER_DEMOTED,           // У пользователя забрали права администратора
-    GROUP_PHOTO_CHANGED,    // Фото группы изменено (на будущее)
-    GROUP_DESCRIPTION_CHANGED // Описание группы изменено (на будущее)
+    GROUP_PHOTO_CHANGED
 }

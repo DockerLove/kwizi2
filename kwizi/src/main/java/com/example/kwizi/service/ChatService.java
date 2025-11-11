@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.OffsetDateTime;
 import java.util.HashSet;
@@ -38,15 +39,18 @@ public class ChatService {
     private final SystemMessageService systemMessageService;
     private final NotificationService notificationService;
 
+    private final FileStorageService fileStorageService;
+
     @Autowired
     public ChatService(ChatRepository chatRepository, ChatMemberRepository chatMemberRepository,
                        UserRepository userRepository,SystemMessageService systemMessageService,
-                       NotificationService notificationService) {
+                       NotificationService notificationService,FileStorageService fileStorageService) {
         this.chatRepository = chatRepository;
         this.chatMemberRepository = chatMemberRepository;
         this.userRepository = userRepository;
         this.systemMessageService = systemMessageService;
         this.notificationService = notificationService;
+        this.fileStorageService = fileStorageService;
     }
 
     public void createGroupChat(CreateGroupChatRequest createChatRequestDto, String creatorUsername) {
@@ -240,6 +244,77 @@ public class ChatService {
         logger.info("Пользователь успешно покинул чат. ChatID: {}, UserID: {}", chatId, userId);
         logger.info("Системное сообщение и уведомление отправлены для выхода пользователя");
     }
+
+    public void updateGroupName(Long chatId, String newGroupName, Long requesterId) {
+        logger.info("Изменение названия группы chatId: {}, новое название: {}, инициатор: {}",
+                chatId, newGroupName, requesterId);
+
+        Chat chat = findChatById(chatId);
+
+        if (!chat.isGroup()) {
+            throw new BusinessLogicException("Операция доступна только для групповых чатов");
+        }
+
+        ChatMember requester = findChatMember(chatId, requesterId);
+        if (requester.getRole() != ChatRole.OWNER && requester.getRole() != ChatRole.ADMIN) {
+            throw new AccessDeniedException("Только владелец и администраторы могут изменять название группы");
+        }
+
+        String oldGroupName = chat.getGroupName();
+        chat.setGroupName(newGroupName);
+        chatRepository.save(chat);
+
+        // Системное сообщение и уведомление
+        systemMessageService.createGroupNameChangedMessage(
+                chat,
+                oldGroupName,
+                newGroupName,
+                requester.getUser().getUsername()
+        );
+
+        notificationService.notifyGroupNameChanged(
+                chatId,
+                oldGroupName,
+                newGroupName,
+                requester.getUser().getUsername()
+        );
+
+        logger.info("Название группы изменено с '{}' на '{}'", oldGroupName, newGroupName);
+    }
+
+    public void updateChatAvatar(Long chatId, MultipartFile file,Long requesterId) {
+        logger.info("Обновление аватара для чата с ID: {}", chatId);
+
+        Chat chat = findChatById(chatId);
+        ChatMember requester = findChatMember(chatId, requesterId);
+
+        if (!chat.getIsGroup()) {
+            throw new BusinessLogicException("Аватар можно установить только для групповых чатов");
+        }
+        if (file.isEmpty()) {
+            throw new BusinessLogicException("Файл не может быть пустым");
+        }
+
+        String avatarUrl = fileStorageService.saveChatAvatar(file, chatId);
+
+        chat.setAvatarUrl(avatarUrl);
+        chatRepository.save(chat);
+
+        systemMessageService.createGroupPhotoChangedMessage(
+                chat,
+                requester.getUser().getUsername()
+        );
+
+        notificationService.notifyGroupPhotoChanged(
+                chatId,
+                requester.getUser().getUsername()
+        );
+        logger.info("Аватар успешно обновлен для чата с ID: {}", chatId);
+
+    }
+
+
+
 
     private User findUserByUsername(String username) {
         return userRepository.findByUsername(username)
