@@ -118,4 +118,28 @@ public class SystemMessageService {
 
         messageRepository.save(systemMessage);
     }
+
+    public void createGroupNameChangedMessage(Chat chat, String oldName, String newName, String changedByUsername) {
+        Message systemMessage = new Message();
+        systemMessage.setChat(chat);
+        systemMessage.setSender(userRepository.findByUsername(changedByUsername).orElseThrow());
+        systemMessage.setMessageType(MessageSystemType.GROUP_TITLE_CHANGED);
+        systemMessage.setText(String.format("Пользователь %s изменил название группы с \"%s\" на \"%s\"",
+                changedByUsername, oldName, newName));
+        systemMessage.setCreatedAt(OffsetDateTime.now());
+
+        messageRepository.save(systemMessage);
+    }
+
+    public void createGroupPhotoChangedMessage(Chat chat, String changedByUsername) {
+        Message systemMessage = new Message();
+        systemMessage.setChat(chat);
+        systemMessage.setSender(userRepository.findByUsername(changedByUsername).orElseThrow());
+        systemMessage.setMessageType(MessageSystemType.GROUP_PHOTO_CHANGED);
+        systemMessage.setText(String.format("Пользователь %s изменил фотографию группы",
+                changedByUsername));
+        systemMessage.setCreatedAt(OffsetDateTime.now());
+
+        messageRepository.save(systemMessage);
+    }
 }
