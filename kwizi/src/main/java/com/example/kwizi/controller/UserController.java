@@ -1,14 +1,9 @@
 package com.example.kwizi.controller;
 
-import com.example.kwizi.DTO.request.UpdateBioRequest;
-import com.example.kwizi.DTO.request.UpdateFirstNameRequest;
-import com.example.kwizi.DTO.request.UpdateLastNameRequest;
-import com.example.kwizi.DTO.request.UpdateUsernameRequest;
+import com.example.kwizi.DTO.request.*;
 import com.example.kwizi.DTO.response.ApiResponse;
 import com.example.kwizi.DTO.response.UserProfileResponse;
 import com.example.kwizi.annotations.RateLimited;
-import com.example.kwizi.exception.UserNotFoundException;
-import com.example.kwizi.model.User;
 import com.example.kwizi.security.UserDetailsImpl;
 import com.example.kwizi.service.AuthenticationService;
 import com.example.kwizi.service.UserService;
@@ -21,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -48,19 +44,7 @@ public class UserController {
         logger.info("Поиск пользователя по username: '{}' от пользователя ID: {}",
                 username, userDetails.getId());
 
-        User user = userService.findByUsername(username)
-                .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
-
-        // Проверяем что это не сам пользователь
-        if (user.getId().equals(userDetails.getId())) {
-            logger.warn("Пользователь ID: {} пытается найти самого себя по username: {}",
-                    userDetails.getId(), username);
-            throw new IllegalArgumentException("Нельзя искать самого себя");
-        }
-
-        UserProfileResponse userProfileResponse = new UserProfileResponse(
-                user.getId(), user.getFirstName(), user.getLastName(),
-                user.getUsername(), user.getBio(), user.getEmail());
+        UserProfileResponse userProfileResponse = userService.findUsername(username, userDetails.getId());
 
         logger.info("Пользователь {} найден для пользователя ID: {}",
                 username, userDetails.getId());
@@ -168,5 +152,32 @@ public class UserController {
         return ResponseEntity.ok(
                 ApiResponse.success("Никнейм успешно обновлен", Map.of("token", token))
         );
+    }
+
+    @PatchMapping("/avatar")
+    public ResponseEntity<?> updateAvatar(
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        logger.info("Запрос на изменение фото пользователя ID: {}", userDetails.getId());
+
+        userService.updateChatAvatar(file, userDetails.getId());
+
+        logger.info("Запрос на изменение фото чата ID успешно изменено {}", userDetails.getId());
+
+        return ResponseEntity.ok(ApiResponse.success("Фото пользователя успешно изменено",null));
+    }
+
+    @PatchMapping("/email")
+    public ResponseEntity<ApiResponse<String>> updateEmail(
+            @Valid @RequestBody UpdateEmailRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        logger.info("Запрос обновления фамилии для пользователя ID: {}", userDetails.getId());
+
+        userService.updateEmail(userDetails.getId(), request.getEmail());
+
+        logger.info("Фамилия успешно обновлена для пользователя ID: {}", userDetails.getId());
+        return ResponseEntity.ok(ApiResponse.success("Email успешно обновлен", null));
     }
 }

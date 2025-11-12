@@ -15,13 +15,15 @@ public class FileStorageService {
     private static final Logger logger = LoggerFactory.getLogger(FileStorageService.class);
 
     // Используем абсолютный путь
-    private final String UPLOAD_DIR = "uploads/avatars/chat/";
+    private final String UPLOAD_DIR_CHAT = "uploads/avatars/chat/";
+    private final String UPLOAD_DIR_USER = "uploads/avatars/user/";
+
 
     public String saveChatAvatar(MultipartFile file, Long chatId) {
         logger.info("Сохранение аватара для чата с ID: {}", chatId);
 
         String projectRoot = System.getProperty("user.dir");
-        String absoluteUploadDir = projectRoot + File.separator + UPLOAD_DIR;
+        String absoluteUploadDir = projectRoot + File.separator + UPLOAD_DIR_CHAT;
 
         File uploadDir = new File(absoluteUploadDir);
         if (!uploadDir.exists()) {
@@ -46,6 +48,44 @@ public class FileStorageService {
             file.transferTo(destination);
 
             String relativePath = "/avatars/chat/" + filename;
+            logger.info("Файл успешно сохранен: {}", destination.getAbsolutePath());
+
+            return relativePath;
+
+        } catch (IOException e) {
+            logger.error("Ошибка при сохранении файла на диск: {}", e.getMessage(), e);
+            throw new BusinessLogicException("Ошибка при сохранении файла");
+        }
+    }
+    public String saveUserAvatar(MultipartFile file, Long userId) {
+        logger.info("Сохранение аватара для пользователя с ID: {}", userId);
+
+        String projectRoot = System.getProperty("user.dir");
+        String absoluteUploadDir = projectRoot + File.separator + UPLOAD_DIR_USER;
+
+        File uploadDir = new File(absoluteUploadDir);
+        if (!uploadDir.exists()) {
+            logger.info("Создание директории для аватаров: {}", absoluteUploadDir);
+            boolean created = uploadDir.mkdirs();
+            if (!created) {
+                logger.error("Не удалось создать директорию: {}", absoluteUploadDir);
+                throw new BusinessLogicException("Не удалось создать директорию для файлов");
+            }
+        }
+
+        // Генерируем уникальное имя файла
+        String originalFilename = file.getOriginalFilename();
+        String extension = getFileExtension(originalFilename);
+        String filename = "user_" + userId + "_" + Instant.now().toEpochMilli() + extension;
+
+        logger.debug("Сгенерировано имя файла: {} -> {}", originalFilename, filename);
+
+        // Сохраняем файл
+        try {
+            File destination = new File(uploadDir, filename);
+            file.transferTo(destination);
+
+            String relativePath = "/avatars/user/" + filename;
             logger.info("Файл успешно сохранен: {}", destination.getAbsolutePath());
 
             return relativePath;

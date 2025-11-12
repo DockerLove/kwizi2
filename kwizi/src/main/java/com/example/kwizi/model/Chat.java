@@ -27,7 +27,6 @@ public class Chat {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
-    //todo - добавить updateAt мб
 
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
@@ -61,7 +60,6 @@ public class Chat {
         this.avatarUrl = avatarUrl;
         this.updatedAt = OffsetDateTime.now();
     }
-    //todo добавил поля ава и время обновления но не добавил их в бд также нет эндпоинта для авы
 
     public void setId(Long id) {
         this.id = id;

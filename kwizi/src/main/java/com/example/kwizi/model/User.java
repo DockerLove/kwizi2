@@ -49,9 +49,21 @@ public class User {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
     @PreUpdate
     protected void onUpdate() {
         updatedAt = OffsetDateTime.now();
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+        this.updatedAt = OffsetDateTime.now();
     }
 
     public Long getId() {
@@ -68,6 +80,7 @@ public class User {
 
     public void setUsername(String username) {
         this.username = username;
+        this.updatedAt = OffsetDateTime.now();
     }
 
     public String getEmail() {
@@ -76,14 +89,15 @@ public class User {
 
     public void setEmail(String email) {
         this.email = email;
+        this.updatedAt = OffsetDateTime.now();
     }
-
     public boolean isEmail_verified() {
         return email_verified;
     }
 
     public void setEmail_verified(boolean email_verified) {
         this.email_verified = email_verified;
+        this.updatedAt = OffsetDateTime.now();
     }
 
     public String getPassword() {
@@ -92,6 +106,7 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
+        this.updatedAt = OffsetDateTime.now();
     }
 
     public String getFirstName() {
@@ -100,6 +115,7 @@ public class User {
 
     public void setFirstName(String firstName) {
         this.firstName = firstName;
+        this.updatedAt = OffsetDateTime.now();
     }
 
     public String getLastName() {
@@ -108,6 +124,7 @@ public class User {
 
     public void setLastName(String lastName) {
         this.lastName = lastName;
+        this.updatedAt = OffsetDateTime.now();
     }
 
     public String getBio() {
@@ -116,6 +133,7 @@ public class User {
 
     public void setBio(String bio) {
         this.bio = bio;
+        this.updatedAt = OffsetDateTime.now();
     }
 
     public OffsetDateTime getCreatedAt() {
