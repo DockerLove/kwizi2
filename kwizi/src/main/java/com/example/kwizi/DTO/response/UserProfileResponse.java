@@ -1,17 +1,17 @@
 package com.example.kwizi.DTO.response;
 public class UserProfileResponse {
     private Long id;
+    private String username;
     private String firstName;
     private String lastName;
-    private String username;
     private String bio;
     private String email;
 
     public UserProfileResponse(Long id, String firstName, String lastName, String username, String bio, String email) {
         this.id = id;
+        this.username = username;
         this.firstName = firstName;
         this.lastName = lastName;
-        this.username = username;
         this.bio = bio;
         this.email = email;
     }

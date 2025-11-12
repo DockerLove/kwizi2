@@ -1,6 +1,7 @@
 package com.example.kwizi.service;
 
 import com.example.kwizi.DTO.response.UserProfileResponse;
+import com.example.kwizi.exception.ChatService.BusinessLogicException;
 import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.User;
 import com.example.kwizi.repository.UserRepository;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -22,11 +24,13 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final JwtUtils jwtUtils;
+    private final FileStorageService fileStorageService;
 
     @Autowired
-    public UserService(UserRepository userRepository, JwtUtils jwtUtils) {
+    public UserService(UserRepository userRepository, JwtUtils jwtUtils,FileStorageService fileStorageService) {
         this.userRepository = userRepository;
         this.jwtUtils = jwtUtils;
+        this.fileStorageService = fileStorageService;
     }
 
     @Transactional
@@ -81,6 +85,56 @@ public class UserService {
         });
     }
 
+    @Transactional
+    public void updateEmail(Long userId,String email){
+        executeWithLogging("обновление фамилии", userId, () -> {
+            User user = findUserById(userId);
+            user.setEmail(email);
+            user.setEmail_verified(false);
+        });
+    }
+
+    @Transactional
+    public void updateChatAvatar(MultipartFile file, Long requesterId) {
+        logger.info("Обновление аватара для пользователя с ID: {}", requesterId);
+
+        User user = findUserById(requesterId);
+
+        if (file.isEmpty()) {
+            throw new BusinessLogicException("Файл не может быть пустым");
+        }
+
+        String avatarUrl = fileStorageService.saveUserAvatar(file, requesterId);
+
+        user.setAvatarUrl(avatarUrl);
+        userRepository.save(user);
+
+        logger.info("Аватар успешно обновлен для пользователя с ID: {}", requesterId);
+
+    }
+
+    @Transactional
+    public UserProfileResponse findUsername(String username,Long requestId){
+        logger.info("Поиск пользователя по username: '{}' от пользователя ID: {}",
+                username, requestId);
+
+        User user = findByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException("Пользователь не найден"));
+        if (user.getId().equals(requestId)) {
+            throw new IllegalArgumentException("Нельзя искать самого себя");
+        }
+
+        UserProfileResponse userProfileResponse = new UserProfileResponse(
+                user.getId(), user.getFirstName(), user.getLastName(),
+                user.getUsername(), user.getBio(), user.getEmail());
+
+        logger.info("Пользователь {} найден для пользователя ID: {}",
+                username, requestId);
+
+        return userProfileResponse;
+    }
+
+
     public UserProfileResponse getUserProfile(Long id) {
         return executeWithLogging("получение профиля", id, () -> {
             User user = findUserById(id);
@@ -113,7 +167,6 @@ public class UserService {
         }
         return user;
     }
-
     private void validateUsernameNotExists(String username) {
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("Имя пользователя занято");
