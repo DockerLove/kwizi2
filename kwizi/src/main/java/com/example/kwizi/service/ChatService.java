@@ -4,11 +4,13 @@ import com.example.kwizi.DTO.request.AddChatMemberRequestDto;
 import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
 import com.example.kwizi.enums.ChatRole;
+import com.example.kwizi.enums.ChatType;
 import com.example.kwizi.exception.ChatNotFoundException;
 import com.example.kwizi.exception.ChatService.*;
 import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.Chat;
 import com.example.kwizi.model.ChatMember;
+import com.example.kwizi.model.GroupChat;
 import com.example.kwizi.model.User;
 import com.example.kwizi.repository.ChatMemberRepository;
 import com.example.kwizi.repository.ChatRepository;
@@ -75,6 +77,7 @@ public class ChatService {
         validatePrivateChatCreation(creator, recipient);
 
         Chat chat = createPrivateChat();
+
         addChatMember(chat, creator);
         addChatMember(chat, recipient);
 
@@ -138,7 +141,7 @@ public class ChatService {
         User requestingUser = findUserById(requestingUserId);
         User targetUser = findUserById(targetUserId);
 
-        if (!chat.getIsGroup()) {
+        if (chat.getChatType()== ChatType.PRIVATE){
             throw new ChatOperationNotAllowedException("Операция не поддерживается для приватных чатов");
         }
 
@@ -175,7 +178,7 @@ public class ChatService {
         User requestingUser = findUserById(requestingUserId);
         User removedUser = findUserById(userIdToRemove);
 
-        if (!chat.getIsGroup()) {
+        if ((chat.getChatType()== ChatType.PRIVATE)) {
             throw new ChatOperationNotAllowedException("Операция не поддерживается для приватных чатов");
         }
 
@@ -207,9 +210,7 @@ public class ChatService {
         User user = findUserById(userId);
 
 
-        logger.debug("Чат найден. ChatID: {}, Название: {}", chatId, chat.getGroup());
-
-        if(!chat.getGroup()){
+        if(chat.getChatType()== ChatType.PRIVATE){
             throw new NotGroupChatException("Вы не можете покинуть приватный чат");
         }
 
@@ -245,13 +246,14 @@ public class ChatService {
         logger.info("Системное сообщение и уведомление отправлены для выхода пользователя");
     }
 
+
     public void updateGroupName(Long chatId, String newGroupName, Long requesterId) {
         logger.info("Изменение названия группы chatId: {}, новое название: {}, инициатор: {}",
                 chatId, newGroupName, requesterId);
 
         Chat chat = findChatById(chatId);
 
-        if (!chat.isGroup()) {
+        if (chat.getChatType()== ChatType.PRIVATE) {
             throw new BusinessLogicException("Операция доступна только для групповых чатов");
         }
 
@@ -260,8 +262,11 @@ public class ChatService {
             throw new AccessDeniedException("Только владелец и администраторы могут изменять название группы");
         }
 
-        String oldGroupName = chat.getGroupName();
-        chat.setGroupName(newGroupName);
+        GroupChat groupChat = chat.getGroupChat();
+        String oldGroupName = groupChat.getGroupName();
+        groupChat.setGroupName(newGroupName);
+
+        // Сохраняем chat - каскад обновит groupChat и @PreUpdate сработает
         chatRepository.save(chat);
 
         // Системное сообщение и уведомление
@@ -288,7 +293,7 @@ public class ChatService {
         Chat chat = findChatById(chatId);
         ChatMember requester = findChatMember(chatId, requesterId);
 
-        if (!chat.getIsGroup()) {
+        if (chat.getChatType()== ChatType.PRIVATE) {
             throw new BusinessLogicException("Аватар можно установить только для групповых чатов");
         }
         if (file.isEmpty()) {
@@ -297,7 +302,8 @@ public class ChatService {
 
         String avatarUrl = fileStorageService.saveChatAvatar(file, chatId);
 
-        chat.setAvatarUrl(avatarUrl);
+        GroupChat groupChat = chat.getGroupChat();
+        groupChat.setAvatarUrl(avatarUrl);
         chatRepository.save(chat);
 
         systemMessageService.createGroupPhotoChangedMessage(
@@ -371,7 +377,7 @@ public class ChatService {
 
     private void validateAdminRightsAndGroupChat(Chat chat,Long chatId, Long userId) {
         ChatMember requester = findChatMember(chatId, userId);
-        if (!chat.getIsGroup()) {
+        if (chat.getChatType()== ChatType.PRIVATE) {
             throw new ChatOperationNotAllowedException("Операция не поддерживается для приватных чатов");
         }
         if (requester.getRole().equals(ChatRole.MEMBER)) {
@@ -387,15 +393,25 @@ public class ChatService {
 
     private Chat createAndSaveChat(CreateGroupChatRequest request, User creator) {
         Chat chat = new Chat();
-        chat.setGroupName(request.getGroupName());
-        chat.setCreatedBy(creator);
-        chat.setIsGroup(true);
-        return chatRepository.save(chat);
+        chat.setChatType(ChatType.GROUP);
+
+        // Создаем GroupChat и связываем с Chat
+        GroupChat groupChat = new GroupChat(chat, request.getGroupName());
+        chat.setGroupChat(groupChat);
+
+        // Сохраняем - каскад сохранит и GroupChat
+        chat = chatRepository.save(chat);
+
+        // Добавляем создателя как OWNER
+        ChatMember creatorMember = new ChatMember(chat, creator, ChatRole.OWNER);
+        chatMemberRepository.save(creatorMember);
+
+        return chat;
     }
 
     private Chat createPrivateChat() {
         Chat chat = new Chat();
-        chat.setIsGroup(false);
+        chat.setChatType(ChatType.PRIVATE);
         return chatRepository.save(chat);
     }
 
@@ -437,7 +453,7 @@ public class ChatService {
 
     private void validatePromotionRights(Chat chat,Long chatId, Long requestingUserId, Long targetUserId) {
         ChatMember requester = findChatMember(chatId, requestingUserId);
-        if (!chat.getIsGroup()) {
+        if (chat.getChatType()== ChatType.PRIVATE) {
             throw new ChatOperationNotAllowedException("Операция не поддерживается для приватных чатов");
         }
 

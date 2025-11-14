@@ -2,6 +2,8 @@ package com.example.kwizi.service;
 
 import com.example.kwizi.DTO.internal.MessageDto;
 import com.example.kwizi.DTO.response.ChatHistoryResponse;
+import com.example.kwizi.enums.ChatRole;
+import com.example.kwizi.enums.ChatType;
 import com.example.kwizi.exception.ChatNotFoundException;
 import com.example.kwizi.exception.ChatService.ChatMemberNotFoundException;
 import com.example.kwizi.exception.MessageService.MessageEditTimeExpiredException;
@@ -242,19 +244,6 @@ public class ChatMessageService implements ChatMessageServiceInterface {
                 savedMessage.getId(), chat.getId());
         return savedMessage;
     }
-
-    private Chat createNewChat(Long chatId, User creator) {
-        Chat chat = new Chat();
-        chat.setId(chatId);
-        chat.setCreatedBy(creator);
-        chat.setCreatedAt(OffsetDateTime.now());
-
-        Chat savedChat = chatRepository.save(chat);
-        logger.info("Создан новый чат. ID чата: {}, ID создателя: {}",
-                chatId, creator.getId());
-        return savedChat;
-    }
-
     private Chat findOrCreatePrivateChat(Long senderId, Long recipientId, User sender, User recipient) {
         return chatMemberRepository.findPrivateChatIdByUserIds(senderId, recipientId)
                 .map(chatId -> chatRepository.findById(chatId)
@@ -264,12 +253,13 @@ public class ChatMessageService implements ChatMessageServiceInterface {
 
     private Chat createPrivateChat(User sender, User recipient) {
         Chat chat = new Chat();
-        chat.setCreatedBy(sender);
+        chat.setChatType(ChatType.PRIVATE); // 🔥 ОБЯЗАТЕЛЬНО устанавливаем тип
         chat.setCreatedAt(OffsetDateTime.now());
         Chat savedChat = chatRepository.save(chat);
 
-        ChatMember chatMemberSender = new ChatMember(savedChat, sender);
-        ChatMember chatMemberRecipient = new ChatMember(savedChat, recipient);
+        // Оба участника получают роль MEMBER
+        ChatMember chatMemberSender = new ChatMember(savedChat, sender, ChatRole.MEMBER);
+        ChatMember chatMemberRecipient = new ChatMember(savedChat, recipient, ChatRole.MEMBER);
 
         chatMemberRepository.saveAll(List.of(chatMemberSender, chatMemberRecipient));
         logger.info("Создан новый приватный чат. ID чата: {}, участники: {}, {}",
