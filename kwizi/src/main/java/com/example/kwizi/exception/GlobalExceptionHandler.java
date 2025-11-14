@@ -175,5 +175,11 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage(),null));
     }
 
+    @ExceptionHandler(ChatNotFoundException.class)
+    public ResponseEntity<?> handleChatNotFoundException(ChatNotFoundException ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ex.getMessage(),null));
+    }
+
 
 }
