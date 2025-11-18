@@ -1,7 +1,8 @@
 package com.example.kwizi.config;
 
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.common.config.TopicConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.TopicBuilder;
@@ -11,46 +12,57 @@ import java.util.Map;
 @Configuration
 public class KafkaTopicsConfig {
 
+    private static final Logger logger = LoggerFactory.getLogger(KafkaTopicsConfig.class);
 
     @Bean
     public NewTopic privateMessagesTopic() {
+        logger.info("Создание топика для приватных сообщений");
         return TopicBuilder.name("private-messages")
-                .partitions(7)  // Увеличено с 3 до 5
+                .partitions(3)  // ✅ Упростили до 3 партиций для пет-проекта
                 .replicas(1)
                 .configs(Map.of(
-                        TopicConfig.RETENTION_MS_CONFIG, "604800000", // 7 дней
-                        TopicConfig.MAX_MESSAGE_BYTES_CONFIG, "1048576" // 1MB
+                        "retention.ms", "604800000", // 7 дней
+                        "max.message.bytes", "1048576" // 1MB
                 ))
                 .build();
     }
 
     @Bean
     public NewTopic privateMessagesDlqTopic() {
+        logger.info("Создание DLQ топика для приватных сообщений");
         return TopicBuilder.name("private-messages-dlq")
-                .partitions(7)
+                .partitions(3)
                 .replicas(1)
                 .configs(Map.of(
-                        TopicConfig.RETENTION_MS_CONFIG, "2592000000", // 30 дней для DLQ
-                        TopicConfig.MESSAGE_TIMESTAMP_TYPE_CONFIG, "LogAppendTime"
+                        "retention.ms", "2592000000", // 30 дней для DLQ
+                        "cleanup.policy", "delete"
                 ))
                 .build();
     }
 
     @Bean
     public NewTopic groupMessagesTopic() {
+        logger.info("Создание топика для групповых сообщений");
         return TopicBuilder.name("group-messages")
-                .partitions(7)  // Увеличено с 5 до 7
+                .partitions(3)  // ✅ Упростили до 3 партиций
                 .replicas(1)
-                .config(TopicConfig.COMPRESSION_TYPE_CONFIG, "zstd") // Сжатие
+                .configs(Map.of(
+                        "retention.ms", "604800000", // 7 дней
+                        "compression.type", "snappy" // Сжатие
+                ))
                 .build();
     }
 
     @Bean
     public NewTopic groupMessagesDlqTopic() {
+        logger.info("Создание DLQ топика для групповых сообщений");
         return TopicBuilder.name("group-messages-dlq")
-                .partitions(7)
+                .partitions(3)
                 .replicas(1)
-                .config(TopicConfig.RETENTION_MS_CONFIG, "2592000000") // 30 дней
+                .configs(Map.of(
+                        "retention.ms", "2592000000", // 30 дней
+                        "cleanup.policy", "delete"
+                ))
                 .build();
     }
 }

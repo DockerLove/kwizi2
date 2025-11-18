@@ -79,6 +79,21 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         return createAndSaveMessage(chat, sender, messageDto.getText());
     }
 
+    @Transactional
+    public Message sendPrivateMessage(MessageDto messageDto, Long senderId, Long recipientId) {
+        logger.info("Запрос на отправку личного сообщения. ID отправителя: {}, ID получателя: {}",
+                senderId, recipientId);
+
+        User sender = userRepository.findById(senderId)
+                .orElseThrow(() -> new UserNotFoundException("Отправитель с ID " + senderId + " не найден"));
+        User recipient = userRepository.findById(recipientId)
+                .orElseThrow(() -> new UserNotFoundException("Получатель с ID " + recipientId + " не найден"));
+
+        Chat chat = findOrCreatePrivateChat(senderId, recipientId, sender, recipient);
+
+        return createAndSaveMessage(chat, sender, messageDto.getText());
+    }
+
     @Transactional(readOnly = true)
     public Page<ChatHistoryResponse> getChatHistory(Long chatId, int page, int size, String sort, String username) {
         logger.debug("Получение истории чата. ID чата: {}, пользователь: {}", chatId, username);
@@ -103,21 +118,6 @@ public class ChatMessageService implements ChatMessageServiceInterface {
     }
 
 
-
-    @Transactional
-    public Message sendPrivateMessage(MessageDto messageDto, Long senderId, Long recipientId) {
-        logger.info("Запрос на отправку личного сообщения. ID отправителя: {}, ID получателя: {}",
-                senderId, recipientId);
-
-        User sender = userRepository.findById(senderId)
-                .orElseThrow(() -> new UserNotFoundException("Отправитель с ID " + senderId + " не найден"));
-        User recipient = userRepository.findById(recipientId)
-                .orElseThrow(() -> new UserNotFoundException("Получатель с ID " + recipientId + " не найден"));
-
-        Chat chat = findOrCreatePrivateChat(senderId, recipientId, sender, recipient);
-
-        return createAndSaveMessage(chat, sender, messageDto.getText());
-    }
 
     @Transactional
     public void editMessage(Long messageId, String newText, String username) {

@@ -1,13 +1,10 @@
 package com.example.kwizi.config;
 
 import com.example.kwizi.exception.ChatNotFoundException;
-import com.example.kwizi.exception.GroupMessageDeliveryException;
+import com.example.kwizi.exception.MessageValidationException;
 import com.example.kwizi.exception.UserNotFoundException;
-import com.example.kwizi.exception.UserOfflineException;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
@@ -20,7 +17,6 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.messaging.converter.MessageConversionException;
 import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.HashMap;
@@ -30,141 +26,124 @@ import java.util.Map;
 @EnableKafka
 public class KafkaConfig {
 
+    private static final Logger logger = LoggerFactory.getLogger(KafkaConfig.class);
+
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
-    private static final Logger logger = LoggerFactory.getLogger(KafkaConfig.class);
+    // ==================== PRODUCER CONFIG ====================
 
-    private ConsumerFactory<String, String> baseConsumerFactory(String groupId) {
-        Map<String, Object> config = new HashMap<>();
-        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        config.put(ConsumerConfig.GROUP_ID_CONFIG, groupId); // Уникальный group.id
-        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        config.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false); // Отключаем авто-коммит
-        config.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 50);
-        return new DefaultKafkaConsumerFactory<>(config, new StringDeserializer(), new StringDeserializer());
-    }
-
-    // Фабрика для групповых сообщений
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> groupKafkaListenerContainerFactory(
-            KafkaTemplate<String, String> template) {
-
-        ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(baseConsumerFactory("group-consumer")); // Уникальный group.id
-
-        // DLQ обработчик для групповых сообщений
-        DeadLetterPublishingRecoverer dlqRecoverer = new DeadLetterPublishingRecoverer(
-                template,
-                (record, ex) -> {
-                    logger.warn("Routing group message to DLQ: {}", record.key());
-                    return new TopicPartition("group-messages-dlq", record.partition());
-                }
-        );
-
-        DefaultErrorHandler errorHandler = new DefaultErrorHandler(
-                dlqRecoverer,
-                new FixedBackOff(1000, 3)
-        );
-
-        errorHandler.addNotRetryableExceptions(
-                GroupMessageDeliveryException.class,
-                UserNotFoundException.class,
-                ChatNotFoundException.class
-        );
-
-        factory.setCommonErrorHandler(errorHandler);
-        return factory;
-    }
-
-    // Фабрика для DLQ ретраев
-    @Bean
-    public ConsumerFactory<String, String> dlqConsumerFactory() {
-        return baseConsumerFactory("dlq-retry-consumer"); // Уникальный group.id для ретраев
-    }
-
-
-    // Producer
     @Bean
     public ProducerFactory<String, String> producerFactory() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        config.put(ProducerConfig.ACKS_CONFIG, "all");
-        config.put(ProducerConfig.LINGER_MS_CONFIG, 5);          // Уменьшено время батчинга
-        config.put(ProducerConfig.BATCH_SIZE_CONFIG, 32768);      // Увеличено в 2 раза
-        config.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "zstd"); // Сжатие
-        return new DefaultKafkaProducerFactory<>(config);
+        logger.info("Инициализация ProducerFactory для брокеров: {}", bootstrapServers);
+
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+
+        configProps.put(ProducerConfig.ACKS_CONFIG, "1");
+        configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
+        // Настройки производительности
+        configProps.put(ProducerConfig.LINGER_MS_CONFIG, 5);
+        configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
+        configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
+        configProps.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432);
+
+        logger.debug("Producer конфигурация: acks=1, retries=3 - оптимизировано для пет-проекта");
+
+        return new DefaultKafkaProducerFactory<>(configProps);
     }
 
-    // Consumer
+    @Bean
+    public KafkaTemplate<String, String> kafkaTemplate() {
+        KafkaTemplate<String, String> template = new KafkaTemplate<>(producerFactory());
+        logger.info("KafkaTemplate успешно создан");
+        return template;
+    }
+
+    // ==================== CONSUMER CONFIG ====================
+
     @Bean
     public ConsumerFactory<String, String> consumerFactory() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        config.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 200);  // Увеличено с 500
-        config.put(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, 52428800); // 50MB
+        logger.info("Инициализация ConsumerFactory для группы: message-consumer-group");
+
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        configProps.put(ConsumerConfig.GROUP_ID_CONFIG, "message-consumer-group");
+        configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false); // Ручной коммит
+        configProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100); // Оптимальный размер пачки
+        configProps.put(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, 52428800); // 50MB
+
+        // Настройки для надежности
+        configProps.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000); // 30 секунд
+        configProps.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 10000); // 10 секунд
+
+        logger.debug("Consumer конфигурация: autoCommit=false, maxPollRecords=100");
+
         return new DefaultKafkaConsumerFactory<>(
-                config,
+                configProps,
                 new StringDeserializer(),
                 new StringDeserializer()
         );
     }
 
-    @Bean
-    public KafkaTemplate<String, String> kafkaTemplate() {
-        return new KafkaTemplate<>(producerFactory());
-    }
+    // ==================== LISTENER CONTAINER FACTORY ====================
 
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
-            KafkaTemplate<String, String> template) {
+            KafkaTemplate<String, String> kafkaTemplate) {
 
-        ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        logger.info("Создание KafkaListenerContainerFactory");
+
+        ConcurrentKafkaListenerContainerFactory<String, String> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
 
-        // Настройка DLQ
-        logger.info("Отправляем сообщение в private-messages-dlq");
-        DeadLetterPublishingRecoverer dlqRecoverer = new DeadLetterPublishingRecoverer(
-                template,
-                (record, ex) -> new TopicPartition("private-messages-dlq", record.partition())
-        );
+        factory.setConcurrency(3);
 
-        DefaultErrorHandler errorHandler = new DefaultErrorHandler(
-                dlqRecoverer,
-                new FixedBackOff(1000, 3) // 3 попытки с интервалом 1 сек
-        );
-
-        // Какие исключения НЕ ретраить (сразу в DLQ)
-        errorHandler.addNotRetryableExceptions(UserOfflineException.class,JsonProcessingException.class);
-
+        // Настройка обработки ошибок
+        DefaultErrorHandler errorHandler = createErrorHandler(kafkaTemplate);
         factory.setCommonErrorHandler(errorHandler);
+
+        logger.debug("KafkaListenerContainerFactory настроен с concurrency=3 и обработкой ошибок");
+
         return factory;
     }
 
+    // ==================== ERROR HANDLER ====================
 
-    @Bean
-    public DefaultErrorHandler errorHandler(KafkaTemplate<String, String> template) {
-        // Куда отправлять "мертвые" письма
-        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
-                template,
-                (record, ex) -> new TopicPartition(record.topic() + "-dlq", record.partition())
+    private DefaultErrorHandler createErrorHandler(KafkaTemplate<String, String> kafkaTemplate) {
+        logger.info("Настройка обработчика ошибок с DLQ");
+
+        // Dead Letter Queue recoverer
+        DeadLetterPublishingRecoverer dlqRecoverer = new DeadLetterPublishingRecoverer(
+                kafkaTemplate,
+                (record, ex) -> {
+                    String originalTopic = record.topic();
+                    String dlqTopic = originalTopic + "-dlq";
+                    logger.warn("Перенаправление сообщения в DLQ: {} -> {}", originalTopic, dlqTopic);
+                    // ✅ ИСПРАВЛЕНО: используем правильный класс
+                    return new org.apache.kafka.common.TopicPartition(dlqTopic, record.partition());
+                }
         );
 
-        // 2 попытки с интервалом 1 секунда
-        FixedBackOff backOff = new FixedBackOff(1000L, 2L);
+        // 3 попытки с интервалом 1 секунда, затем в DLQ
+        FixedBackOff backOff = new FixedBackOff(1000L, 3L);
 
-        DefaultErrorHandler handler = new DefaultErrorHandler(recoverer, backOff);
+        DefaultErrorHandler errorHandler = new DefaultErrorHandler(dlqRecoverer, backOff);
 
-        // Какие исключения не ретраить
-        handler.addNotRetryableExceptions(
-                IllegalArgumentException.class,
-                MessageConversionException.class
+        // Исключения, которые не нужно ретраить (сразу в DLQ)
+        errorHandler.addNotRetryableExceptions(
+                MessageValidationException.class,
+                UserNotFoundException.class,
+                ChatNotFoundException.class,
+                IllegalArgumentException.class
         );
 
-        return handler;
+        logger.debug("ErrorHandler настроен: 3 ретрая с интервалом 1сек, исключения сразу в DLQ");
+
+        return errorHandler;
     }
-
 }
