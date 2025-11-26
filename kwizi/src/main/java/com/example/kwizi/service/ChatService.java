@@ -3,6 +3,7 @@ package com.example.kwizi.service;
 import com.example.kwizi.DTO.request.AddChatMemberRequestDto;
 import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
+import com.example.kwizi.DTO.response.ChatPreviewDto;
 import com.example.kwizi.enums.ChatRole;
 import com.example.kwizi.enums.ChatType;
 import com.example.kwizi.exception.ChatNotFoundException;
@@ -14,11 +15,16 @@ import com.example.kwizi.model.GroupChat;
 import com.example.kwizi.model.User;
 import com.example.kwizi.repository.ChatMemberRepository;
 import com.example.kwizi.repository.ChatRepository;
+import com.example.kwizi.repository.MessageRepository;
 import com.example.kwizi.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -42,17 +48,20 @@ public class ChatService {
     private final NotificationService notificationService;
 
     private final FileStorageService fileStorageService;
+    private final MessageRepository messageRepository;
 
     @Autowired
     public ChatService(ChatRepository chatRepository, ChatMemberRepository chatMemberRepository,
                        UserRepository userRepository,SystemMessageService systemMessageService,
-                       NotificationService notificationService,FileStorageService fileStorageService) {
+                       NotificationService notificationService,FileStorageService fileStorageService,
+                       MessageRepository messageRepository) {
         this.chatRepository = chatRepository;
         this.chatMemberRepository = chatMemberRepository;
         this.userRepository = userRepository;
         this.systemMessageService = systemMessageService;
         this.notificationService = notificationService;
         this.fileStorageService = fileStorageService;
+        this.messageRepository=messageRepository;
     }
 
     public void createGroupChat(CreateGroupChatRequest createChatRequestDto, String creatorUsername) {
@@ -64,6 +73,7 @@ public class ChatService {
         Chat chat = createAndSaveChat(createChatRequestDto, creator);
         addCreatorAsAdmin(chat, creator);
         addInitialMembers(chat, createChatRequestDto.getInitialMemberIds());
+        updateChatActivity(chat.getId());
 
         logger.info("Групповой чат успешно создан пользователем: {}", creatorUsername);
     }
@@ -81,6 +91,8 @@ public class ChatService {
         addChatMember(chat, creator);
         addChatMember(chat, recipient);
 
+        updateChatActivity(chat.getId());
+
         logger.info("Приватный чат успешно создан между {} и {}", creatorUsername, createPrivateChatRequest.getRecipientUsername());
     }
 
@@ -95,6 +107,8 @@ public class ChatService {
         validateChatMemberAdditionAndChatIsGroup(chat, userId);
 
         addChatMember(chat, user);
+
+        updateChatActivity(chatId);
 
         systemMessageService.createUserAddedMessage(chat, user.getUsername(), addedByUsername);
 
@@ -118,6 +132,8 @@ public class ChatService {
         }
 
         promoteToAdmin(memberToPromote);
+
+        updateChatActivity(chatId);
 
         systemMessageService.createUserPromotedMessage(
                 chat,
@@ -152,6 +168,8 @@ public class ChatService {
 
         // Выполняем разжалование
         demoteToMember(memberToDemote);
+
+        updateChatActivity(chatId);
 
         // Системное сообщение о разжаловании
         systemMessageService.createUserDemotedMessage(
@@ -188,6 +206,8 @@ public class ChatService {
 
         // Удаляем участника
         removeMemberFromChat(memberToRemove);
+
+        updateChatActivity(chatId);
 
         systemMessageService.createUserRemovedMessage(
                 chat,
@@ -227,8 +247,10 @@ public class ChatService {
         chatMemberRepository.delete(member);
         logger.info("Пользователь удален из членов чата. ChatID: {}, UserID: {}", chatId, userId);
 
+        updateChatActivity(chatId);
 
         chatRepository.save(chat);
+
 
         systemMessageService.createUserLeftMessage(
                 chat,
@@ -269,6 +291,8 @@ public class ChatService {
         // Сохраняем chat - каскад обновит groupChat и @PreUpdate сработает
         chatRepository.save(chat);
 
+        updateChatActivity(chatId);
+
         // Системное сообщение и уведомление
         systemMessageService.createGroupNameChangedMessage(
                 chat,
@@ -306,6 +330,8 @@ public class ChatService {
         groupChat.setAvatarUrl(avatarUrl);
         chatRepository.save(chat);
 
+        updateChatActivity(chatId);
+
         systemMessageService.createGroupPhotoChangedMessage(
                 chat,
                 requester.getUser().getUsername()
@@ -321,6 +347,13 @@ public class ChatService {
 
 
 
+    public void updateChatActivity(Long chatId) {
+        Chat chat = chatRepository.findById(chatId)
+                .orElseThrow(() -> new ChatNotFoundException("Чат не найден"));
+
+        chat.setLastActivityAt(OffsetDateTime.now());
+        chatRepository.save(chat);
+    }
 
     private User findUserByUsername(String username) {
         return userRepository.findByUsername(username)
@@ -525,5 +558,58 @@ public class ChatService {
     private void demoteToMember(ChatMember member) {
         member.setRole(ChatRole.MEMBER);
         chatMemberRepository.save(member);
+    }
+
+
+
+
+
+
+
+    public Page<ChatPreviewDto> getUserChatsPreview(Long userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Direction.DESC, "lastActivityAt"));
+
+        Page<Chat> chatPage = chatRepository.findUserChatsOrderByLastActivity(userId, pageable);
+
+        return chatPage.map(chat -> mapToChatPreviewDto(chat, userId));
+    }
+
+    private ChatPreviewDto mapToChatPreviewDto(Chat chat, Long currentUserId) {
+        ChatPreviewDto dto = new ChatPreviewDto();
+        dto.setId(chat.getId());
+        dto.setChatType(chat.getChatType());
+        dto.setLastActivityAt(chat.getLastActivityAt());
+        dto.setLastMessagePreview(getLastMessagePreview(chat.getId()));
+
+        // ОПРЕДЕЛЯЕМ НАЗВАНИЕ ЧАТА В ЗАВИСИМОСТИ ОТ ТИПА
+        dto.setDisplayName(getChatDisplayName(chat, currentUserId));
+
+        return dto;
+    }
+
+    private String getChatDisplayName(Chat chat, Long currentUserId) {
+        if (chat.getChatType() == ChatType.GROUP && chat.getGroupChat() != null) {
+            // Для группового чата - название группы
+            return chat.getGroupChat().getGroupName();
+        } else if (chat.getChatType() == ChatType.PRIVATE) {
+            // Для приватного чата - имя собеседника
+            return getChatPartnerUsername(chat, currentUserId);
+        }
+
+        return "Неизвестный чат";
+    }
+
+    private String getChatPartnerUsername(Chat chat, Long currentUserId) {
+        return chat.getChatMembers().stream()
+                .filter(member -> !member.getUser().getId().equals(currentUserId))
+                .findFirst()
+                .map(member -> member.getUser().getUsername())
+                .orElse("Неизвестный пользователь");
+    }
+
+    private String getLastMessagePreview(Long chatId) {
+        return messageRepository.findLastMessagePreviewByChatId(chatId)
+                .orElse("Чат создан");
     }
 }

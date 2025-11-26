@@ -56,14 +56,6 @@ public class NotificationService {
         chatHandler.broadcastToChat(chatId, payload);
     }
 
-    public void notifyGroupTitleChanged(Long chatId, String oldTitle, String newTitle, String changedByUsername) {
-        String payload = String.format(
-                "{\"type\":\"GROUP_TITLE_CHANGED\", \"data\":{\"chatId\":%d, \"oldTitle\":\"%s\", \"newTitle\":\"%s\", \"changedByUsername\":\"%s\", \"timestamp\":\"%s\"}}",
-                chatId, oldTitle, newTitle, changedByUsername, Instant.now().toString()
-        );
-        chatHandler.broadcastToChat(chatId, payload);
-    }
-
     public void notifyUserPromoted(Long chatId, String targetUsername, String promotedByUsername) {
         String payload = String.format(
                 "{\"type\":\"USER_PROMOTED\", \"data\":{\"chatId\":%d, \"targetUsername\":\"%s\", \"promotedByUsername\":\"%s\", \"timestamp\":\"%s\"}}",

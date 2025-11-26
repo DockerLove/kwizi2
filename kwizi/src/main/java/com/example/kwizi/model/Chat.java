@@ -28,11 +28,12 @@ public class Chat {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
-    // Конструкторы
+    @Column(name = "last_activity_at", nullable = false)
+    private OffsetDateTime lastActivityAt;
+
     @OneToOne(mappedBy = "chat", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private GroupChat groupChat;
 
-    // 🔥 ДОБАВЬ ЭТУ СВЯЗЬ!
     @OneToMany(mappedBy = "chat", fetch = FetchType.LAZY)
     private Set<ChatMember> chatMembers = new HashSet<>();
 
@@ -42,10 +43,6 @@ public class Chat {
         this.chatType = chatType;
     }
 
-    // Связь с групповыми чатами
-
-    // Геттеры/сеттеры
-    // Вспомогательные методы
     public String getGroupName() {
         if (chatType == ChatType.GROUP && groupChat != null) {
             return groupChat.getGroupName();
@@ -66,6 +63,14 @@ public class Chat {
 
     public void setChatMembers(Set<ChatMember> chatMembers) {
         this.chatMembers = chatMembers;
+    }
+
+    public OffsetDateTime getLastActivityAt() {
+        return lastActivityAt;
+    }
+
+    public void setLastActivityAt(OffsetDateTime lastActivityAt) {
+        this.lastActivityAt = lastActivityAt;
     }
 
     public GroupChat getGroupChat() {
