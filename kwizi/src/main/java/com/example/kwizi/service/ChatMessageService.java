@@ -44,6 +44,7 @@ public class ChatMessageService implements ChatMessageServiceInterface {
     private final ChatRepository chatRepository;
     private final UserRepository userRepository;
     private NotificationService notificationService;
+    private ChatService chatService;
     private final SystemMessageService systemMessageService;
     private final ChatMemberRepository chatMemberRepository;
 
@@ -53,13 +54,15 @@ public class ChatMessageService implements ChatMessageServiceInterface {
                               UserRepository userRepository,
                               ChatMemberRepository chatMemberRepository,
                               NotificationService notificationService,
-                              SystemMessageService systemMessageService) {
+                              SystemMessageService systemMessageService,
+                              ChatService chatService) {
         this.messageRepository = messageRepository;
         this.chatRepository = chatRepository;
         this.userRepository = userRepository;
         this.chatMemberRepository = chatMemberRepository;
         this.notificationService = notificationService;
         this.systemMessageService = systemMessageService;
+        this.chatService=chatService;
     }
 
     @Transactional
@@ -76,7 +79,11 @@ public class ChatMessageService implements ChatMessageServiceInterface {
 
         validateUserInChat(senderId, chatId);
 
-        return createAndSaveMessage(chat, sender, messageDto.getText());
+        Message message = createAndSaveMessage(chat, sender, messageDto.getText());
+
+        chatService.updateChatActivity(chatId);
+
+        return message;
     }
 
     @Transactional
@@ -91,7 +98,11 @@ public class ChatMessageService implements ChatMessageServiceInterface {
 
         Chat chat = findOrCreatePrivateChat(senderId, recipientId, sender, recipient);
 
-        return createAndSaveMessage(chat, sender, messageDto.getText());
+        Message message= createAndSaveMessage(chat, sender, messageDto.getText());
+
+        chatService.updateChatActivity(chat.getId());
+
+        return message;
     }
 
     @Transactional(readOnly = true)
@@ -240,6 +251,7 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         message.setCreatedAt(OffsetDateTime.now());
 
         Message savedMessage = messageRepository.save(message);
+
         logger.info("Сообщение успешно отправлено. ID сообщения: {}, ID чата: {}",
                 savedMessage.getId(), chat.getId());
         return savedMessage;

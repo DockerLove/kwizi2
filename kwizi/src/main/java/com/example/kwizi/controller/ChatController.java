@@ -5,12 +5,14 @@ import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
 import com.example.kwizi.DTO.request.UpdateGroupNameRequest;
 import com.example.kwizi.DTO.response.ApiResponse;
+import com.example.kwizi.DTO.response.ChatPreviewDto;
 import com.example.kwizi.security.UserDetailsImpl;
 import com.example.kwizi.service.ChatService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -146,5 +148,15 @@ public class ChatController {
         logger.info("Запрос на изменение фото чата ID успешно изменено {}", chatId);
 
         return ResponseEntity.ok(ApiResponse.success("Фото группы успешно изменено",null));
+    }
+
+    @GetMapping()
+    public ResponseEntity<ApiResponse<Page<ChatPreviewDto>>> getUserChats(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(defaultValue = "0") int page) {
+
+        Page<ChatPreviewDto> chats = chatService.getUserChatsPreview(userDetails.getId(), page, size);
+        return ResponseEntity.ok(ApiResponse.success("Самые новые чаты успешно загружены",chats));
     }
 }
