@@ -1,4 +1,4 @@
-package com.example.kwizi.exception.ChatService;
+package com.example.kwizi.exception;
 
 public class BusinessLogicException extends RuntimeException {
     public BusinessLogicException(String message) {

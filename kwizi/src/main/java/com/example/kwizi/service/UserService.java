@@ -1,7 +1,7 @@
 package com.example.kwizi.service;
 
 import com.example.kwizi.DTO.response.UserProfileResponse;
-import com.example.kwizi.exception.ChatService.BusinessLogicException;
+import com.example.kwizi.exception.BusinessLogicException;
 import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.User;
 import com.example.kwizi.repository.UserRepository;
@@ -95,7 +95,7 @@ public class UserService {
     }
 
     @Transactional
-    public void updateChatAvatar(MultipartFile file, Long requesterId) {
+    public void updateUserAvatar(MultipartFile file, Long requesterId) {
         logger.info("Обновление аватара для пользователя с ID: {}", requesterId);
 
         User user = findUserById(requesterId);
