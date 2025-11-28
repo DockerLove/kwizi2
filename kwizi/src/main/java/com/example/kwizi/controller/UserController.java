@@ -161,7 +161,7 @@ public class UserController {
 
         logger.info("Запрос на изменение фото пользователя ID: {}", userDetails.getId());
 
-        userService.updateChatAvatar(file, userDetails.getId());
+        userService.updateUserAvatar(file, userDetails.getId());
 
         logger.info("Запрос на изменение фото чата ID успешно изменено {}", userDetails.getId());
 

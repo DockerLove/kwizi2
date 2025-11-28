@@ -1,104 +1,84 @@
 package com.example.kwizi.service;
 
-import com.example.kwizi.exception.ChatService.BusinessLogicException;
+import com.example.kwizi.exception.BusinessLogicException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
 import java.time.Instant;
-
 @Service
 public class FileStorageService {
     private static final Logger logger = LoggerFactory.getLogger(FileStorageService.class);
 
-    // Используем абсолютный путь
-    private final String UPLOAD_DIR_CHAT = "uploads/avatars/chat/";
-    private final String UPLOAD_DIR_USER = "uploads/avatars/user/";
+    @Value("${file.storage.chat-avatar-path}")
+    private String chatAvatarPath;
+
+    @Value("${file.storage.user-avatar-path}")
+    private String userAvatarPath;
 
 
     public String saveChatAvatar(MultipartFile file, Long chatId) {
-        logger.info("Сохранение аватара для чата с ID: {}", chatId);
-
-        String projectRoot = System.getProperty("user.dir");
-        String absoluteUploadDir = projectRoot + File.separator + UPLOAD_DIR_CHAT;
-
-        File uploadDir = new File(absoluteUploadDir);
-        if (!uploadDir.exists()) {
-            logger.info("Создание директории для аватаров: {}", absoluteUploadDir);
-            boolean created = uploadDir.mkdirs();
-            if (!created) {
-                logger.error("Не удалось создать директорию: {}", absoluteUploadDir);
-                throw new BusinessLogicException("Не удалось создать директорию для файлов");
-            }
-        }
-
-        // Генерируем уникальное имя файла
-        String originalFilename = file.getOriginalFilename();
-        String extension = getFileExtension(originalFilename);
-        String filename = "chat_" + chatId + "_" + Instant.now().toEpochMilli() + extension;
-
-        logger.debug("Сгенерировано имя файла: {} -> {}", originalFilename, filename);
-
-        // Сохраняем файл
-        try {
-            File destination = new File(uploadDir, filename);
-            file.transferTo(destination);
-
-            String relativePath = "/avatars/chat/" + filename;
-            logger.info("Файл успешно сохранен: {}", destination.getAbsolutePath());
-
-            return relativePath;
-
-        } catch (IOException e) {
-            logger.error("Ошибка при сохранении файла на диск: {}", e.getMessage(), e);
-            throw new BusinessLogicException("Ошибка при сохранении файла");
-        }
+        return saveAvatar(file, chatId, "chat", chatAvatarPath, "/avatars/chat/");
     }
+
     public String saveUserAvatar(MultipartFile file, Long userId) {
-        logger.info("Сохранение аватара для пользователя с ID: {}", userId);
+        return saveAvatar(file, userId, "user", userAvatarPath, "/avatars/user/");
+    }
 
-        String projectRoot = System.getProperty("user.dir");
-        String absoluteUploadDir = projectRoot + File.separator + UPLOAD_DIR_USER;
+    protected String getBasePath() {
+        return System.getProperty("user.dir");
+    }
 
-        File uploadDir = new File(absoluteUploadDir);
-        if (!uploadDir.exists()) {
-            logger.info("Создание директории для аватаров: {}", absoluteUploadDir);
-            boolean created = uploadDir.mkdirs();
+    private String saveAvatar(MultipartFile file, Long entityId, String prefix,
+                              String storagePath, String relativePath) {
+        logger.info("Сохранение аватара для {} с ID: {}", prefix, entityId);
+
+        File uploadDir = createDirectory(storagePath);
+
+        String filename = generateFileName(file, entityId, prefix);
+
+        return saveFile(file, uploadDir, filename, relativePath);
+    }
+
+    private File createDirectory(String path) {
+        String absolutePath = System.getProperty("user.dir") + File.separator + path;
+        File directory = new File(absolutePath);
+
+        if (!directory.exists()) {
+            logger.info("Создание директории: {}", absolutePath);
+            boolean created = directory.mkdirs();
             if (!created) {
-                logger.error("Не удалось создать директорию: {}", absoluteUploadDir);
                 throw new BusinessLogicException("Не удалось создать директорию для файлов");
             }
         }
+        return directory;
+    }
 
-        // Генерируем уникальное имя файла
+    private String generateFileName(MultipartFile file, Long entityId, String prefix) {
         String originalFilename = file.getOriginalFilename();
         String extension = getFileExtension(originalFilename);
-        String filename = "user_" + userId + "_" + Instant.now().toEpochMilli() + extension;
+        return String.format("%s_%d_%d%s", prefix, entityId, Instant.now().toEpochMilli(), extension);
+    }
 
-        logger.debug("Сгенерировано имя файла: {} -> {}", originalFilename, filename);
-
-        // Сохраняем файл
+    private String saveFile(MultipartFile file, File uploadDir, String filename, String relativePath) {
         try {
             File destination = new File(uploadDir, filename);
             file.transferTo(destination);
 
-            String relativePath = "/avatars/user/" + filename;
             logger.info("Файл успешно сохранен: {}", destination.getAbsolutePath());
-
-            return relativePath;
+            return relativePath + filename;
 
         } catch (IOException e) {
-            logger.error("Ошибка при сохранении файла на диск: {}", e.getMessage(), e);
             throw new BusinessLogicException("Ошибка при сохранении файла");
         }
     }
 
     private String getFileExtension(String filename) {
         if (filename == null || !filename.contains(".")) {
-            logger.warn("Не удалось определить расширение файла: {}, используем .jpg", filename);
             return ".jpg";
         }
         return filename.substring(filename.lastIndexOf("."));

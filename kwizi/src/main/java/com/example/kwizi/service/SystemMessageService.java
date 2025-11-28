@@ -3,13 +3,14 @@ package com.example.kwizi.service;
 import com.example.kwizi.enums.MessageSystemType;
 import com.example.kwizi.model.Chat;
 import com.example.kwizi.model.Message;
-import com.example.kwizi.repository.ChatRepository;
+import com.example.kwizi.model.User;
 import com.example.kwizi.repository.MessageRepository;
 import com.example.kwizi.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.Map;
 
 @Service
 @Transactional
@@ -17,129 +18,90 @@ public class SystemMessageService {
 
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
-    private final ChatRepository chatRepository;
-    private final NotificationService notificationService;
+    private final Map<MessageSystemType, String> messageTemplates;
 
     public SystemMessageService(MessageRepository messageRepository,
-                                UserRepository userRepository,
-                                ChatRepository chatRepository,
-                                NotificationService notificationService) {
+                                UserRepository userRepository) {
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
-        this.chatRepository = chatRepository;
-        this.notificationService = notificationService;
+        this.messageTemplates = createTemplates();
+        validateTemplates();
     }
 
-    /**
-     * Пользователь добавлен в чат (админом или другим пользователем)
-     */
+    private Map<MessageSystemType, String> createTemplates() {
+        return Map.of(
+                MessageSystemType.USER_ADDED, "Пользователь %s добавлен в чат пользователем %s",
+                MessageSystemType.USER_REMOVED, "Пользователь %s удален из чата пользователем %s",
+                MessageSystemType.USER_LEFT, "Пользователь %s вышел из чата",
+                MessageSystemType.USER_PROMOTED, "Пользователь %s назначен администратором пользователем %s",
+                MessageSystemType.USER_DEMOTED, "Пользователь %s лишен прав администратора пользователем %s",
+                MessageSystemType.GROUP_TITLE_CHANGED, "Пользователь %s изменил название группы с \"%s\" на \"%s\"",
+                MessageSystemType.GROUP_PHOTO_CHANGED, "Пользователь %s изменил фотографию группы"
+        );
+    }
+
+    private void validateTemplates() {
+        for (MessageSystemType type : MessageSystemType.values()) {
+            if (!messageTemplates.containsKey(type) && type != MessageSystemType.REGULAR) {
+                throw new IllegalStateException("Шаблон для типа сообщения не найден: " + type);
+            }
+        }
+    }
+
+    // Public API methods - остаются для удобства использования
     public void createUserAddedMessage(Chat chat, String addedUsername, String addedByUsername) {
-        Message systemMessage = new Message();
-        systemMessage.setChat(chat);
-        systemMessage.setSender(userRepository.findByUsername(addedByUsername).orElseThrow());
-        systemMessage.setMessageType(MessageSystemType.USER_ADDED);
-        systemMessage.setText(String.format("Пользователь %s добавлен в чат пользователем %s",
-                addedUsername, addedByUsername));
-        systemMessage.setCreatedAt(OffsetDateTime.now());
-
-        messageRepository.save(systemMessage);
+        createSystemMessage(chat, addedByUsername, MessageSystemType.USER_ADDED, addedUsername, addedByUsername);
     }
 
-    /**
-     * Пользователь удален из чата (админом)
-     */
     public void createUserRemovedMessage(Chat chat, String removedUsername, String removedByUsername) {
-        Message systemMessage = new Message();
-        systemMessage.setChat(chat);
-        systemMessage.setSender(userRepository.findByUsername(removedByUsername).orElseThrow());
-        systemMessage.setMessageType(MessageSystemType.USER_REMOVED);
-        systemMessage.setText(String.format("Пользователь %s удален из чата пользователем %s",
-                removedUsername, removedByUsername));
-        systemMessage.setCreatedAt(OffsetDateTime.now());
-
-        messageRepository.save(systemMessage);
+        createSystemMessage(chat, removedByUsername, MessageSystemType.USER_REMOVED, removedUsername, removedByUsername);
     }
 
-    /**
-     * Пользователь вышел из чата (добровольно)
-     */
     public void createUserLeftMessage(Chat chat, String username) {
-        Message systemMessage = new Message();
-        systemMessage.setChat(chat);
-        systemMessage.setSender(userRepository.findByUsername(username).orElseThrow());
-        systemMessage.setMessageType(MessageSystemType.USER_LEFT);
-        systemMessage.setText(String.format("Пользователь %s вышел из чата", username));
-        systemMessage.setCreatedAt(OffsetDateTime.now());
-
-        messageRepository.save(systemMessage);
+        createSystemMessage(chat, username, MessageSystemType.USER_LEFT, username);
     }
 
-    /**
-     * Название группы изменено
-     */
-    public void createGroupTitleChangedMessage(Chat chat, String oldTitle, String newTitle, String changedByUsername) {
-        Message systemMessage = new Message();
-        systemMessage.setChat(chat);
-        systemMessage.setSender(userRepository.findByUsername(changedByUsername).orElseThrow());
-        systemMessage.setMessageType(MessageSystemType.GROUP_TITLE_CHANGED);
-        systemMessage.setText(String.format("Название группы изменено с \"%s\" на \"%s\"",
-                oldTitle, newTitle));
-        systemMessage.setCreatedAt(OffsetDateTime.now());
-
-        messageRepository.save(systemMessage);
-    }
-
-    /**
-     * Пользователь назначен администратором
-     */
     public void createUserPromotedMessage(Chat chat, String targetUsername, String promotedByUsername) {
-        Message systemMessage = new Message();
-        systemMessage.setChat(chat);
-        systemMessage.setSender(userRepository.findByUsername(promotedByUsername).orElseThrow());
-        systemMessage.setMessageType(MessageSystemType.USER_PROMOTED);
-        systemMessage.setText(String.format("Пользователь %s назначен администратором пользователем %s",
-                targetUsername, promotedByUsername));
-        systemMessage.setCreatedAt(OffsetDateTime.now());
-
-        messageRepository.save(systemMessage);
+        createSystemMessage(chat, promotedByUsername, MessageSystemType.USER_PROMOTED, targetUsername, promotedByUsername);
     }
 
-    /**
-     * У пользователя забрали права администратора
-     */
     public void createUserDemotedMessage(Chat chat, String targetUsername, String demotedByUsername) {
-        Message systemMessage = new Message();
-        systemMessage.setChat(chat);
-        systemMessage.setSender(userRepository.findByUsername(demotedByUsername).orElseThrow());
-        systemMessage.setMessageType(MessageSystemType.USER_DEMOTED);
-        systemMessage.setText(String.format("Пользователь %s лишен прав администратора пользователем %s",
-                targetUsername, demotedByUsername));
-        systemMessage.setCreatedAt(OffsetDateTime.now());
-
-        messageRepository.save(systemMessage);
+        createSystemMessage(chat, demotedByUsername, MessageSystemType.USER_DEMOTED, targetUsername, demotedByUsername);
     }
 
     public void createGroupNameChangedMessage(Chat chat, String oldName, String newName, String changedByUsername) {
+        createSystemMessage(chat, changedByUsername, MessageSystemType.GROUP_TITLE_CHANGED, changedByUsername, oldName, newName);
+    }
+
+    public void createGroupPhotoChangedMessage(Chat chat, String changedByUsername) {
+        createSystemMessage(chat, changedByUsername, MessageSystemType.GROUP_PHOTO_CHANGED, changedByUsername);
+    }
+
+    // Unified private method for creating system messages
+    private void createSystemMessage(Chat chat, String senderUsername,
+                                     MessageSystemType messageType, Object... templateArgs) {
+        String template = messageTemplates.get(messageType);
+        if (template == null) {
+            throw new IllegalArgumentException("Шаблон для типа сообщения не найден: " + messageType);
+        }
+
+        User sender = userRepository.findByUsername(senderUsername)
+                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + senderUsername));
+
+        String messageText = String.format(template, templateArgs);
+
         Message systemMessage = new Message();
         systemMessage.setChat(chat);
-        systemMessage.setSender(userRepository.findByUsername(changedByUsername).orElseThrow());
-        systemMessage.setMessageType(MessageSystemType.GROUP_TITLE_CHANGED);
-        systemMessage.setText(String.format("Пользователь %s изменил название группы с \"%s\" на \"%s\"",
-                changedByUsername, oldName, newName));
+        systemMessage.setSender(sender);
+        systemMessage.setMessageType(messageType);
+        systemMessage.setText(messageText);
         systemMessage.setCreatedAt(OffsetDateTime.now());
 
         messageRepository.save(systemMessage);
     }
 
-    public void createGroupPhotoChangedMessage(Chat chat, String changedByUsername) {
-        Message systemMessage = new Message();
-        systemMessage.setChat(chat);
-        systemMessage.setSender(userRepository.findByUsername(changedByUsername).orElseThrow());
-        systemMessage.setMessageType(MessageSystemType.GROUP_PHOTO_CHANGED);
-        systemMessage.setText(String.format("Пользователь %s изменил фотографию группы",
-                changedByUsername));
-        systemMessage.setCreatedAt(OffsetDateTime.now());
-
-        messageRepository.save(systemMessage);
+    // Optional: метод для получения шаблона (может пригодиться для тестов или UI)
+    public String getTemplate(MessageSystemType messageType) {
+        return messageTemplates.get(messageType);
     }
 }

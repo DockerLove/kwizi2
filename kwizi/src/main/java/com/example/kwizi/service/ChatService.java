@@ -6,6 +6,7 @@ import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
 import com.example.kwizi.DTO.response.ChatPreviewDto;
 import com.example.kwizi.enums.ChatRole;
 import com.example.kwizi.enums.ChatType;
+import com.example.kwizi.exception.BusinessLogicException;
 import com.example.kwizi.exception.ChatNotFoundException;
 import com.example.kwizi.exception.ChatService.*;
 import com.example.kwizi.exception.UserNotFoundException;
