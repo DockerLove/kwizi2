@@ -38,10 +38,10 @@ public class MessageConverter {
     public String convertToJson(MessageEventDto event) {
         try {
             String json = objectMapper.writeValueAsString(event);
-            logger.debug("Успешно преобразован MessageEventDto в JSON: {}", event.getLogInfo());
+            logger.debug("Успешно преобразован MessageEventDto в JSON");
             return json;
         } catch (Exception e) {
-            logger.error("Ошибка преобразования MessageEventDto в JSON: {}", event, e);
+            logger.error("Ошибка преобразования MessageEventDto в JSON", e);
             throw new RuntimeException("Ошибка сериализации сообщения", e);
         }
     }
