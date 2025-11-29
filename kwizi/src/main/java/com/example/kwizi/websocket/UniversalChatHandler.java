@@ -5,6 +5,7 @@ import com.example.kwizi.exception.MessageValidationException;
 import com.example.kwizi.repository.ChatMemberRepository;
 import com.example.kwizi.util.MessageConverter;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.common.lang.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,23 +42,8 @@ public class UniversalChatHandler extends TextWebSocketHandler {
         this.messageConverter = messageConverter;
     }
 
-    private Long extractUserIdFromUrl(WebSocketSession session) {
-        try {
-            String query = session.getUri().getQuery(); // "id=2"
-            return Long.parseLong(query.split("=")[1]);
-        } catch (Exception e) {
-            logger.error("Не удалось извлечь ID пользователя из URL: {}", session.getUri());
-            throw new RuntimeException("Неверный формат URL WebSocket");
-        }
-    }
-
-    public boolean isUserOnline(Long userId) {
-        WebSocketSession session = activeSessions.get(userId);
-        return session != null && session.isOpen();
-    }
-
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+    protected void handleTextMessage(@NonNull WebSocketSession session, TextMessage message) throws Exception {
         Long senderId = extractUserIdFromUrl(session);
         logger.info("Получено сообщение от пользователя {}: {}", senderId, message.getPayload());
 
@@ -92,7 +78,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
     }
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+    public void afterConnectionClosed(@NonNull WebSocketSession session,@NonNull CloseStatus status) {
         Long userId = extractUserIdFromUrl(session);
         if (userId != null) {
             activeSessions.remove(userId);
@@ -101,7 +87,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
     }
 
     @Override
-    public void afterConnectionEstablished(WebSocketSession session) {
+    public void afterConnectionEstablished(@NonNull WebSocketSession session) {
         try {
             Long userId = extractUserIdFromUrl(session);
             activeSessions.put(userId, session);
@@ -118,16 +104,17 @@ public class UniversalChatHandler extends TextWebSocketHandler {
     }
 
     @Override
-    public void handleTransportError(WebSocketSession session, Throwable exception) {
-        logger.warn("Ошибка транспорта WebSocket для сессии {}: {}", session.getId(), exception.getMessage());
-        // Не закрываем сессию явно - пусть Spring сам управляет переподключением
-    }
+    public void handleTransportError(@NonNull WebSocketSession session, @NonNull Throwable exception) {
+        Long userId = extractUserIdFromUrl(session);
+        logger.warn("Ошибка транспорта WebSocket для пользователя {}: {}", userId, exception.getMessage());
 
-    public Map<Long, WebSocketSession> getActiveSessions() {
-        return this.activeSessions;
+        if (userId != null) {
+            safelyCloseUserSession(userId);
+        }
     }
 
     // Упрощенный метод отправки сообщения пользователю
+
     public void sendToUser(Long userId, String payload) {
         WebSocketSession session = activeSessions.get(userId);
         if (session != null && session.isOpen()) {
@@ -142,6 +129,10 @@ public class UniversalChatHandler extends TextWebSocketHandler {
         } else {
             logger.debug("Пользователь {} не в сети или сессия закрыта", userId);
         }
+    }
+    public boolean isUserOnline(Long userId) {
+        WebSocketSession session = activeSessions.get(userId);
+        return session != null && session.isOpen();
     }
 
     // Метод для отправки структурированных сообщений (используется в консьюмерах)
@@ -173,5 +164,38 @@ public class UniversalChatHandler extends TextWebSocketHandler {
 
     private List<Long> getChatMemberIds(Long chatId) {
         return chatMemberRepository.findUserIdsByChatId(chatId);
+    }
+
+    private Long extractUserIdFromUrl(WebSocketSession session) {
+        try {
+            String query = session.getUri().getQuery();
+            if (query == null || !query.startsWith("id=")) {
+                throw new IllegalArgumentException("WebSocket URL must contain 'id' parameter");
+            }
+
+            String userIdStr = query.substring(3);
+            Long userId = Long.parseLong(userIdStr);
+
+            if (userId <= 0) {
+                throw new IllegalArgumentException("User ID must be positive");
+            }
+
+            return userId;
+        } catch (Exception e) {
+            logger.error("Не удалось извлечь ID пользователя из URL: {}", session.getUri(), e);
+            throw new RuntimeException("Неверный формат URL WebSocket", e);
+        }
+    }
+
+    private void safelyCloseUserSession(Long userId) {
+        WebSocketSession session = activeSessions.remove(userId);
+        if (session != null && session.isOpen()) {
+            try {
+                session.close(CloseStatus.SESSION_NOT_RELIABLE);
+                logger.info("Сессия пользователя {} закрыта из-за ошибки", userId);
+            } catch (IOException e) {
+                logger.debug("Ошибка при закрытии сессии пользователя {}", userId, e);
+            }
+        }
     }
 }
