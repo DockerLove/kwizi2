@@ -6,6 +6,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -15,11 +17,11 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 
 import java.io.IOException;
 
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +36,9 @@ public class JwtRequestFilterTest {
     @Mock
     private RevokedTokenRepository revokedTokenRepo;
 
+    @Mock
+    private JwtFilterExceptionHandler jwtFilterExceptionHandler;
+
     @InjectMocks
     private JwtRequestFilter jwtRequestFilter;
 
@@ -46,13 +51,29 @@ public class JwtRequestFilterTest {
     @Mock
     private FilterChain chain;
 
+    @BeforeEach
+    void setUp() {
+        // Очищаем SecurityContext перед каждым тестом
+        SecurityContextHolder.clearContext();
+    }
+
+    @AfterEach
+    void tearDown() {
+        // Очищаем SecurityContext после каждого теста
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
     void doFilterInternal_ShouldAuthenticateUser_WhenValidTokenIsProvided() throws ServletException, IOException {
         // Arrange
         String jwt = "validJwtToken";
         String username = "testUser";
         String authorizationHeader = "Bearer " + jwt;
-        UserDetails userDetails = org.springframework.security.core.userdetails.User.withUsername(username).password("password").roles("USER").build();
+        UserDetails userDetails = org.springframework.security.core.userdetails.User
+                .withUsername(username)
+                .password("password")
+                .roles("USER")
+                .build();
 
         when(request.getHeader("Authorization")).thenReturn(authorizationHeader);
         when(jwtUtils.extractJti(jwt)).thenReturn("jti");
@@ -72,21 +93,25 @@ public class JwtRequestFilterTest {
         verify(userDetailsService).loadUserByUsername(username);
         verify(jwtUtils).validateToken(jwt, userDetails);
         verify(chain).doFilter(request, response);
+        verifyNoInteractions(jwtFilterExceptionHandler); // Не должно вызываться исключение
 
-        // Ensure SecurityContextHolder is set
-        assert SecurityContextHolder.getContext().getAuthentication() != null;
+        // Проверяем что SecurityContextHolder установлен
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+        assertEquals(username, SecurityContextHolder.getContext().getAuthentication().getName());
     }
 
     @Test
-    void doFilterInternal_ShouldNotAuthenticateUser_WhenTokenIsRevoked() throws ServletException, IOException {
+    void doFilterInternal_ShouldHandleException_WhenTokenIsRevoked() throws ServletException, IOException {
         // Arrange
         String jwt = "revokedJwtToken";
         String authorizationHeader = "Bearer " + jwt;
-        String errorMessage = "Токен был отозван";
 
         when(request.getHeader("Authorization")).thenReturn(authorizationHeader);
         when(jwtUtils.extractJti(jwt)).thenReturn("jti");
         when(revokedTokenRepo.existsById("jti")).thenReturn(true);
+
+        // Мокаем обработчик исключений
+        doNothing().when(jwtFilterExceptionHandler).handleJwtException(any(Exception.class), eq(response));
 
         // Act
         jwtRequestFilter.doFilterInternal(request, response, chain);
@@ -95,14 +120,16 @@ public class JwtRequestFilterTest {
         verify(request).getHeader("Authorization");
         verify(jwtUtils).extractJti(jwt);
         verify(revokedTokenRepo).existsById("jti");
-        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, errorMessage);
-        verifyNoMoreInteractions(jwtUtils);  // Make sure there are NO MORE interactions with jwtUtils
-        verifyNoInteractions(userDetailsService, chain);  // Make sure these are never called
+        verify(jwtFilterExceptionHandler).handleJwtException(any(JwtAuthenticationException.class), eq(response));
+        verifyNoMoreInteractions(jwtUtils);
+        verifyNoInteractions(userDetailsService, chain);
 
+        // Проверяем что SecurityContextHolder не установлен
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
     @Test
-    void doFilterInternal_ShouldSendError_WhenJwtAuthenticationExceptionOccurs() throws ServletException, IOException {
+    void doFilterInternal_ShouldHandleException_WhenJwtAuthenticationExceptionOccurs() throws ServletException, IOException {
         // Arrange
         String jwt = "invalidJwtToken";
         String authorizationHeader = "Bearer " + jwt;
@@ -111,16 +138,56 @@ public class JwtRequestFilterTest {
         when(request.getHeader("Authorization")).thenReturn(authorizationHeader);
         when(jwtUtils.extractJti(jwt)).thenThrow(new JwtAuthenticationException(errorMessage));
 
+        // Мокаем обработчик исключений
+        doNothing().when(jwtFilterExceptionHandler).handleJwtException(any(Exception.class), eq(response));
+
         // Act
         jwtRequestFilter.doFilterInternal(request, response, chain);
 
         // Assert
         verify(request).getHeader("Authorization");
-        verify(jwtUtils).extractJti(jwt);  // Now verify that extractJti IS called
-        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, errorMessage); // Verify sendError with the correct message
-        verifyNoInteractions(userDetailsService, revokedTokenRepo);  // Other methods should not be called
-        verifyNoInteractions(chain);
+        verify(jwtUtils).extractJti(jwt);
+        verify(jwtFilterExceptionHandler).handleJwtException(any(JwtAuthenticationException.class), eq(response));
+        verifyNoInteractions(userDetailsService, revokedTokenRepo, chain);
 
+        // Проверяем что SecurityContextHolder не установлен
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void doFilterInternal_ShouldHandleException_WhenTokenValidationFails() throws ServletException, IOException {
+        // Arrange
+        String jwt = "invalidJwtToken";
+        String username = "testUser";
+        String authorizationHeader = "Bearer " + jwt;
+        UserDetails userDetails = org.springframework.security.core.userdetails.User
+                .withUsername(username)
+                .password("password")
+                .roles("USER")
+                .build();
+
+        when(request.getHeader("Authorization")).thenReturn(authorizationHeader);
+        when(jwtUtils.extractJti(jwt)).thenReturn("jti");
+        when(revokedTokenRepo.existsById("jti")).thenReturn(false);
+        when(jwtUtils.getUsernameFromToken(jwt)).thenReturn(username);
+        when(userDetailsService.loadUserByUsername(username)).thenReturn(userDetails);
+        when(jwtUtils.validateToken(jwt, userDetails)).thenReturn(false); // Токен невалиден
+
+        // Act
+        jwtRequestFilter.doFilterInternal(request, response, chain);
+
+        // Assert
+        verify(request).getHeader("Authorization");
+        verify(jwtUtils).extractJti(jwt);
+        verify(revokedTokenRepo).existsById("jti");
+        verify(jwtUtils).getUsernameFromToken(jwt);
+        verify(userDetailsService).loadUserByUsername(username);
+        verify(jwtUtils).validateToken(jwt, userDetails);
+        verify(chain).doFilter(request, response);
+        verifyNoInteractions(jwtFilterExceptionHandler); // Не должно вызываться исключение
+
+        // Проверяем что SecurityContextHolder не установлен
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
     @Test
@@ -133,11 +200,11 @@ public class JwtRequestFilterTest {
 
         // Assert
         verify(request).getHeader("Authorization");
-        verifyNoInteractions(jwtUtils, userDetailsService, revokedTokenRepo);
+        verifyNoInteractions(jwtUtils, userDetailsService, revokedTokenRepo, jwtFilterExceptionHandler);
         verify(chain).doFilter(request, response);
 
-        // Ensure SecurityContextHolder is not set
-        assert SecurityContextHolder.getContext().getAuthentication() == null;
+        // Проверяем что SecurityContextHolder не установлен
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
     @Test
@@ -150,30 +217,65 @@ public class JwtRequestFilterTest {
 
         // Assert
         verify(request).getHeader("Authorization");
-        verifyNoInteractions(jwtUtils, userDetailsService, revokedTokenRepo);
+        verifyNoInteractions(jwtUtils, userDetailsService, revokedTokenRepo, jwtFilterExceptionHandler);
         verify(chain).doFilter(request, response);
 
-        // Ensure SecurityContextHolder is not set
-        assert SecurityContextHolder.getContext().getAuthentication() == null;
+        // Проверяем что SecurityContextHolder не установлен
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
     @Test
-    void shouldNotFilter_ShouldReturnTrue_WhenRequestPathIsLogin() {
+    void doFilterInternal_ShouldContinueFilterChain_WhenUserAlreadyAuthenticated() throws ServletException, IOException {
+        // Arrange
+        String jwt = "validJwtToken";
+        String username = "testUser";
+        String authorizationHeader = "Bearer " + jwt;
+
+        // Устанавливаем уже аутентифицированного пользователя
+        UserDetails existingUserDetails = org.springframework.security.core.userdetails.User
+                .withUsername("alreadyAuthenticated")
+                .password("password")
+                .roles("USER")
+                .build();
+
+        UsernamePasswordAuthenticationToken existingAuth =
+                new UsernamePasswordAuthenticationToken(existingUserDetails, null, existingUserDetails.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(existingAuth);
+
+        when(request.getHeader("Authorization")).thenReturn(authorizationHeader);
+        when(jwtUtils.extractJti(jwt)).thenReturn("jti");
+        when(revokedTokenRepo.existsById("jti")).thenReturn(false);
+        when(jwtUtils.getUsernameFromToken(jwt)).thenReturn(username);
+        // userDetailsService.loadUserByUsername НЕ должен вызываться
+
+        jwtRequestFilter.doFilterInternal(request, response, chain);
+
+        // Assert
+        verify(request).getHeader("Authorization");
+        verify(jwtUtils).extractJti(jwt);
+        verify(revokedTokenRepo).existsById("jti");
+        verify(jwtUtils).getUsernameFromToken(jwt);
+        verifyNoInteractions(userDetailsService);
+        verify(chain).doFilter(request, response);
+
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+        assertEquals("alreadyAuthenticated", SecurityContextHolder.getContext().getAuthentication().getName());
+    }
+
+    @Test
+    void shouldNotFilter_ShouldReturnTrue_WhenRequestPathIsLogin() throws ServletException {
         when(request.getServletPath()).thenReturn("/api/auth/login");
-        try {
-            assert jwtRequestFilter.shouldNotFilter(request);
-        } catch (ServletException e) {
-            throw new RuntimeException(e);
-        }
+
+        assertTrue(jwtRequestFilter.shouldNotFilter(request));
+        verify(request).getServletPath();
     }
 
     @Test
-    void shouldNotFilter_ShouldReturnFalse_WhenRequestPathIsNotLogin() {
+    void shouldNotFilter_ShouldReturnFalse_WhenRequestPathIsNotLogin() throws ServletException {
+
         when(request.getServletPath()).thenReturn("/api/resource");
-        try {
-            assert !jwtRequestFilter.shouldNotFilter(request);
-        } catch (ServletException e) {
-            throw new RuntimeException(e);
-        }
+
+        assertFalse(jwtRequestFilter.shouldNotFilter(request));
+        verify(request).getServletPath();
     }
 }
