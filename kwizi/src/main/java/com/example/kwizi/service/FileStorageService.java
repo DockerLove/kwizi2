@@ -29,10 +29,6 @@ public class FileStorageService {
         return saveAvatar(file, userId, "user", userAvatarPath, "/avatars/user/");
     }
 
-    protected String getBasePath() {
-        return System.getProperty("user.dir");
-    }
-
     private String saveAvatar(MultipartFile file, Long entityId, String prefix,
                               String storagePath, String relativePath) {
         logger.info("Сохранение аватара для {} с ID: {}", prefix, entityId);

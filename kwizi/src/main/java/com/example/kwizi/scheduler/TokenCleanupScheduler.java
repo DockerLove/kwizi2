@@ -21,7 +21,7 @@ public class TokenCleanupScheduler {
         this.revokedTokenRepo = revokedTokenRepo;
     }
 
-    @Scheduled(cron = "0 0 3 * * ?") // Каждый день в 3:00
+    @Scheduled(cron = "0 0 5 * * ?", zone = "Europe/Moscow")
     @Transactional
     public void cleanExpiredTokens() {
         logger.info("Запуск задачи очистки просроченных токенов..."); // Начало выполнения задачи

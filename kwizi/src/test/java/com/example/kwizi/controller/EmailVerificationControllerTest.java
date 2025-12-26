@@ -1,61 +1,75 @@
 package com.example.kwizi.controller;
+
 import com.example.kwizi.service.AuthenticationService;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
-
-@ExtendWith(MockitoExtension.class)
-public class EmailVerificationControllerTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
+//todo вот пример хорошего unit теста для класса надо будет переписать все остальные классы также +
+// для контроллеров только надо написать интеграционные тесты это тоже отдельный клас но под инт тесты +
+// также надо уточнить то нужно использовать AssertJ для тестов
+@DisplayName("EmailVerificationController тесты")
+@Nested
+class EmailVerificationControllerTest {
 
     @Mock
-    private AuthenticationService authenticationService;
+    private AuthenticationService authService;
 
-    @InjectMocks
-    private EmailVerificationController emailVerificationController;
+    private EmailVerificationController controller;
 
-    @Test
-    void verifyEmail_ShouldReturnOk_WhenEmailVerifiedSuccessfully() {
-        // Arrange
-        String token = "testToken";
-        doNothing().when(authenticationService).verifyEmail(token);
-
-        // Act
-        ResponseEntity<String> response = emailVerificationController.verifyEmail(token);
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(MediaType.TEXT_HTML, response.getHeaders().getContentType());
-        assertNotNull(response.getBody());
-        assertEquals("Email успешно подтвержден! Можете закрыть эту страницу.", response.getBody());
-        verify(authenticationService).verifyEmail(token);
+    @BeforeEach
+    void setUp() {
+        authService = mock(AuthenticationService.class);
+        controller = new EmailVerificationController(authService);
     }
 
-    @Test
-    void verifyEmail_ShouldReturnBadRequest_WhenIllegalArgumentExceptionIsThrown() {
-        // Arrange
-        String token = "invalidToken";
-        String errorMessage = "Invalid token";
-        doThrow(new IllegalArgumentException(errorMessage)).when(authenticationService).verifyEmail(token);
+    @Nested
+    @DisplayName("Основные сценарии")
+    class MainScenarios {
 
-        // Act
-        ResponseEntity<String> response = emailVerificationController.verifyEmail(token);
+        @Test
+        @DisplayName("✅ Успешное подтверждение email")
+        void success() {
+            // given
+            String token = "valid-token";
 
-        // Assert
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals(MediaType.TEXT_HTML, response.getHeaders().getContentType());
-        assertNotNull(response.getBody());
-        assertEquals("Ошибка: " + errorMessage, response.getBody());
-        verify(authenticationService).verifyEmail(token);
+            // when
+            var response = controller.verifyEmail(token);
+
+            // then
+            assertThat(response)
+                    .extracting(r -> r.getStatusCode().value(), ResponseEntity::getBody)
+                    .containsExactly(200, "Email успешно подтвержден! Можете закрыть эту страницу.");
+        }
+    }
+
+    @Nested
+    @DisplayName("Параметризованные тесты для разных токенов")
+    class ParameterizedTokenTests {
+
+        @ParameterizedTest
+        @ValueSource(strings = {"short", "very-long-token-12345", "with-special_chars"})
+        @DisplayName("Разные форматы валидных токенов")
+        void validTokenFormats(String token) {
+            assertThat(controller.verifyEmail(token).getStatusCode().value())
+                    .isEqualTo(200);
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        @ValueSource(strings = {" ", "\n\t"})
+        @DisplayName("Пустые и null токены")
+        void invalidTokens(String token) {
+            doThrow(new IllegalArgumentException("Invalid token"))
+                    .when(authService).verifyEmail(token);
+
+            assertThat(controller.verifyEmail(token).getStatusCode().value())
+                    .isEqualTo(400);
+        }
     }
 }

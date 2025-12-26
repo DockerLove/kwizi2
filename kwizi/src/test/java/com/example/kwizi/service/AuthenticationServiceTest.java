@@ -13,6 +13,8 @@ import com.example.kwizi.repository.RevokedTokenRepository;
 import com.example.kwizi.security.JwtEmailVerify;
 import com.example.kwizi.security.JwtUtils;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -24,33 +26,21 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Date;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
+@DisplayName("AuthenticationService тесты")
 class AuthenticationServiceTest {
 
-    @Mock
-    private AuthenticationRepository authenticationRepository;
-
-    @Mock
-    private PasswordEncoder passwordEncoder;
-
-    @Mock
-    private JwtEmailVerify jwtEmailVerify;
-
-    @Mock
-    private EmailService emailService;
-
-    @Mock
-    private JwtUtils jwtUtils;
-
-    @Mock
-    private UserService userService;
-
-    @Mock
-    private RevokedTokenRepository revokedTokenRepo;
+    @Mock private AuthenticationRepository authenticationRepository;
+    @Mock private PasswordEncoder passwordEncoder;
+    @Mock private JwtEmailVerify jwtEmailVerify;
+    @Mock private EmailService emailService;
+    @Mock private JwtUtils jwtUtils;
+    @Mock private UserService userService;
+    @Mock private RevokedTokenRepository revokedTokenRepo;
 
     @InjectMocks
     private AuthenticationService authenticationService;
@@ -72,311 +62,364 @@ class AuthenticationServiceTest {
         changePasswordRequest.setNewPassword("newPassword123");
     }
 
-    // ✅ Тесты для logout
-    @Test
-    void logout_ShouldRevokeToken_WhenValidToken() {
-        // Arrange
-        String token = "valid.jwt.token";
-        String jti = "token-jti-123";
-        Date expiresAt = new Date(System.currentTimeMillis() + 3600000);
+    // ==================================================
+    // Выход из системы (Logout)
+    // ==================================================
+    @Nested
+    @DisplayName("Выход из системы (logout)")
+    class Logout {
 
-        when(jwtUtils.extractJti(token)).thenReturn(jti);
-        when(jwtUtils.extractExpiration(token)).thenReturn(expiresAt);
-        when(jwtUtils.getUsernameFromToken(token)).thenReturn("testuser");
-        when(userService.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-        when(revokedTokenRepo.save(any(RevokedToken.class))).thenReturn(new RevokedToken());
+        @Test
+        @DisplayName("✅ Успешная деактивация токена")
+        void success() {
+            // given
+            String token = "valid.jwt.token";
+            String jti = "token-jti-123";
+            Date expiresAt = new Date(System.currentTimeMillis() + 3600_000);
 
-        // Act
-        authenticationService.logout(token);
+            when(jwtUtils.extractJti(token)).thenReturn(jti);
+            when(jwtUtils.extractExpiration(token)).thenReturn(expiresAt);
+            when(jwtUtils.getUsernameFromToken(token)).thenReturn("testuser");
+            when(userService.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+            when(revokedTokenRepo.save(any(RevokedToken.class))).thenReturn(new RevokedToken());
 
-        // Assert
-        verify(jwtUtils).extractJti(token);
-        verify(jwtUtils).extractExpiration(token);
-        verify(jwtUtils).getUsernameFromToken(token);
-        verify(userService).findByUsername("testuser");
-        verify(revokedTokenRepo).save(any(RevokedToken.class));
+            // when
+            authenticationService.logout(token);
+
+            // then
+            verify(jwtUtils).extractJti(token);
+            verify(jwtUtils).extractExpiration(token);
+            verify(jwtUtils).getUsernameFromToken(token);
+            verify(userService).findByUsername("testuser");
+            verify(revokedTokenRepo).save(any(RevokedToken.class));
+        }
+
+        @Test
+        @DisplayName("❌ Пользователь не найден")
+        void userNotFound() {
+            // given
+            String token = "valid.jwt.token";
+            when(jwtUtils.getUsernameFromToken(token)).thenReturn("nonexistent");
+            when(userService.findByUsername("nonexistent")).thenReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> authenticationService.logout(token))
+                    .isInstanceOf(UserNotFoundException.class);
+
+            verify(revokedTokenRepo, never()).save(any(RevokedToken.class));
+        }
     }
 
-    @Test
-    void logout_ShouldThrowUserNotFoundException_WhenUserNotFound() {
-        // Arrange
-        String token = "valid.jwt.token";
+    // ==================================================
+    // Отправка email-подтверждения
+    // ==================================================
+    @Nested
+    @DisplayName("Отправка email-подтверждения")
+    class SendVerificationEmail {
 
-        when(jwtUtils.extractJti(token)).thenReturn("jti");
-        when(jwtUtils.extractExpiration(token)).thenReturn(new Date());
-        when(jwtUtils.getUsernameFromToken(token)).thenReturn("nonexistent");
-        when(userService.findByUsername("nonexistent")).thenReturn(Optional.empty());
+        @Test
+        @DisplayName("✅ Успешная отправка, если email не подтверждён")
+        void success() {
+            // given
+            when(authenticationRepository.findById(1L)).thenReturn(Optional.of(testUser));
+            when(jwtEmailVerify.generateVerificationToken(1L)).thenReturn("verification-token");
+            doNothing().when(emailService).sendVerificationEmailAsync(anyString(), anyString());
 
-        // Act & Assert
-        assertThrows(UserNotFoundException.class, () ->
-                authenticationService.logout(token));
+            // when
+            authenticationService.sendVerificationEmail(1L);
 
-        verify(revokedTokenRepo, never()).save(any(RevokedToken.class));
+            // then
+            verify(authenticationRepository).findById(1L);
+            verify(jwtEmailVerify).generateVerificationToken(1L);
+            verify(emailService).sendVerificationEmailAsync("test@example.com", "verification-token");
+        }
+
+        @Test
+        @DisplayName("❌ Пользователь не найден")
+        void userNotFound() {
+            // given
+            when(authenticationRepository.findById(1L)).thenReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> authenticationService.sendVerificationEmail(1L))
+                    .isInstanceOf(UserNotFoundException.class);
+
+            verify(jwtEmailVerify, never()).generateVerificationToken(anyLong());
+            verify(emailService, never()).sendVerificationEmailAsync(anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("❌ Email уже подтверждён")
+        void emailAlreadyVerified() {
+            // given
+            testUser.setEmail_verified(true);
+            when(authenticationRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+            // when & then
+            assertThatThrownBy(() -> authenticationService.sendVerificationEmail(1L))
+                    .isInstanceOf(EmailAlreadyVerifiedException.class);
+
+            verify(jwtEmailVerify, never()).generateVerificationToken(anyLong());
+            verify(emailService, never()).sendVerificationEmailAsync(anyString(), anyString());
+        }
     }
 
-    // ✅ Тесты для sendVerificationEmail
-    @Test
-    void sendVerificationEmail_ShouldSendEmail_WhenUserExistsAndEmailNotVerified() {
-        // Arrange
-        when(authenticationRepository.findById(1L)).thenReturn(Optional.of(testUser));
-        when(jwtEmailVerify.generateVerificationToken(1L)).thenReturn("verification-token");
-        doNothing().when(emailService).sendVerificationEmailAsync(anyString(), anyString());
+    // ==================================================
+    // Подтверждение email по токену
+    // ==================================================
+    @Nested
+    @DisplayName("Подтверждение email")
+    class VerifyEmail {
 
-        // Act
-        authenticationService.sendVerificationEmail(1L);
+        @Test
+        @DisplayName("✅ Успешное подтверждение email")
+        void success() {
+            // given
+            String token = "valid-verification-token";
+            when(jwtEmailVerify.isTokenExpired(token)).thenReturn(false);
+            when(jwtEmailVerify.getUserIdFromToken(token)).thenReturn("1");
+            when(authenticationRepository.findById(1L)).thenReturn(Optional.of(testUser));
 
-        // Assert
-        verify(authenticationRepository).findById(1L);
-        verify(jwtEmailVerify).generateVerificationToken(1L);
-        verify(emailService).sendVerificationEmailAsync("test@example.com", "verification-token");
+            // when
+            authenticationService.verifyEmail(token);
+
+            // then
+            assertThat(testUser.isEmail_verified()).isTrue();
+            verify(jwtEmailVerify).isTokenExpired(token);
+            verify(jwtEmailVerify).getUserIdFromToken(token);
+            verify(authenticationRepository).findById(1L);
+        }
+
+        @Test
+        @DisplayName("❌ Токен просрочен")
+        void tokenExpired() {
+            // given
+            String token = "expired-token";
+            when(jwtEmailVerify.isTokenExpired(token)).thenReturn(true);
+
+            // when & then
+            assertThatThrownBy(() -> authenticationService.verifyEmail(token))
+                    .isInstanceOf(TokenExpiredException.class);
+
+            verify(authenticationRepository, never()).findById(anyLong());
+        }
+
+        @Test
+        @DisplayName("❌ Неверный формат ID в токене")
+        void invalidUserIdFormat() {
+            // given
+            String token = "invalid-token";
+            when(jwtEmailVerify.isTokenExpired(token)).thenReturn(false);
+            when(jwtEmailVerify.getUserIdFromToken(token)).thenReturn("invalid-number");
+
+            // when & then
+            assertThatThrownBy(() -> authenticationService.verifyEmail(token))
+                    .isInstanceOf(InvalidTokenException.class);
+
+            verify(authenticationRepository, never()).findById(anyLong());
+        }
+
+        @Test
+        @DisplayName("❌ Пользователь не найден по ID из токена")
+        void userNotFound() {
+            // given
+            String token = "valid-token";
+            when(jwtEmailVerify.isTokenExpired(token)).thenReturn(false);
+            when(jwtEmailVerify.getUserIdFromToken(token)).thenReturn("999");
+            when(authenticationRepository.findById(999L)).thenReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> authenticationService.verifyEmail(token))
+                    .isInstanceOf(UserNotFoundException.class);
+        }
     }
 
-    @Test
-    void sendVerificationEmail_ShouldThrowUserNotFoundException_WhenUserNotFound() {
-        // Arrange
-        when(authenticationRepository.findById(1L)).thenReturn(Optional.empty());
+    // ==================================================
+    // Смена пароля
+    // ==================================================
+    @Nested
+    @DisplayName("Смена пароля")
+    class ChangePassword {
 
-        // Act & Assert
-        assertThrows(UserNotFoundException.class, () ->
-                authenticationService.sendVerificationEmail(1L));
+        @Test
+        @DisplayName("✅ Успешная смена пароля")
+        void success() {
+            // given
+            when(authenticationRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+            when(passwordEncoder.matches("oldPassword", "encodedOldPassword")).thenReturn(true);
+            when(passwordEncoder.matches("newPassword123", "encodedOldPassword")).thenReturn(false);
+            when(passwordEncoder.encode("newPassword123")).thenReturn("encodedNewPassword");
 
-        verify(jwtEmailVerify, never()).generateVerificationToken(anyLong());
-        verify(emailService, never()).sendVerificationEmailAsync(anyString(), anyString());
+            // when
+            authenticationService.changePassword("testuser", changePasswordRequest);
+
+            // then
+            assertThat(testUser.getPassword()).isEqualTo("encodedNewPassword");
+            verify(passwordEncoder).encode("newPassword123");
+        }
+
+        @Test
+        @DisplayName("❌ Пользователь не найден")
+        void userNotFound() {
+            // given
+            when(authenticationRepository.findByUsername("unknown")).thenReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> authenticationService.changePassword("unknown", changePasswordRequest))
+                    .isInstanceOf(UsernameNotFoundException.class);
+
+            verify(passwordEncoder, never()).matches(anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("❌ Неверный старый пароль")
+        void invalidOldPassword() {
+            // given
+            ChangePasswordRequest req = new ChangePasswordRequest();
+            req.setOldPassword("wrongOld");
+            req.setNewPassword("newPassword123");
+
+            when(authenticationRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+            when(passwordEncoder.matches("wrongOld", "encodedOldPassword")).thenReturn(false);
+
+            // when & then
+            assertThatThrownBy(() -> authenticationService.changePassword("testuser", req))
+                    .isInstanceOf(InvalidPasswordException.class);
+
+            verify(passwordEncoder, never()).encode(anyString());
+        }
+
+        @Test
+        @DisplayName("❌ Новый пароль совпадает со старым")
+        void newPasswordSameAsOld() {
+            // given
+            ChangePasswordRequest req = new ChangePasswordRequest();
+            req.setOldPassword("oldPassword");
+            req.setNewPassword("oldPassword");
+
+            when(authenticationRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+            when(passwordEncoder.matches("oldPassword", "encodedOldPassword")).thenReturn(true);
+            when(passwordEncoder.matches("oldPassword", "encodedOldPassword")).thenReturn(true);
+
+            // when & then
+            assertThatThrownBy(() -> authenticationService.changePassword("testuser", req))
+                    .isInstanceOf(IllegalArgumentException.class);
+
+            verify(passwordEncoder, never()).encode(anyString());
+        }
+
+        @Test
+        @DisplayName("❌ Ошибка кодирования нового пароля")
+        void passwordEncodingFails() {
+            // given
+            when(authenticationRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+            when(passwordEncoder.matches("oldPassword", "encodedOldPassword")).thenReturn(true);
+            when(passwordEncoder.matches("newPassword123", "encodedOldPassword")).thenReturn(false);
+            when(passwordEncoder.encode("newPassword123"))
+                    .thenThrow(new IllegalArgumentException("Password too weak"));
+
+            // when & then
+            assertThatThrownBy(() -> authenticationService.changePassword("testuser", changePasswordRequest))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
     }
 
-    @Test
-    void sendVerificationEmail_ShouldThrowEmailAlreadyVerifiedException_WhenEmailAlreadyVerified() {
-        // Arrange
-        testUser.setEmail_verified(true);
-        when(authenticationRepository.findById(1L)).thenReturn(Optional.of(testUser));
+    // ==================================================
+    // Регистрация пользователя
+    // ==================================================
+    @Nested
+    @DisplayName("Регистрация пользователя")
+    class RegisterUser {
 
-        // Act & Assert
-        assertThrows(EmailAlreadyVerifiedException.class, () ->
-                authenticationService.sendVerificationEmail(1L));
+        @Test
+        @DisplayName("✅ Успешная регистрация с кодированием пароля")
+        void success() {
+            // given
+            User newUser = new User();
+            newUser.setUsername("newuser");
+            newUser.setPassword("plainPassword");
+            newUser.setEmail("new@example.com");
 
-        verify(jwtEmailVerify, never()).generateVerificationToken(anyLong());
-        verify(emailService, never()).sendVerificationEmailAsync(anyString(), anyString());
+            User savedUser = new User();
+            savedUser.setId(2L);
+            savedUser.setUsername("newuser");
+            savedUser.setPassword("encodedPassword");
+
+            when(passwordEncoder.encode("plainPassword")).thenReturn("encodedPassword");
+            when(authenticationRepository.save(newUser)).thenReturn(savedUser);
+
+            // when
+            User result = authenticationService.registerUser(newUser);
+
+            // then
+            assertThat(result).isNotNull();
+            assertThat(newUser.getPassword()).isEqualTo("encodedPassword");
+            verify(passwordEncoder).encode("plainPassword");
+            verify(authenticationRepository).save(newUser);
+        }
     }
 
-    // ✅ Тесты для verifyEmail
-    @Test
-    void verifyEmail_ShouldVerifyEmail_WhenValidToken() {
-        // Arrange
-        String token = "valid-verification-token";
+    // ==================================================
+    // Проверка существования пользователя
+    // ==================================================
+    @Nested
+    @DisplayName("Проверка существования пользователя")
+    class ExistenceChecks {
 
-        when(jwtEmailVerify.isTokenExpired(token)).thenReturn(false);
-        when(jwtEmailVerify.getUserIdFromToken(token)).thenReturn("1");
-        when(authenticationRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        @Test
+        @DisplayName("✅ Пользователь существует по имени")
+        void existsByUsername_True() {
+            // given
+            when(authenticationRepository.existsByUsername("existinguser")).thenReturn(true);
 
-        // Act
-        authenticationService.verifyEmail(token);
+            // when
+            boolean result = authenticationService.existsByUsername("existinguser");
 
-        // Assert
-        assertTrue(testUser.isEmail_verified());
-        verify(jwtEmailVerify).isTokenExpired(token);
-        verify(jwtEmailVerify).getUserIdFromToken(token);
-        verify(authenticationRepository).findById(1L);
-    }
+            // then
+            assertThat(result).isTrue();
+            verify(authenticationRepository).existsByUsername("existinguser");
+        }
 
-    @Test
-    void verifyEmail_ShouldThrowTokenExpiredException_WhenTokenExpired() {
-        // Arrange
-        String token = "expired-token";
-        when(jwtEmailVerify.isTokenExpired(token)).thenReturn(true);
+        @Test
+        @DisplayName("❌ Пользователь не существует по имени")
+        void existsByUsername_False() {
+            // given
+            when(authenticationRepository.existsByUsername("nonexistent")).thenReturn(false);
 
-        // Act & Assert
-        assertThrows(TokenExpiredException.class, () ->
-                authenticationService.verifyEmail(token));
+            // when
+            boolean result = authenticationService.existsByUsername("nonexistent");
 
-        verify(authenticationRepository, never()).findById(anyLong());
-    }
+            // then
+            assertThat(result).isFalse();
+            verify(authenticationRepository).existsByUsername("nonexistent");
+        }
 
-    @Test
-    void verifyEmail_ShouldThrowInvalidTokenException_WhenInvalidUserIdFormat() {
-        // Arrange
-        String token = "invalid-token";
-        when(jwtEmailVerify.isTokenExpired(token)).thenReturn(false);
-        when(jwtEmailVerify.getUserIdFromToken(token)).thenReturn("invalid-number");
+        @Test
+        @DisplayName("✅ Пользователь найден по email")
+        void findByEmail_Found() {
+            // given
+            when(authenticationRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
 
-        // Act & Assert
-        assertThrows(InvalidTokenException.class, () ->
-                authenticationService.verifyEmail(token));
+            // when
+            Optional<User> result = authenticationService.findByEmail("test@example.com");
 
-        verify(authenticationRepository, never()).findById(anyLong());
-    }
+            // then
+            assertThat(result).isPresent().contains(testUser);
+            verify(authenticationRepository).findByEmail("test@example.com");
+        }
 
-    @Test
-    void verifyEmail_ShouldThrowUserNotFoundException_WhenUserNotFound() {
-        // Arrange
-        String token = "valid-token";
-        when(jwtEmailVerify.isTokenExpired(token)).thenReturn(false);
-        when(jwtEmailVerify.getUserIdFromToken(token)).thenReturn("999");
-        when(authenticationRepository.findById(999L)).thenReturn(Optional.empty());
+        @Test
+        @DisplayName("❌ Пользователь не найден по email")
+        void findByEmail_NotFound() {
+            // given
+            when(authenticationRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
 
-        // Act & Assert
-        assertThrows(UserNotFoundException.class, () ->
-                authenticationService.verifyEmail(token));
-    }
+            // when
+            Optional<User> result = authenticationService.findByEmail("unknown@example.com");
 
-    // ✅ Тесты для changePassword
-    @Test
-    void changePassword_ShouldChangePassword_WhenValidRequest() {
-        // Arrange
-        when(authenticationRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-        when(passwordEncoder.matches("oldPassword", "encodedOldPassword")).thenReturn(true);
-        when(passwordEncoder.matches("newPassword123", "encodedOldPassword")).thenReturn(false);
-        when(passwordEncoder.encode("newPassword123")).thenReturn("encodedNewPassword");
-
-        // Act
-        authenticationService.changePassword("testuser", changePasswordRequest);
-
-        // Assert
-        verify(authenticationRepository).findByUsername("testuser");
-        verify(passwordEncoder).matches("oldPassword", "encodedOldPassword");
-        verify(passwordEncoder).matches("newPassword123", "encodedOldPassword");
-        verify(passwordEncoder).encode("newPassword123");
-        assertEquals("encodedNewPassword", testUser.getPassword());
-    }
-
-    @Test
-    void changePassword_ShouldThrowUsernameNotFoundException_WhenUserNotFound() {
-        // Arrange
-        when(authenticationRepository.findByUsername("unknown")).thenReturn(Optional.empty());
-
-        // Act & Assert
-        assertThrows(UsernameNotFoundException.class, () ->
-                authenticationService.changePassword("unknown", changePasswordRequest));
-
-        verify(passwordEncoder, never()).matches(anyString(), anyString());
-    }
-
-    @Test
-    void changePassword_ShouldThrowInvalidPasswordException_WhenOldPasswordIncorrect() {
-        // Arrange
-        when(authenticationRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-        when(passwordEncoder.matches("wrongOldPassword", "encodedOldPassword")).thenReturn(false);
-
-        ChangePasswordRequest wrongRequest = new ChangePasswordRequest();
-        wrongRequest.setOldPassword("wrongOldPassword");
-        wrongRequest.setNewPassword("newPassword123");
-
-        // Act & Assert
-        assertThrows(InvalidPasswordException.class, () ->
-                authenticationService.changePassword("testuser", wrongRequest));
-
-        verify(passwordEncoder, never()).encode(anyString());
-    }
-
-    @Test
-    void changePassword_ShouldThrowIllegalArgumentException_WhenNewPasswordSameAsOld() {
-        // Arrange
-        when(authenticationRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-        when(passwordEncoder.matches("oldPassword", "encodedOldPassword")).thenReturn(true);
-        when(passwordEncoder.matches("oldPassword", "encodedOldPassword")).thenReturn(true);
-
-        ChangePasswordRequest samePasswordRequest = new ChangePasswordRequest();
-        samePasswordRequest.setOldPassword("oldPassword");
-        samePasswordRequest.setNewPassword("oldPassword");
-
-        // Act & Assert
-        assertThrows(IllegalArgumentException.class, () ->
-                authenticationService.changePassword("testuser", samePasswordRequest));
-
-        verify(passwordEncoder, never()).encode(anyString());
-    }
-
-    // ✅ Тесты для registerUser
-    @Test
-    void registerUser_ShouldRegisterUserWithEncodedPassword() {
-        // Arrange
-        User newUser = new User();
-        newUser.setUsername("newuser");
-        newUser.setPassword("plainPassword");
-        newUser.setEmail("new@example.com");
-
-        User savedUser = new User();
-        savedUser.setId(2L);
-        savedUser.setUsername("newuser");
-        savedUser.setPassword("encodedPassword");
-
-        when(passwordEncoder.encode("plainPassword")).thenReturn("encodedPassword");
-        when(authenticationRepository.save(newUser)).thenReturn(savedUser);
-
-        // Act
-        User result = authenticationService.registerUser(newUser);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals("encodedPassword", newUser.getPassword()); // Password should be encoded
-        verify(passwordEncoder).encode("plainPassword");
-        verify(authenticationRepository).save(newUser);
-    }
-
-    // ✅ Тесты для existsByUsername
-    @Test
-    void existsByUsername_ShouldReturnTrue_WhenUserExists() {
-        // Arrange
-        when(authenticationRepository.existsByUsername("existinguser")).thenReturn(true);
-
-        // Act
-        boolean result = authenticationService.existsByUsername("existinguser");
-
-        // Assert
-        assertTrue(result);
-        verify(authenticationRepository).existsByUsername("existinguser");
-    }
-
-    @Test
-    void existsByUsername_ShouldReturnFalse_WhenUserNotExists() {
-        // Arrange
-        when(authenticationRepository.existsByUsername("nonexistent")).thenReturn(false);
-
-        // Act
-        boolean result = authenticationService.existsByUsername("nonexistent");
-
-        // Assert
-        assertFalse(result);
-        verify(authenticationRepository).existsByUsername("nonexistent");
-    }
-
-    // ✅ Тесты для findByEmail
-    @Test
-    void findByEmail_ShouldReturnUser_WhenUserExists() {
-        // Arrange
-        when(authenticationRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
-
-        // Act
-        Optional<User> result = authenticationService.findByEmail("test@example.com");
-
-        // Assert
-        assertTrue(result.isPresent());
-        assertEquals(testUser, result.get());
-        verify(authenticationRepository).findByEmail("test@example.com");
-    }
-
-    @Test
-    void findByEmail_ShouldReturnEmpty_WhenUserNotExists() {
-        // Arrange
-        when(authenticationRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
-
-        // Act
-        Optional<User> result = authenticationService.findByEmail("unknown@example.com");
-
-        // Assert
-        assertTrue(result.isEmpty());
-        verify(authenticationRepository).findByEmail("unknown@example.com");
-    }
-
-    @Test
-    void changePassword_ShouldHandlePasswordEncodingException() {
-        // Arrange
-        when(authenticationRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-        when(passwordEncoder.matches("oldPassword", "encodedOldPassword")).thenReturn(true);
-        when(passwordEncoder.matches("newPassword123", "encodedOldPassword")).thenReturn(false);
-        when(passwordEncoder.encode("newPassword123")).thenThrow(new IllegalArgumentException("Password too weak"));
-
-        // Act & Assert
-        assertThrows(IllegalArgumentException.class, () ->
-                authenticationService.changePassword("testuser", changePasswordRequest));
+            // then
+            assertThat(result).isEmpty();
+            verify(authenticationRepository).findByEmail("unknown@example.com");
+        }
     }
 }

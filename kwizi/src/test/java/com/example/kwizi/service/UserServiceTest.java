@@ -6,14 +6,22 @@ import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.model.User;
 import com.example.kwizi.repository.UserRepository;
 import com.example.kwizi.security.JwtUtils;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -21,6 +29,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("UserService тесты")
 class UserServiceTest {
 
     @Mock
@@ -36,1045 +45,11 @@ class UserServiceTest {
     private UserService userService;
 
     private final Long EXISTING_USER_ID = 1L;
+    private final Long ANOTHER_USER_ID = 2L;
+    private final Long NON_EXISTENT_USER_ID = 999L;
     private final String OLD_USERNAME = "oldUser";
     private final String NEW_USERNAME = "newUser";
     private final String NEW_TOKEN = "new.jwt.token";
-
-    @Test
-    void updateUsername_WithValidNewUsername_ShouldUpdateAndReturnToken() {
-        // Arrange
-        User existingUser = createTestUser(EXISTING_USER_ID, OLD_USERNAME);
-
-        when(userRepository.existsByUsername(NEW_USERNAME)).thenReturn(false);
-        when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(existingUser));
-        when(jwtUtils.generateToken(NEW_USERNAME)).thenReturn(NEW_TOKEN);
-
-        // Act
-        String resultToken = userService.updateUsername(EXISTING_USER_ID, NEW_USERNAME);
-
-        // Assert
-        assertThat(resultToken).isEqualTo(NEW_TOKEN);
-        assertThat(existingUser.getUsername()).isEqualTo(NEW_USERNAME);
-        verify(userRepository).existsByUsername(NEW_USERNAME);
-        verify(userRepository).findById(EXISTING_USER_ID);
-        verify(jwtUtils).generateToken(NEW_USERNAME);
-    }
-
-    @Test
-    void updateUsername_WhenUsernameAlreadyTaken_ShouldThrowException() {
-        // Arrange
-        when(userRepository.existsByUsername(NEW_USERNAME)).thenReturn(true);
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.updateUsername(EXISTING_USER_ID, NEW_USERNAME))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Имя пользователя занято");
-
-        verify(userRepository).existsByUsername(NEW_USERNAME);
-        verify(userRepository, never()).findById(anyLong());
-        verify(jwtUtils, never()).generateToken(anyString());
-    }
-
-    @Test
-    void updateUsername_WhenUserNotFound_ShouldThrowUserNotFoundException() {
-        // Arrange
-        when(userRepository.existsByUsername(NEW_USERNAME)).thenReturn(false);
-        when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.empty());
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.updateUsername(EXISTING_USER_ID, NEW_USERNAME))
-                .isInstanceOf(UserNotFoundException.class)
-                .hasMessageContaining("Пользователь не найден");
-
-        verify(userRepository).existsByUsername(NEW_USERNAME);
-        verify(userRepository).findById(EXISTING_USER_ID);
-        verify(jwtUtils, never()).generateToken(anyString());
-    }
-
-    @Test
-    void verifyUserEmail_WhenEmailNotVerified_ShouldVerifyEmail() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        user.setEmail_verified(false); // Явно указываем, что email не верифицирован
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.verifyUserEmail(userId);
-
-        // Assert
-        assertThat(user.isEmail_verified()).isTrue();
-        verify(userRepository).findById(userId);
-        // Проверяем, что пользователь сохранился (из-за @Transactional)
-    }
-
-    @Test
-    void verifyUserEmail_WhenEmailAlreadyVerified_ShouldThrowException() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        user.setEmail_verified(true); // Email уже верифицирован
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.verifyUserEmail(userId))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Email уже подтвержден");
-
-        verify(userRepository).findById(userId);
-        // Email должен остаться верифицированным
-        assertThat(user.isEmail_verified()).isTrue();
-    }
-
-    @Test
-    void verifyUserEmail_WhenUserNotFound_ShouldThrowUserNotFoundException() {
-        // Arrange
-        Long userId = 999L;
-
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.verifyUserEmail(userId))
-                .isInstanceOf(UserNotFoundException.class)
-                .hasMessageContaining("Пользователь не найден");
-
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void verifyUserEmail_ShouldChangeEmailVerifiedFromFalseToTrue() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        user.setEmail_verified(false); // Начальное состояние
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.verifyUserEmail(userId);
-
-        // Assert
-        // Проверяем, что состояние изменилось
-        assertThat(user.isEmail_verified())
-                .as("Email должен быть верифицирован после вызова метода")
-                .isTrue();
-    }
-
-    @Test
-    void updateBio_WithValidBio_ShouldUpdateUserBio() {
-        // Arrange
-        Long userId = 1L;
-        String newBio = "Новое био пользователя";
-        User user = createTestUser(userId, "testUser");
-        user.setBio("Старое био"); // начальное значение
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateBio(userId, newBio);
-
-        // Assert
-        assertThat(user.getBio()).isEqualTo(newBio);
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateBio_WithEmptyBio_ShouldUpdateUserBioToEmpty() {
-        // Arrange
-        Long userId = 1L;
-        String emptyBio = "";
-        User user = createTestUser(userId, "testUser");
-        user.setBio("Старое био");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateBio(userId, emptyBio);
-
-        // Assert
-        assertThat(user.getBio()).isEmpty();
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateBio_WithNullBio_ShouldUpdateUserBioToNull() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        user.setBio("Старое био");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateBio(userId, null);
-
-        // Assert
-        assertThat(user.getBio()).isNull();
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateBio_WhenUserNotFound_ShouldThrowUserNotFoundException() {
-        // Arrange
-        Long userId = 999L;
-        String newBio = "Новое био";
-
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.updateBio(userId, newBio))
-                .isInstanceOf(UserNotFoundException.class)
-                .hasMessageContaining("Пользователь не найден");
-
-        verify(userRepository).findById(userId);
-    }
-    @Test
-    void updateBio_WithLongBio_ShouldUpdateSuccessfully() {
-        // Arrange
-        Long userId = 1L;
-        // Создаем действительно длинное био (1000 символов)
-        String longBio = "A".repeat(1000);
-        User user = createTestUser(userId, "testUser");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateBio(userId, longBio);
-
-        // Assert
-        assertThat(user.getBio()).isEqualTo(longBio);
-        assertThat(user.getBio()).hasSize(1000); // Теперь точно 1000 символов
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateFirstName_WithValidName_ShouldUpdateFirstName() {
-        // Arrange
-        Long userId = 1L;
-        String newFirstName = "Александр";
-        User user = createTestUser(userId, "testUser");
-        user.setFirstName("СтароеИмя");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateFirstName(userId, newFirstName);
-
-        // Assert
-        assertThat(user.getFirstName()).isEqualTo(newFirstName);
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateFirstName_WithMinimumLengthName_ShouldUpdateSuccessfully() {
-        // Arrange
-        Long userId = 1L;
-        String minLengthName = "Ан"; // 2 символа - минимальная длина
-        User user = createTestUser(userId, "testUser");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateFirstName(userId, minLengthName);
-
-        // Assert
-        assertThat(user.getFirstName()).isEqualTo(minLengthName);
-        assertThat(user.getFirstName()).hasSize(2);
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateFirstName_WithMaximumLengthName_ShouldUpdateSuccessfully() {
-        // Arrange
-        Long userId = 1L;
-        String maxLengthName = "А".repeat(30); // 30 символов - максимальная длина
-        User user = createTestUser(userId, "testUser");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateFirstName(userId, maxLengthName);
-
-        // Assert
-        assertThat(user.getFirstName()).isEqualTo(maxLengthName);
-        assertThat(user.getFirstName()).hasSize(30);
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateFirstName_WithDifferentValidNames_ShouldUpdateSuccessfully() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act & Assert для разных валидных имен
-        String[] validNames = {"John", "Mary-Jane", "Анна-Мария", "Jean Paul", "О'Коннор"};
-
-        for (String name : validNames) {
-            userService.updateFirstName(userId, name);
-            assertThat(user.getFirstName()).isEqualTo(name);
-        }
-
-        verify(userRepository, times(validNames.length)).findById(userId);
-    }
-
-    @Test
-    void updateFirstName_WhenUserNotFound_ShouldThrowUserNotFoundException() {
-        // Arrange
-        Long userId = 999L;
-        String newFirstName = "НовоеИмя";
-
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.updateFirstName(userId, newFirstName))
-                .isInstanceOf(UserNotFoundException.class)
-                .hasMessageContaining("Пользователь не найден");
-
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateFirstName_WithNullName_ShouldUpdateToNull() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        user.setFirstName("СтароеИмя");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateFirstName(userId, null);
-
-        // Assert
-        assertThat(user.getFirstName()).isNull();
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateFirstName_WithEmptyName_ShouldUpdateToEmpty() {
-        // Arrange
-        Long userId = 1L;
-        String emptyName = "";
-        User user = createTestUser(userId, "testUser");
-        user.setFirstName("СтароеИмя");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateFirstName(userId, emptyName);
-
-        // Assert
-        assertThat(user.getFirstName()).isEmpty();
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateLastName_WithValidLastName_ShouldUpdateLastName() {
-        // Arrange
-        Long userId = 1L;
-        String newLastName = "Иванов";
-        User user = createTestUser(userId, "testUser");
-        user.setLastName("СтараяФамилия");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateLastName(userId, newLastName);
-
-        // Assert
-        assertThat(user.getLastName()).isEqualTo(newLastName);
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateLastName_WithMinimumLengthName_ShouldUpdateSuccessfully() {
-        // Arrange
-        Long userId = 1L;
-        String minLengthLastName = "Ли"; // 2 символа - минимальная длина
-        User user = createTestUser(userId, "testUser");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateLastName(userId, minLengthLastName);
-
-        // Assert
-        assertThat(user.getLastName()).isEqualTo(minLengthLastName);
-        assertThat(user.getLastName()).hasSize(2);
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateLastName_WithMaximumLengthName_ShouldUpdateSuccessfully() {
-        // Arrange
-        Long userId = 1L;
-        String maxLengthLastName = "Ф".repeat(30); // 30 символов - максимальная длина
-        User user = createTestUser(userId, "testUser");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateLastName(userId, maxLengthLastName);
-
-        // Assert
-        assertThat(user.getLastName()).isEqualTo(maxLengthLastName);
-        assertThat(user.getLastName()).hasSize(30);
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateLastName_WithDifferentValidLastNames_ShouldUpdateSuccessfully() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act & Assert для разных валидных фамилий
-        String[] validLastNames = {"Smith", "Johnson-Williams", "Петров-Водкин", "O'Brien", "ван Дер Варт"};
-
-        for (String lastName : validLastNames) {
-            userService.updateLastName(userId, lastName);
-            assertThat(user.getLastName()).isEqualTo(lastName);
-        }
-
-        verify(userRepository, times(validLastNames.length)).findById(userId);
-    }
-
-    @Test
-    void updateLastName_WhenUserNotFound_ShouldThrowUserNotFoundException() {
-        // Arrange
-        Long userId = 999L;
-        String newLastName = "НоваяФамилия";
-
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.updateLastName(userId, newLastName))
-                .isInstanceOf(UserNotFoundException.class)
-                .hasMessageContaining("Пользователь не найден");
-
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateLastName_WithNullLastName_ShouldUpdateToNull() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        user.setLastName("СтараяФамилия");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateLastName(userId, null);
-
-        // Assert
-        assertThat(user.getLastName()).isNull();
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateLastName_WithEmptyLastName_ShouldUpdateToEmpty() {
-        // Arrange
-        Long userId = 1L;
-        String emptyLastName = "";
-        User user = createTestUser(userId, "testUser");
-        user.setLastName("СтараяФамилия");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateLastName(userId, emptyLastName);
-
-        // Assert
-        assertThat(user.getLastName()).isEmpty();
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateEmail_WithValidEmail_ShouldUpdateEmailAndResetVerification() {
-        // Arrange
-        Long userId = 1L;
-        String newEmail = "newemail@example.com";
-        User user = createTestUser(userId, "testUser");
-        user.setEmail("old@example.com");
-        user.setEmail_verified(true); // был верифицирован
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateEmail(userId, newEmail);
-
-        // Assert
-        assertThat(user.getEmail()).isEqualTo(newEmail);
-        assertThat(user.isEmail_verified()).isFalse(); // должен сброситься
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateEmail_WithDifferentValidFormats_ShouldUpdateSuccessfully() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        user.setEmail_verified(true);
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act & Assert для разных валидных email
-        String[] validEmails = {
-                "simple@example.com",
-                "user.name@example.com",
-                "user_name@example.com",
-                "user+tag@example.com",
-                "user@sub.domain.com",
-                "user@example.co.uk"
-        };
-
-        for (String email : validEmails) {
-            user.setEmail_verified(true); // сбрасываем перед каждым тестом
-            userService.updateEmail(userId, email);
-            assertThat(user.getEmail()).isEqualTo(email);
-            assertThat(user.isEmail_verified()).isFalse();
-        }
-
-        verify(userRepository, times(validEmails.length)).findById(userId);
-    }
-
-    @Test
-    void updateEmail_WhenUserNotFound_ShouldThrowUserNotFoundException() {
-        // Arrange
-        Long userId = 999L;
-        String newEmail = "new@example.com";
-
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.updateEmail(userId, newEmail))
-                .isInstanceOf(UserNotFoundException.class)
-                .hasMessageContaining("Пользователь не найден");
-
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateEmail_WithNullEmail_ShouldUpdateToNullAndResetVerification() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        user.setEmail("old@example.com");
-        user.setEmail_verified(true);
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateEmail(userId, null);
-
-        // Assert
-        assertThat(user.getEmail()).isNull();
-        assertThat(user.isEmail_verified()).isFalse();
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateEmail_WithEmptyEmail_ShouldUpdateToEmptyAndResetVerification() {
-        // Arrange
-        Long userId = 1L;
-        String emptyEmail = "";
-        User user = createTestUser(userId, "testUser");
-        user.setEmail("old@example.com");
-        user.setEmail_verified(true);
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateEmail(userId, emptyEmail);
-
-        // Assert
-        assertThat(user.getEmail()).isEmpty();
-        assertThat(user.isEmail_verified()).isFalse();
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateEmail_WithSameEmail_ShouldResetVerification() {
-        // Arrange
-        Long userId = 1L;
-        String sameEmail = "same@example.com";
-        User user = createTestUser(userId, "testUser");
-        user.setEmail(sameEmail);
-        user.setEmail_verified(true); // был верифицирован
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateEmail(userId, sameEmail);
-
-        // Assert
-        assertThat(user.getEmail()).isEqualTo(sameEmail); // email не изменился
-        assertThat(user.isEmail_verified()).isFalse(); // но верификация сбросилась
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateEmail_WhenEmailWasNotVerified_ShouldKeepNotVerified() {
-        // Arrange
-        Long userId = 1L;
-        String newEmail = "new@example.com";
-        User user = createTestUser(userId, "testUser");
-        user.setEmail_verified(false); // уже не верифицирован
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        userService.updateEmail(userId, newEmail);
-
-        // Assert
-        assertThat(user.getEmail()).isEqualTo(newEmail);
-        assertThat(user.isEmail_verified()).isFalse(); // остается не верифицированным
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void updateChatAvatar_WithValidFile_ShouldUpdateAvatarUrl() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        MultipartFile file = mock(MultipartFile.class);
-        String avatarUrl = "http://example.com/avatars/user1.jpg";
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(file.isEmpty()).thenReturn(false);
-        when(fileStorageService.saveUserAvatar(file, userId)).thenReturn(avatarUrl);
-
-        // Act
-        userService.updateUserAvatar(file, userId);
-
-        // Assert
-        assertThat(user.getAvatarUrl()).isEqualTo(avatarUrl);
-        verify(userRepository).findById(userId);
-        verify(fileStorageService).saveUserAvatar(file, userId);
-        verify(userRepository).save(user);
-    }
-
-    @Test
-    void updateChatAvatar_WithEmptyFile_ShouldThrowBusinessLogicException() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        MultipartFile file = mock(MultipartFile.class);
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(file.isEmpty()).thenReturn(true);
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.updateUserAvatar(file, userId))
-                .isInstanceOf(BusinessLogicException.class)
-                .hasMessage("Файл не может быть пустым");
-
-        verify(userRepository).findById(userId);
-        verify(fileStorageService, never()).saveUserAvatar(any(), anyLong());
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
-    void updateChatAvatar_WhenUserNotFound_ShouldThrowUserNotFoundException() {
-        // Arrange
-        Long userId = 999L;
-        MultipartFile file = mock(MultipartFile.class);
-
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.updateUserAvatar(file, userId))
-                .isInstanceOf(UserNotFoundException.class)
-                .hasMessageContaining("Пользователь не найден");
-
-        verify(userRepository).findById(userId);
-        verify(fileStorageService, never()).saveUserAvatar(any(), anyLong());
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
-    void updateChatAvatar_WhenUserHasExistingAvatar_ShouldReplaceAvatar() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        user.setAvatarUrl("http://example.com/old-avatar.jpg"); // старый аватар
-
-        MultipartFile file = mock(MultipartFile.class);
-        String newAvatarUrl = "http://example.com/new-avatar.jpg";
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(file.isEmpty()).thenReturn(false);
-        when(fileStorageService.saveUserAvatar(file, userId)).thenReturn(newAvatarUrl);
-
-        // Act
-        userService.updateUserAvatar(file, userId);
-
-        // Assert
-        assertThat(user.getAvatarUrl()).isEqualTo(newAvatarUrl);
-        assertThat(user.getAvatarUrl()).isNotEqualTo("http://example.com/old-avatar.jpg");
-        verify(fileStorageService).saveUserAvatar(file, userId);
-        verify(userRepository).save(user);
-    }
-
-    @Test
-    void updateChatAvatar_WhenUserHasNoAvatar_ShouldSetNewAvatar() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        user.setAvatarUrl(null); // аватара не было
-
-        MultipartFile file = mock(MultipartFile.class);
-        String newAvatarUrl = "http://example.com/first-avatar.jpg";
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(file.isEmpty()).thenReturn(false);
-        when(fileStorageService.saveUserAvatar(file, userId)).thenReturn(newAvatarUrl);
-
-        // Act
-        userService.updateUserAvatar(file, userId);
-
-        // Assert
-        assertThat(user.getAvatarUrl()).isEqualTo(newAvatarUrl);
-        verify(fileStorageService).saveUserAvatar(file, userId);
-        verify(userRepository).save(user);
-    }
-
-    @Test
-    void updateChatAvatar_WhenFileStorageFails_ShouldPropagateException() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        MultipartFile file = mock(MultipartFile.class);
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(file.isEmpty()).thenReturn(false);
-        when(fileStorageService.saveUserAvatar(file, userId))
-                .thenThrow(new BusinessLogicException("Ошибка сохранения файла"));
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.updateUserAvatar(file, userId))
-                .isInstanceOf(BusinessLogicException.class)
-                .hasMessage("Ошибка сохранения файла");
-
-        verify(userRepository).findById(userId);
-        verify(fileStorageService).saveUserAvatar(file, userId);
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
-    void updateChatAvatar_ShouldSaveCorrectAvatarUrl() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testUser");
-        MultipartFile file = mock(MultipartFile.class);
-        String expectedAvatarUrl = "avatars/user_1_profile.jpg";
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(file.isEmpty()).thenReturn(false);
-        when(fileStorageService.saveUserAvatar(file, userId)).thenReturn(expectedAvatarUrl);
-
-        // Act
-        userService.updateUserAvatar(file, userId);
-
-        // Assert
-        assertThat(user.getAvatarUrl())
-                .isEqualTo(expectedAvatarUrl)
-                .isNotNull()
-                .isNotBlank();
-        verify(userRepository).save(user);
-    }
-
-    @Test
-    void findUsername_WithDifferentUser_ShouldReturnUserProfile() {
-        // Arrange
-        Long requesterId = 1L;
-        Long targetUserId = 2L;
-        String username = "targetUser";
-
-        User targetUser = createTestUser(targetUserId, username);
-        targetUser.setFirstName("John");
-        targetUser.setLastName("Doe");
-        targetUser.setBio("Test bio");
-        targetUser.setEmail("target@example.com");
-
-        when(userRepository.findByUsername(username)).thenReturn(Optional.of(targetUser));
-
-        // Act
-        UserProfileResponse result = userService.findUsername(username, requesterId);
-
-        // Assert
-        assertThat(result).isNotNull();
-        assertThat(result.getId()).isEqualTo(targetUserId);
-        assertThat(result.getUsername()).isEqualTo(username);
-        assertThat(result.getFirstName()).isEqualTo("John");
-        assertThat(result.getLastName()).isEqualTo("Doe");
-        assertThat(result.getBio()).isEqualTo("Test bio");
-        assertThat(result.getEmail()).isEqualTo("target@example.com");
-        verify(userRepository).findByUsername(username);
-    }
-
-    @Test
-    void findUsername_WhenSearchingSelf_ShouldThrowException() {
-        // Arrange
-        Long requesterId = 1L;
-        String username = "myUsername";
-
-        User selfUser = createTestUser(requesterId, username);
-        when(userRepository.findByUsername(username)).thenReturn(Optional.of(selfUser));
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.findUsername(username, requesterId))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Нельзя искать самого себя");
-
-        verify(userRepository).findByUsername(username);
-    }
-
-    @Test
-    void findUsername_WhenUserNotFound_ShouldThrowUserNotFoundException() {
-        // Arrange
-        Long requesterId = 1L;
-        String username = "nonExistingUser";
-
-        when(userRepository.findByUsername(username)).thenReturn(Optional.empty());
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.findUsername(username, requesterId))
-                .isInstanceOf(UserNotFoundException.class)
-                .hasMessageContaining("Пользователь не найден");
-
-        verify(userRepository).findByUsername(username);
-    }
-
-    @Test
-    void findUsername_WithDifferentUsernameFormats_ShouldFindUser() {
-        // Arrange
-        Long requesterId = 1L;
-        Long targetUserId = 2L;
-
-        String[] usernames = {"user123", "User_Name", "user-name", "user.name"};
-
-        for (String username : usernames) {
-            User targetUser = createTestUser(targetUserId, username);
-            when(userRepository.findByUsername(username)).thenReturn(Optional.of(targetUser));
-
-            // Act
-            UserProfileResponse result = userService.findUsername(username, requesterId);
-
-            // Assert
-            assertThat(result.getUsername()).isEqualTo(username);
-        }
-
-        verify(userRepository, times(usernames.length)).findByUsername(anyString());
-    }
-
-    @Test
-    void findUsername_ShouldCorrectlyMapAllFieldsToResponse() {
-        // Arrange
-        Long requesterId = 1L;
-        Long targetUserId = 2L;
-        String username = "testuser";
-
-        User targetUser = createTestUser(targetUserId, username);
-        targetUser.setFirstName("Иван");
-        targetUser.setLastName("Петров");
-        targetUser.setBio("Разработчик из Москвы");
-        targetUser.setEmail("ivan@example.com");
-
-        when(userRepository.findByUsername(username)).thenReturn(Optional.of(targetUser));
-
-        // Act
-        UserProfileResponse result = userService.findUsername(username, requesterId);
-
-        // Assert
-        assertThat(result)
-                .extracting(
-                        UserProfileResponse::getId,
-                        UserProfileResponse::getFirstName,
-                        UserProfileResponse::getLastName,
-                        UserProfileResponse::getUsername,
-                        UserProfileResponse::getBio,
-                        UserProfileResponse::getEmail
-                )
-                .containsExactly(
-                        targetUserId,
-                        "Иван",
-                        "Петров",
-                        username,
-                        "Разработчик из Москвы",
-                        "ivan@example.com"
-                );
-    }
-
-    @Test
-    void getUserProfile_WithValidUser_ShouldReturnUserProfileResponse() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testuser");
-        user.setFirstName("John");
-        user.setLastName("Doe");
-        user.setBio("Software Developer");
-        user.setEmail("john@example.com");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        UserProfileResponse result = userService.getUserProfile(userId);
-
-        // Assert
-        assertThat(result).isNotNull();
-        assertThat(result.getId()).isEqualTo(userId);
-        assertThat(result.getFirstName()).isEqualTo("John");
-        assertThat(result.getLastName()).isEqualTo("Doe");
-        assertThat(result.getUsername()).isEqualTo("testuser");
-        assertThat(result.getBio()).isEqualTo("Software Developer");
-        assertThat(result.getEmail()).isEqualTo("john@example.com");
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void getUserProfile_WhenUserNotFound_ShouldThrowUserNotFoundException() {
-        // Arrange
-        Long userId = 999L;
-
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
-
-        // Act & Assert
-        assertThatThrownBy(() -> userService.getUserProfile(userId))
-                .isInstanceOf(UserNotFoundException.class)
-                .hasMessageContaining("Пользователь не найден");
-
-        verify(userRepository).findById(userId);
-    }
-
-    @Test
-    void getUserProfile_WhenUserHasNullFields_ShouldReturnResponseWithNullFields() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testuser");
-        user.setBio(null); // bio is null
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        UserProfileResponse result = userService.getUserProfile(userId);
-
-        // Assert
-        assertThat(result.getBio()).isNull();
-        assertThat(result.getFirstName()).isNotNull(); // обязательные поля не null
-        assertThat(result.getLastName()).isNotNull();
-        assertThat(result.getUsername()).isNotNull();
-        assertThat(result.getEmail()).isNotNull();
-    }
-
-    @Test
-    void getUserProfile_WhenUserHasEmptyFields_ShouldReturnResponseWithEmptyFields() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testuser");
-        user.setBio(""); // empty bio
-        user.setFirstName(""); // empty first name
-        user.setLastName(""); // empty last name
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        UserProfileResponse result = userService.getUserProfile(userId);
-
-        // Assert
-        assertThat(result.getBio()).isEmpty();
-        assertThat(result.getFirstName()).isEmpty();
-        assertThat(result.getLastName()).isEmpty();
-        assertThat(result.getUsername()).isEqualTo("testuser"); // username остается
-        assertThat(result.getEmail()).isNotNull(); // email остается
-    }
-
-    @Test
-    void getUserProfile_ShouldCorrectlyMapAllUserFieldsToResponse() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "johndoe");
-        user.setFirstName("John");
-        user.setLastName("Doe");
-        user.setBio("Senior Developer with 5 years experience");
-        user.setEmail("john.doe@company.com");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        UserProfileResponse result = userService.getUserProfile(userId);
-
-        // Assert
-        assertThat(result)
-                .extracting(
-                        UserProfileResponse::getId,
-                        UserProfileResponse::getFirstName,
-                        UserProfileResponse::getLastName,
-                        UserProfileResponse::getUsername,
-                        UserProfileResponse::getBio,
-                        UserProfileResponse::getEmail
-                )
-                .containsExactly(
-                        userId,
-                        "John",
-                        "Doe",
-                        "johndoe",
-                        "Senior Developer with 5 years experience",
-                        "john.doe@company.com"
-                );
-    }
-
-    @Test
-    void getUserProfile_WithMaximumLengthFields_ShouldReturnCorrectResponse() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "testuser");
-        user.setFirstName("A".repeat(30)); // максимальная длина имени
-        user.setLastName("B".repeat(30));  // максимальная длина фамилии
-        user.setBio("C".repeat(1000));     // длинное bio
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        UserProfileResponse result = userService.getUserProfile(userId);
-
-        // Assert
-        assertThat(result.getFirstName()).hasSize(30);
-        assertThat(result.getLastName()).hasSize(30);
-        assertThat(result.getBio()).hasSize(1000);
-        assertThat(result.getFirstName()).isEqualTo("A".repeat(30));
-        assertThat(result.getLastName()).isEqualTo("B".repeat(30));
-    }
-
-    @Test
-    void getUserProfile_WithSpecialCharacters_ShouldReturnCorrectResponse() {
-        // Arrange
-        Long userId = 1L;
-        User user = createTestUser(userId, "test_user-123");
-        user.setFirstName("John-Michael");
-        user.setLastName("O'Conner");
-        user.setBio("Разработчик 🚀 | Java & Spring | Москва");
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        // Act
-        UserProfileResponse result = userService.getUserProfile(userId);
-
-        // Assert
-        assertThat(result.getFirstName()).isEqualTo("John-Michael");
-        assertThat(result.getLastName()).isEqualTo("O'Conner");
-        assertThat(result.getUsername()).isEqualTo("test_user-123");
-        assertThat(result.getBio()).isEqualTo("Разработчик 🚀 | Java & Spring | Москва");
-    }
-
 
     private User createTestUser(Long id, String username) {
         User user = new User();
@@ -1085,5 +60,539 @@ class UserServiceTest {
         user.setLastName("Doe");
         user.setPassword("password");
         return user;
+    }
+
+    @Nested
+    @DisplayName("Основные сценарии обновления данных")
+    class MainUpdateScenarios {
+
+        @Test
+        @DisplayName("✅ Успешное обновление username с возвратом нового токена")
+        void updateUsername_WithValidNewUsername_ShouldUpdateAndReturnToken() {
+            // given
+            User existingUser = createTestUser(EXISTING_USER_ID, OLD_USERNAME);
+
+            when(userRepository.existsByUsername(NEW_USERNAME)).thenReturn(false);
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(existingUser));
+            when(jwtUtils.generateToken(NEW_USERNAME)).thenReturn(NEW_TOKEN);
+
+            // when
+            String resultToken = userService.updateUsername(EXISTING_USER_ID, NEW_USERNAME);
+
+            // then
+            assertThat(resultToken)
+                    .as("Должен вернуться новый JWT токен")
+                    .isEqualTo(NEW_TOKEN);
+
+            assertThat(existingUser.getUsername())
+                    .as("Username должен обновиться")
+                    .isEqualTo(NEW_USERNAME);
+
+            verify(userRepository).existsByUsername(NEW_USERNAME);
+            verify(userRepository).findById(EXISTING_USER_ID);
+            verify(jwtUtils).generateToken(NEW_USERNAME);
+        }
+
+        @Test
+        @DisplayName("✅ Обновление email с сбросом верификации")
+        void updateEmail_WithValidEmail_ShouldUpdateEmailAndResetVerification() {
+            // given
+            String newEmail = "newemail@example.com";
+            User user = createTestUser(EXISTING_USER_ID, "testUser");
+            user.setEmail("old@example.com");
+            user.setEmail_verified(true);
+
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+
+            // when
+            userService.updateEmail(EXISTING_USER_ID, newEmail);
+
+            // then
+            assertThat(user.getEmail())
+                    .as("Email должен обновиться")
+                    .isEqualTo(newEmail);
+
+            assertThat(user.isEmail_verified())
+                    .as("Верификация должна сброситься")
+                    .isFalse();
+
+            verify(userRepository).findById(EXISTING_USER_ID);
+        }
+
+        @Test
+        @DisplayName("✅ Обновление аватара пользователя")
+        void updateUserAvatar_WithValidFile_ShouldUpdateAvatarUrl() {
+            // given
+            User user = createTestUser(EXISTING_USER_ID, "testUser");
+            MultipartFile file = mock(MultipartFile.class);
+            String avatarUrl = "http://example.com/avatars/user1.jpg";
+
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+            when(file.isEmpty()).thenReturn(false);
+            when(fileStorageService.saveUserAvatar(file, EXISTING_USER_ID)).thenReturn(avatarUrl);
+
+            // when
+            userService.updateUserAvatar(file, EXISTING_USER_ID);
+
+            // then
+            assertThat(user.getAvatarUrl())
+                    .as("URL аватара должен обновиться")
+                    .isEqualTo(avatarUrl);
+
+            verify(userRepository).findById(EXISTING_USER_ID);
+            verify(fileStorageService).saveUserAvatar(file, EXISTING_USER_ID);
+            verify(userRepository).save(user);
+        }
+
+        @Test
+        @DisplayName("✅ Получение профиля пользователя")
+        void getUserProfile_WithValidUser_ShouldReturnUserProfileResponse() {
+            // given
+            User user = createTestUser(EXISTING_USER_ID, "testuser");
+            user.setFirstName("John");
+            user.setLastName("Doe");
+            user.setBio("Software Developer");
+            user.setEmail("john@example.com");
+
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+
+            // when
+            UserProfileResponse result = userService.getUserProfile(EXISTING_USER_ID);
+
+            // then
+            assertThat(result)
+                    .as("Ответ должен содержать все поля пользователя")
+                    .extracting(
+                            UserProfileResponse::getId,
+                            UserProfileResponse::getFirstName,
+                            UserProfileResponse::getLastName,
+                            UserProfileResponse::getUsername,
+                            UserProfileResponse::getBio,
+                            UserProfileResponse::getEmail
+                    )
+                    .containsExactly(
+                            EXISTING_USER_ID,
+                            "John",
+                            "Doe",
+                            "testuser",
+                            "Software Developer",
+                            "john@example.com"
+                    );
+
+            verify(userRepository).findById(EXISTING_USER_ID);
+        }
+
+        @Test
+        @DisplayName("✅ Поиск другого пользователя по username")
+        void findUsername_WithDifferentUser_ShouldReturnUserProfile() {
+            // given
+            String username = "targetUser";
+            User targetUser = createTestUser(ANOTHER_USER_ID, username);
+            targetUser.setFirstName("John");
+            targetUser.setLastName("Doe");
+            targetUser.setBio("Test bio");
+            targetUser.setEmail("target@example.com");
+
+            when(userRepository.findByUsername(username)).thenReturn(Optional.of(targetUser));
+
+            // when
+            UserProfileResponse result = userService.findUsername(username, EXISTING_USER_ID);
+
+            // then
+            assertThat(result)
+                    .as("Должен вернуться профиль найденного пользователя")
+                    .extracting(
+                            UserProfileResponse::getId,
+                            UserProfileResponse::getUsername
+                    )
+                    .containsExactly(ANOTHER_USER_ID, username);
+
+            verify(userRepository).findByUsername(username);
+        }
+    }
+
+    @Nested
+    @DisplayName("Сценарии с ошибками")
+    class ErrorScenarios {
+
+        @Test
+        @DisplayName("❌ Обновление username когда имя уже занято")
+        void updateUsername_WhenUsernameAlreadyTaken_ShouldThrowException() {
+            // given
+            when(userRepository.existsByUsername(NEW_USERNAME)).thenReturn(true);
+
+            // when & then
+            assertThatThrownBy(() -> userService.updateUsername(EXISTING_USER_ID, NEW_USERNAME))
+                    .as("Должно выбросить исключение при занятом username")
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Имя пользователя занято");
+
+            verify(userRepository).existsByUsername(NEW_USERNAME);
+            verify(userRepository, never()).findById(anyLong());
+            verify(jwtUtils, never()).generateToken(anyString());
+        }
+
+        @Test
+        @DisplayName("❌ Обновление email когда пользователь не найден")
+        void updateEmail_WhenUserNotFound_ShouldThrowUserNotFoundException() {
+            // given
+            String newEmail = "new@example.com";
+            when(userRepository.findById(NON_EXISTENT_USER_ID)).thenReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> userService.updateEmail(NON_EXISTENT_USER_ID, newEmail))
+                    .as("Должно выбросить исключение при отсутствии пользователя")
+                    .isInstanceOf(UserNotFoundException.class)
+                    .hasMessageContaining("Пользователь не найден");
+
+            verify(userRepository).findById(NON_EXISTENT_USER_ID);
+        }
+
+        @Test
+        @DisplayName("❌ Обновление аватара с пустым файлом")
+        void updateUserAvatar_WithEmptyFile_ShouldThrowBusinessLogicException() {
+            // given
+            User user = createTestUser(EXISTING_USER_ID, "testUser");
+            MultipartFile file = mock(MultipartFile.class);
+
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+            when(file.isEmpty()).thenReturn(true);
+
+            // when & then
+            assertThatThrownBy(() -> userService.updateUserAvatar(file, EXISTING_USER_ID))
+                    .as("Должно выбросить исключение при пустом файле")
+                    .isInstanceOf(BusinessLogicException.class)
+                    .hasMessage("Файл не может быть пустым");
+
+            verify(userRepository).findById(EXISTING_USER_ID);
+            verify(fileStorageService, never()).saveUserAvatar(any(), anyLong());
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("❌ Поиск самого себя по username")
+        void findUsername_WhenSearchingSelf_ShouldThrowException() {
+            // given
+            String username = "myUsername";
+            User selfUser = createTestUser(EXISTING_USER_ID, username);
+            when(userRepository.findByUsername(username)).thenReturn(Optional.of(selfUser));
+
+            // when & then
+            assertThatThrownBy(() -> userService.findUsername(username, EXISTING_USER_ID))
+                    .as("Нельзя искать самого себя")
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Нельзя искать самого себя");
+
+            verify(userRepository).findByUsername(username);
+        }
+
+        @Test
+        @DisplayName("❌ Верификация email когда email уже подтвержден")
+        void verifyUserEmail_WhenEmailAlreadyVerified_ShouldThrowException() {
+            // given
+            User user = createTestUser(EXISTING_USER_ID, "testUser");
+            user.setEmail_verified(true);
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+
+            // when & then
+            assertThatThrownBy(() -> userService.verifyUserEmail(EXISTING_USER_ID))
+                    .as("Должно выбросить исключение при уже верифицированном email")
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Email уже подтвержден");
+
+            verify(userRepository).findById(EXISTING_USER_ID);
+        }
+    }
+
+    @Nested
+    @DisplayName("Параметризованные тесты для граничных значений")
+    class ParameterizedTests {
+
+        @ParameterizedTest
+        @ValueSource(strings = {"Ан", "Иван", "Анна-Мария", "Jean Paul", "О'Коннор"})
+        @DisplayName("Обновление firstName с разными валидными значениями")
+        void updateFirstName_WithDifferentValidNames_ShouldUpdateSuccessfully(String firstName) {
+            // given
+            User user = createTestUser(EXISTING_USER_ID, "testUser");
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+
+            // when
+            userService.updateFirstName(EXISTING_USER_ID, firstName);
+
+            // then
+            assertThat(user.getFirstName())
+                    .as("FirstName должен обновиться на: " + firstName)
+                    .isEqualTo(firstName);
+
+            verify(userRepository).findById(EXISTING_USER_ID);
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"Smith", "Johnson-Williams", "Петров-Водкин", "O'Brien", "ван Дер Варт"})
+        @DisplayName("Обновление lastName с разными валидными значениями")
+        void updateLastName_WithDifferentValidLastNames_ShouldUpdateSuccessfully(String lastName) {
+            // given
+            User user = createTestUser(EXISTING_USER_ID, "testUser");
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+
+            // when
+            userService.updateLastName(EXISTING_USER_ID, lastName);
+
+            // then
+            assertThat(user.getLastName())
+                    .as("LastName должен обновиться на: " + lastName)
+                    .isEqualTo(lastName);
+
+            verify(userRepository).findById(EXISTING_USER_ID);
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {
+                "simple@example.com",
+                "user.name@example.com",
+                "user_name@example.com",
+                "user+tag@example.com",
+                "user@sub.domain.com",
+                "user@example.co.uk"
+        })
+        @DisplayName("Обновление email с разными валидными форматами")
+        void updateEmail_WithDifferentValidFormats_ShouldUpdateSuccessfully(String email) {
+            // given
+            User user = createTestUser(EXISTING_USER_ID, "testUser");
+            user.setEmail_verified(true);
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+
+            // when
+            userService.updateEmail(EXISTING_USER_ID, email);
+
+            // then
+            assertThat(user.getEmail())
+                    .as("Email должен обновиться на: " + email)
+                    .isEqualTo(email);
+
+            assertThat(user.isEmail_verified())
+                    .as("Верификация должна сброситься")
+                    .isFalse();
+
+            verify(userRepository).findById(EXISTING_USER_ID);
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        @DisplayName("Обновление bio с пустыми значениями")
+        void updateBio_WithEmptyValues_ShouldUpdateSuccessfully(String bio) {
+            // given
+            User user = createTestUser(EXISTING_USER_ID, "testUser");
+            user.setBio("Старое био");
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+
+            // when
+            userService.updateBio(EXISTING_USER_ID, bio);
+
+            // then
+            if (bio == null) {
+                assertThat(user.getBio()).isNull();
+            } else {
+                assertThat(user.getBio()).isEmpty();
+            }
+            verify(userRepository).findById(EXISTING_USER_ID);
+        }
+
+        static Stream<Arguments> provideLongTexts() {
+            return Stream.of(
+                    Arguments.of("A".repeat(30), "30 символов (максимум для имени)"),
+                    Arguments.of("B".repeat(30), "30 символов (максимум для фамилии)"),
+                    Arguments.of("C".repeat(1000), "1000 символов (длинное bio)")
+            );
+        }
+
+        @ParameterizedTest
+        @MethodSource("provideLongTexts")
+        @DisplayName("Работа с максимальными длинами полей")
+        void handling_MaximumLengthFields_ShouldWorkCorrectly(String text, String description) {
+            // given
+            User user = createTestUser(EXISTING_USER_ID, "testuser");
+            user.setFirstName(text);
+            user.setLastName(text);
+            user.setBio(text);
+
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+
+            // when
+            UserProfileResponse result = userService.getUserProfile(EXISTING_USER_ID);
+
+            // then
+            assertThat(result.getFirstName())
+                    .as("Проверка firstName: " + description)
+                    .hasSize(text.length());
+
+            assertThat(result.getLastName())
+                    .as("Проверка lastName: " + description)
+                    .hasSize(text.length());
+
+            assertThat(result.getBio())
+                    .as("Проверка bio: " + description)
+                    .hasSize(text.length());
+        }
+    }
+
+    @Nested
+    @DisplayName("Специальные сценарии")
+    class SpecialScenarios {
+
+        @Test
+        @DisplayName("Обновление email тем же email должно сбросить верификацию")
+        void updateEmail_WithSameEmail_ShouldResetVerification() {
+            // given
+            String sameEmail = "same@example.com";
+            User user = createTestUser(EXISTING_USER_ID, "testUser");
+            user.setEmail(sameEmail);
+            user.setEmail_verified(true);
+
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+
+            // when
+            userService.updateEmail(EXISTING_USER_ID, sameEmail);
+
+            // then
+            assertThat(user.getEmail())
+                    .as("Email должен остаться прежним")
+                    .isEqualTo(sameEmail);
+
+            assertThat(user.isEmail_verified())
+                    .as("Верификация должна сброситься")
+                    .isFalse();
+
+            verify(userRepository).findById(EXISTING_USER_ID);
+        }
+
+        @Test
+        @DisplayName("Замена существующего аватара на новый")
+        void updateUserAvatar_WhenUserHasExistingAvatar_ShouldReplaceAvatar() {
+            // given
+            User user = createTestUser(EXISTING_USER_ID, "testUser");
+            user.setAvatarUrl("http://example.com/old-avatar.jpg");
+            MultipartFile file = mock(MultipartFile.class);
+            String newAvatarUrl = "http://example.com/new-avatar.jpg";
+
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+            when(file.isEmpty()).thenReturn(false);
+            when(fileStorageService.saveUserAvatar(file, EXISTING_USER_ID)).thenReturn(newAvatarUrl);
+
+            // when
+            userService.updateUserAvatar(file, EXISTING_USER_ID);
+
+            // then
+            assertThat(user.getAvatarUrl())
+                    .as("Аватар должен обновиться")
+                    .isEqualTo(newAvatarUrl)
+                    .isNotEqualTo("http://example.com/old-avatar.jpg");
+
+            verify(fileStorageService).saveUserAvatar(file, EXISTING_USER_ID);
+            verify(userRepository).save(user);
+        }
+
+        @Test
+        @DisplayName("Пользователь с null полями должен корректно маппиться в response")
+        void getUserProfile_WhenUserHasNullFields_ShouldReturnResponseWithNullFields() {
+            // given
+            User user = createTestUser(EXISTING_USER_ID, "testuser");
+            user.setBio(null);
+            user.setFirstName(null);
+            user.setLastName(null);
+
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+
+            // when
+            UserProfileResponse result = userService.getUserProfile(EXISTING_USER_ID);
+
+            // then
+            assertThat(result)
+                    .as("Ответ должен содержать null для соответствующих полей")
+                    .extracting(
+                            UserProfileResponse::getBio,
+                            UserProfileResponse::getFirstName,
+                            UserProfileResponse::getLastName
+                    )
+                    .containsExactly(null, null, null);
+        }
+
+        @Test
+        @DisplayName("Проверка смены email_verified с false на true")
+        void verifyUserEmail_ShouldChangeEmailVerifiedFromFalseToTrue() {
+            // given
+            User user = createTestUser(EXISTING_USER_ID, "testUser");
+            user.setEmail_verified(false);
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+
+            // when
+            userService.verifyUserEmail(EXISTING_USER_ID);
+
+            // then
+            assertThat(user.isEmail_verified())
+                    .as("Email должен стать верифицированным")
+                    .isTrue();
+
+            verify(userRepository).findById(EXISTING_USER_ID);
+        }
+    }
+
+    @Nested
+    @DisplayName("Проверки с особыми символами и форматами")
+    class SpecialCharactersTests {
+
+        @Test
+        @DisplayName("Username с разными форматами должен находиться корректно")
+        void findUsername_WithDifferentUsernameFormats_ShouldFindUser() {
+            // given
+            String[] usernames = {"user123", "User_Name", "user-name", "user.name"};
+            User user = createTestUser(ANOTHER_USER_ID, "");
+
+            for (String username : usernames) {
+                user.setUsername(username);
+                when(userRepository.findByUsername(username)).thenReturn(Optional.of(user));
+
+                // when
+                UserProfileResponse result = userService.findUsername(username, EXISTING_USER_ID);
+
+                // then
+                assertThat(result.getUsername())
+                        .as("Должен найти пользователя с username: " + username)
+                        .isEqualTo(username);
+            }
+
+            verify(userRepository, times(usernames.length)).findByUsername(anyString());
+        }
+
+        @Test
+        @DisplayName("Пользователь со спецсимволами должен корректно отображаться")
+        void getUserProfile_WithSpecialCharacters_ShouldReturnCorrectResponse() {
+            // given
+            User user = createTestUser(EXISTING_USER_ID, "test_user-123");
+            user.setFirstName("John-Michael");
+            user.setLastName("O'Conner");
+            user.setBio("Разработчик 🚀 | Java & Spring | Москва");
+
+            when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(user));
+
+            // when
+            UserProfileResponse result = userService.getUserProfile(EXISTING_USER_ID);
+
+            // then
+            assertThat(result)
+                    .as("Спецсимволы должны сохраняться")
+                    .extracting(
+                            UserProfileResponse::getFirstName,
+                            UserProfileResponse::getLastName,
+                            UserProfileResponse::getUsername,
+                            UserProfileResponse::getBio
+                    )
+                    .containsExactly(
+                            "John-Michael",
+                            "O'Conner",
+                            "test_user-123",
+                            "Разработчик 🚀 | Java & Spring | Москва"
+                    );
+        }
     }
 }

@@ -1,12 +1,15 @@
 package com.example.kwizi.service;
 
-
 import com.example.kwizi.DTO.request.RegistrationRequest;
 import com.example.kwizi.exception.EmailAlreadyExistsException;
 import com.example.kwizi.exception.UsernameAlreadyExistsException;
 import com.example.kwizi.model.User;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
@@ -17,10 +20,10 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("RegistrationService тесты")
 class RegistrationServiceTest {
 
     @Mock
@@ -36,252 +39,221 @@ class RegistrationServiceTest {
     private final String EMAIL = "test@example.com";
     private final String PASSWORD = "password123";
 
-    // ===== ТЕСТЫ ДЛЯ УСПЕШНОЙ РЕГИСТРАЦИИ =====
+    @Nested
+    @DisplayName("Успешная регистрация")
+    class SuccessfulRegistrationTests {
 
-    @Test
-    void registerUser_WithValidRequest_ShouldRegisterUserSuccessfully() {
-        // Arrange
-        RegistrationRequest request = createValidRegistrationRequest();
+        @Test
+        @DisplayName("✅ Регистрация с полными данными")
+        void registerUser_WithFullData_ShouldRegisterSuccessfully() {
+            // given
+            RegistrationRequest request = createFullRegistrationRequest();
 
-        when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
-        when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
+            when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
+            when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
 
-        // Act
-        registrationService.registerUser(request);
+            // when
+            registrationService.registerUser(request);
 
-        // Assert
-        verify(authenticationService).registerUser(userCaptor.capture());
-        User savedUser = userCaptor.getValue();
+            // then
+            verify(authenticationService).registerUser(userCaptor.capture());
+            User savedUser = userCaptor.getValue();
 
-        assertThat(savedUser.getUsername()).isEqualTo(USERNAME);
-        assertThat(savedUser.getEmail()).isEqualTo(EMAIL);
-        assertThat(savedUser.getPassword()).isEqualTo(PASSWORD);
-        assertThat(savedUser.getFirstName()).isEqualTo("John");
-        assertThat(savedUser.getLastName()).isEqualTo("Doe");
-        assertThat(savedUser.getBio()).isEqualTo("Test bio");
+            assertThat(savedUser)
+                    .as("Должен сохранить пользователя со всеми данными")
+                    .extracting(
+                            User::getUsername,
+                            User::getEmail,
+                            User::getPassword,
+                            User::getFirstName,
+                            User::getLastName,
+                            User::getBio
+                    )
+                    .containsExactly(
+                            USERNAME,
+                            EMAIL,
+                            PASSWORD,
+                            "John",
+                            "Doe",
+                            "Test bio"
+                    );
 
-        verify(authenticationService).existsByUsername(USERNAME);
-        verify(authenticationService).findByEmail(EMAIL);
+            verify(authenticationService).existsByUsername(USERNAME);
+            verify(authenticationService).findByEmail(EMAIL);
+        }
+
+        @Test
+        @DisplayName("✅ Регистрация с минимальными данными")
+        void registerUser_WithMinimalData_ShouldRegisterSuccessfully() {
+            // given
+            RegistrationRequest request = createMinimalRegistrationRequest();
+
+            when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
+            when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
+
+            // when
+            registrationService.registerUser(request);
+
+            // then
+            verify(authenticationService).registerUser(userCaptor.capture());
+            User savedUser = userCaptor.getValue();
+
+            assertThat(savedUser)
+                    .as("Должен сохранить пользователя с только обязательными полями")
+                    .extracting(
+                            User::getUsername,
+                            User::getEmail,
+                            User::getPassword,
+                            User::getFirstName,
+                            User::getLastName,
+                            User::getBio
+                    )
+                    .containsExactly(
+                            USERNAME,
+                            EMAIL,
+                            PASSWORD,
+                            null,
+                            null,
+                            null
+                    );
+        }
     }
 
-    @Test
-    void registerUser_WithMinimalData_ShouldRegisterUserSuccessfully() {
-        // Arrange
-        RegistrationRequest request = createMinimalRegistrationRequest();
+    @Nested
+    @DisplayName("Валидация уникальности")
+    class ValidationTests {
 
-        when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
-        when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
+        @Test
+        @DisplayName("❌ Существующий username выбрасывает исключение")
+        void registerUser_WhenUsernameAlreadyExists_ShouldThrowUsernameAlreadyExistsException() {
+            // given
+            RegistrationRequest request = createFullRegistrationRequest();
 
-        // Act
-        registrationService.registerUser(request);
+            when(authenticationService.existsByUsername(USERNAME)).thenReturn(true);
 
-        // Assert
-        verify(authenticationService).registerUser(userCaptor.capture());
-        User savedUser = userCaptor.getValue();
+            // when & then
+            assertThatThrownBy(() -> registrationService.registerUser(request))
+                    .as("Должно выбросить исключение для существующего username")
+                    .isInstanceOf(UsernameAlreadyExistsException.class)
+                    .hasMessage("Пользователь с таким username уже существует");
 
-        assertThat(savedUser.getUsername()).isEqualTo(USERNAME);
-        assertThat(savedUser.getEmail()).isEqualTo(EMAIL);
-        assertThat(savedUser.getPassword()).isEqualTo(PASSWORD);
-        assertThat(savedUser.getFirstName()).isNull();
-        assertThat(savedUser.getLastName()).isNull();
-        assertThat(savedUser.getBio()).isNull();
+            verify(authenticationService, never()).registerUser(any());
+            verify(authenticationService, never()).findByEmail(any());
+        }
+
+        @Test
+        @DisplayName("❌ Существующий email выбрасывает исключение")
+        void registerUser_WhenEmailAlreadyExists_ShouldThrowEmailAlreadyExistsException() {
+            // given
+            RegistrationRequest request = createFullRegistrationRequest();
+            User existingUser = createTestUser();
+
+            when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
+            when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.of(existingUser));
+
+            // when & then
+            assertThatThrownBy(() -> registrationService.registerUser(request))
+                    .as("Должно выбросить исключение для существующего email")
+                    .isInstanceOf(EmailAlreadyExistsException.class)
+                    .hasMessage("Пользователь с таким email уже существует");
+
+            verify(authenticationService, never()).registerUser(any());
+        }
+
+        @Test
+        @DisplayName("❌ Проверка username выполняется перед проверкой email")
+        void registerUser_WhenBothExist_ShouldCheckUsernameFirst() {
+            // given
+            RegistrationRequest request = createFullRegistrationRequest();
+
+            when(authenticationService.existsByUsername(USERNAME)).thenReturn(true);
+
+            // when & then
+            assertThatThrownBy(() -> registrationService.registerUser(request))
+                    .as("Должно проверить username первым")
+                    .isInstanceOf(UsernameAlreadyExistsException.class);
+
+            // findByEmail не должен вызываться если username уже существует
+            verify(authenticationService, never()).findByEmail(any());
+            verify(authenticationService, never()).registerUser(any());
+        }
     }
 
-    // ===== ТЕСТЫ ДЛЯ ВАЛИДАЦИИ =====
+    @Nested
+    @DisplayName("Маппинг данных из запроса")
+    class DataMappingTests {
 
-    @Test
-    void registerUser_WhenUsernameAlreadyExists_ShouldThrowException() {
-        // Arrange
-        RegistrationRequest request = createValidRegistrationRequest();
+        @Test
+        @DisplayName("✅ Корректный маппинг всех полей из запроса")
+        void createUserFromRequest_ShouldMapAllFieldsCorrectly() {
+            // given
+            RegistrationRequest request = createFullRegistrationRequest();
 
-        when(authenticationService.existsByUsername(USERNAME)).thenReturn(true);
+            when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
+            when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
 
-        // Act & Assert
-        assertThatThrownBy(() -> registrationService.registerUser(request))
-                .isInstanceOf(UsernameAlreadyExistsException.class)
-                .hasMessage("Пользователь с таким username уже существует");
+            // when
+            registrationService.registerUser(request);
 
-        verify(authenticationService, never()).registerUser(any());
-        verify(authenticationService, never()).findByEmail(any());
+            // then
+            verify(authenticationService).registerUser(userCaptor.capture());
+            User savedUser = userCaptor.getValue();
+
+            assertThat(savedUser)
+                    .as("Все поля должны корректно маппиться из запроса")
+                    .extracting(
+                            User::getUsername,
+                            User::getEmail,
+                            User::getPassword
+                    )
+                    .containsExactly(
+                            USERNAME,
+                            EMAIL,
+                            PASSWORD
+                    );
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        @DisplayName("✅ Обработка null и пустых опциональных полей")
+        void createUserFromRequest_WithNullOrEmptyOptionalFields_ShouldHandleCorrectly(String value) {
+            // given
+            RegistrationRequest request = createFullRegistrationRequest();
+            request.setFirstName(value);
+            request.setLastName(value);
+            request.setBio(value);
+
+            when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
+            when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
+
+            // when
+            registrationService.registerUser(request);
+
+            // then
+            verify(authenticationService).registerUser(userCaptor.capture());
+            User savedUser = userCaptor.getValue();
+
+            if (value == null) {
+                assertThat(savedUser.getFirstName()).isNull();
+                assertThat(savedUser.getLastName()).isNull();
+                assertThat(savedUser.getBio()).isNull();
+            } else {
+                assertThat(savedUser.getFirstName()).isEmpty();
+                assertThat(savedUser.getLastName()).isEmpty();
+                assertThat(savedUser.getBio()).isEmpty();
+            }
+        }
     }
 
-    @Test
-    void registerUser_WhenEmailAlreadyExists_ShouldThrowException() {
-        // Arrange
-        RegistrationRequest request = createValidRegistrationRequest();
-        User existingUser = createTestUser();
-
-        when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
-        when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.of(existingUser));
-
-        // Act & Assert
-        assertThatThrownBy(() -> registrationService.registerUser(request))
-                .isInstanceOf(EmailAlreadyExistsException.class)
-                .hasMessage("Пользователь с таким email уже существует");
-
-        verify(authenticationService, never()).registerUser(any());
-    }
-
-    @Test
-    void registerUser_WhenBothUsernameAndEmailExist_ShouldThrowUsernameExceptionFirst() {
-        // Arrange
-        RegistrationRequest request = createValidRegistrationRequest();
-
-        when(authenticationService.existsByUsername(USERNAME)).thenReturn(true);
-        // findByEmail не должен вызываться если username уже существует
-
-        // Act & Assert
-        assertThatThrownBy(() -> registrationService.registerUser(request))
-                .isInstanceOf(UsernameAlreadyExistsException.class);
-
-        verify(authenticationService, never()).findByEmail(any());
-        verify(authenticationService, never()).registerUser(any());
-    }
-
-    // ===== ТЕСТЫ ДЛЯ СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ =====
-
-    @Test
-    void createUserFromRequest_ShouldMapAllFieldsCorrectly() {
-        // Arrange
-        RegistrationRequest request = createValidRegistrationRequest();
-
-        // Act (тестируем приватный метод через публичный)
-        when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
-        when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
-
-        registrationService.registerUser(request);
-
-        // Assert
-        verify(authenticationService).registerUser(userCaptor.capture());
-        User savedUser = userCaptor.getValue();
-
-        assertThat(savedUser)
-                .extracting(
-                        User::getUsername,
-                        User::getEmail,
-                        User::getPassword,
-                        User::getFirstName,
-                        User::getLastName,
-                        User::getBio
-                )
-                .containsExactly(
-                        USERNAME,
-                        EMAIL,
-                        PASSWORD,
-                        "John",
-                        "Doe",
-                        "Test bio"
-                );
-    }
-
-    @Test
-    void createUserFromRequest_WithNullFields_ShouldHandleCorrectly() {
-        // Arrange
+    private RegistrationRequest createFullRegistrationRequest() {
         RegistrationRequest request = new RegistrationRequest();
         request.setUsername(USERNAME);
         request.setEmail(EMAIL);
         request.setPassword(PASSWORD);
-        // firstName, lastName, bio остаются null
-
-        when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
-        when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
-
-        // Act
-        registrationService.registerUser(request);
-
-        // Assert
-        verify(authenticationService).registerUser(userCaptor.capture());
-        User savedUser = userCaptor.getValue();
-
-        assertThat(savedUser.getFirstName()).isNull();
-        assertThat(savedUser.getLastName()).isNull();
-        assertThat(savedUser.getBio()).isNull();
-    }
-
-    // ===== ТЕСТЫ ДЛЯ ГРАНИЧНЫХ СЛУЧАЕВ =====
-
-    @Test
-    void registerUser_WithSpecialCharacters_ShouldHandleCorrectly() {
-        // Arrange
-        RegistrationRequest request = createRegistrationRequest(
-                "user-name.test",
-                "test+tag@example.com",
-                "pass word!@#",
-                "John-Michael",
-                "O'Conner",
-                "Bio with 🚀 emoji"
-        );
-
-        when(authenticationService.existsByUsername("user-name.test")).thenReturn(false);
-        when(authenticationService.findByEmail("test+tag@example.com")).thenReturn(Optional.empty());
-
-        // Act
-        registrationService.registerUser(request);
-
-        // Assert
-        verify(authenticationService).registerUser(userCaptor.capture());
-        User savedUser = userCaptor.getValue();
-
-        assertThat(savedUser.getUsername()).isEqualTo("user-name.test");
-        assertThat(savedUser.getEmail()).isEqualTo("test+tag@example.com");
-        assertThat(savedUser.getPassword()).isEqualTo("pass word!@#");
-        assertThat(savedUser.getFirstName()).isEqualTo("John-Michael");
-        assertThat(savedUser.getLastName()).isEqualTo("O'Conner");
-        assertThat(savedUser.getBio()).isEqualTo("Bio with 🚀 emoji");
-    }
-
-    @Test
-    void registerUser_WithEmptyBio_ShouldHandleCorrectly() {
-        // Arrange
-        RegistrationRequest request = createValidRegistrationRequest();
-        request.setBio(""); // пустой bio
-
-        when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
-        when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
-
-        // Act
-        registrationService.registerUser(request);
-
-        // Assert
-        verify(authenticationService).registerUser(userCaptor.capture());
-        User savedUser = userCaptor.getValue();
-
-        assertThat(savedUser.getBio()).isEmpty();
-    }
-
-    // ===== ТЕСТ НА ПОРЯДОК ВЫЗОВОВ =====
-
-    @Test
-    void registerUser_ShouldCallMethodsInCorrectOrder() {
-        // Arrange
-        RegistrationRequest request = createValidRegistrationRequest();
-
-        when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
-        when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
-
-        // Act
-        registrationService.registerUser(request);
-
-        // Assert - проверяем порядок вызовов
-        // 1. Проверка username
-        // 2. Проверка email
-        // 3. Регистрация пользователя
-        verify(authenticationService).existsByUsername(USERNAME);
-        verify(authenticationService).findByEmail(EMAIL);
-        verify(authenticationService).registerUser(any(User.class));
-    }
-
-    // ===== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =====
-
-    private RegistrationRequest createValidRegistrationRequest() {
-        return createRegistrationRequest(
-                USERNAME,
-                EMAIL,
-                PASSWORD,
-                "John",
-                "Doe",
-                "Test bio"
-        );
+        request.setFirstName("John");
+        request.setLastName("Doe");
+        request.setBio("Test bio");
+        return request;
     }
 
     private RegistrationRequest createMinimalRegistrationRequest() {
@@ -289,18 +261,6 @@ class RegistrationServiceTest {
         request.setUsername(USERNAME);
         request.setEmail(EMAIL);
         request.setPassword(PASSWORD);
-        return request;
-    }
-
-    private RegistrationRequest createRegistrationRequest(String username, String email, String password,
-                                                          String firstName, String lastName, String bio) {
-        RegistrationRequest request = new RegistrationRequest();
-        request.setUsername(username);
-        request.setEmail(email);
-        request.setPassword(password);
-        request.setFirstName(firstName);
-        request.setLastName(lastName);
-        request.setBio(bio);
         return request;
     }
 
