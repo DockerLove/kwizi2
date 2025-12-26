@@ -19,6 +19,8 @@ import com.example.kwizi.repository.ChatMemberRepository;
 import com.example.kwizi.repository.ChatRepository;
 import com.example.kwizi.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -28,14 +30,17 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
+@DisplayName("ChatService тесты")
 class ChatServiceTest {
 
     @Mock private ChatRepository chatRepository;
@@ -54,9 +59,6 @@ class ChatServiceTest {
     private User member2;
     private Chat groupChat;
     private Chat privateChat;
-    private ChatMember creatorMember;
-    private ChatMember adminMember;
-    private ChatMember regularMember;
 
     @BeforeEach
     void setUp() {
@@ -66,10 +68,6 @@ class ChatServiceTest {
 
         groupChat = createGroupChat(100L);
         privateChat = createPrivateChat(200L);
-
-        creatorMember = createChatMember(100L, 1L, creator, ChatRole.OWNER);
-        adminMember = createChatMember(100L, 2L, member1, ChatRole.ADMIN);
-        regularMember = createChatMember(100L, 3L, member2, ChatRole.MEMBER);
     }
 
     private User createUser(Long id, String username) {
@@ -109,404 +107,540 @@ class ChatServiceTest {
         return member;
     }
 
-    @Test
-    void createGroupChat_MemberNotFound_ThrowsException() {
-        CreateGroupChatRequest request = new CreateGroupChatRequest();
-        request.setGroupName("Test Group");
-        request.setInitialMemberIds(Arrays.asList(2L, 999L));
+    // -----------------------------
+    // Создание группового чата
+    // -----------------------------
+    @Nested
+    @DisplayName("Создание группового чата")
+    class CreateGroupChat {
 
-        when(userRepository.findByUsername("creator")).thenReturn(Optional.of(creator));
-        when(chatRepository.save(any(Chat.class))).thenReturn(groupChat);
-        when(userRepository.findAllById(Arrays.asList(2L, 999L))).thenReturn(Collections.singletonList(member1));
+        @Test
+        @DisplayName("✅ Успешное создание группового чата")
+        void success() {
+            // given
+            CreateGroupChatRequest request = new CreateGroupChatRequest();
+            request.setGroupName("New Group");
+            request.setInitialMemberIds(Arrays.asList(2L, 3L));
 
-        assertThrows(UserNotFoundException.class, () ->
-                chatService.createGroupChat(request, "creator"));
+            when(userRepository.findByUsername("creator")).thenReturn(Optional.of(creator));
+            when(userRepository.findAllById(Arrays.asList(2L, 3L))).thenReturn(Arrays.asList(member1, member2));
+            when(chatRepository.save(any(Chat.class))).thenReturn(groupChat);
+
+            // ⚠️ ДОБАВЬТЕ ЭТУ СТРОКУ ⚠️
+            when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+
+            // when
+            chatService.createGroupChat(request, "creator");
+
+            // then
+            verify(chatRepository, times(2)).save(any(Chat.class));
+            verify(chatMemberRepository, times(2)).save(any(ChatMember.class));
+        }
+
+        @Test
+        @DisplayName("❌ Пользователь-инициатор не найден")
+        void creatorNotFound() {
+            // given
+            when(userRepository.findByUsername("unknown")).thenReturn(Optional.empty());
+            CreateGroupChatRequest request = new CreateGroupChatRequest();
+
+            // when & then
+            assertThatThrownBy(() -> chatService.createGroupChat(request, "unknown"))
+                    .isInstanceOf(UserNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("❌ Один из участников не найден")
+        void memberNotFound() {
+            // given
+            CreateGroupChatRequest request = new CreateGroupChatRequest();
+            request.setGroupName("Test Group");
+            request.setInitialMemberIds(Arrays.asList(2L, 999L));
+
+            when(userRepository.findByUsername("creator")).thenReturn(Optional.of(creator));
+            when(userRepository.findAllById(Arrays.asList(2L, 999L))).thenReturn(Arrays.asList(member1));
+
+            when(chatRepository.save(any(Chat.class))).thenReturn(groupChat);
+            // when & then
+            assertThatThrownBy(() -> chatService.createGroupChat(request, "creator"))
+                    .isInstanceOf(UserNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("❌ Дублирующиеся участники")
+        void duplicateMembers() {
+            // given
+            CreateGroupChatRequest request = new CreateGroupChatRequest();
+            request.setGroupName("Test");
+            request.setInitialMemberIds(List.of(2L, 2L));
+
+            when(userRepository.findByUsername("creator")).thenReturn(Optional.of(creator));
+
+            // when & then
+            assertThatThrownBy(() -> chatService.createGroupChat(request, "creator"))
+                    .isInstanceOf(DuplicateChatMemberException.class);
+        }
     }
 
-    @Test
-    void createGroupChat_UserNotFound_ThrowsException() {
-        when(userRepository.findByUsername("unknown")).thenReturn(Optional.empty());
-        CreateGroupChatRequest request = new CreateGroupChatRequest();
-        request.setGroupName("Test");
+    // -----------------------------
+    // Создание приватного чата
+    // -----------------------------
+    @Nested
+    @DisplayName("Создание приватного чата")
+    class CreatePrivateChat {
 
-        assertThrows(UserNotFoundException.class, () ->
-                chatService.createGroupChat(request, "unknown"));
+        @Test
+        @DisplayName("✅ Успешное создание приватного чата")
+        void success() {
+            // given
+            CreatePrivateChatRequest request = new CreatePrivateChatRequest();
+            request.setRecipientUsername("member1");
+
+            when(userRepository.findByUsername("creator")).thenReturn(Optional.of(creator));
+            when(userRepository.findByUsername("member1")).thenReturn(Optional.of(member1));
+            when(chatMemberRepository.findPrivateChatIdByUserIds(1L, 2L)).thenReturn(Optional.empty());
+            when(chatRepository.save(any(Chat.class))).thenReturn(privateChat);
+            when(chatRepository.findById(200L)).thenReturn(Optional.of(privateChat));
+
+            // when
+            chatService.createPrivateChat(request, "creator");
+
+            // then
+            verify(chatRepository, times(2)).save(any(Chat.class));
+            verify(chatMemberRepository, times(2)).save(any(ChatMember.class));
+        }
+
+        @Test
+        @DisplayName("❌ Попытка создать чат с самим собой")
+        void chatWithSelfNotAllowed() {
+            // given
+            CreatePrivateChatRequest request = new CreatePrivateChatRequest();
+            request.setRecipientUsername("creator");
+
+            when(userRepository.findByUsername("creator")).thenReturn(Optional.of(creator));
+
+            // when & then
+            assertThatThrownBy(() -> chatService.createPrivateChat(request, "creator"))
+                    .isInstanceOf(ChatOperationNotAllowedException.class);
+        }
+
+        @Test
+        @DisplayName("❌ Приватный чат уже существует")
+        void chatAlreadyExists() {
+            // given
+            CreatePrivateChatRequest request = new CreatePrivateChatRequest();
+            request.setRecipientUsername("member1");
+
+            when(userRepository.findByUsername("creator")).thenReturn(Optional.of(creator));
+            when(userRepository.findByUsername("member1")).thenReturn(Optional.of(member1));
+            when(chatMemberRepository.findPrivateChatIdByUserIds(1L, 2L)).thenReturn(Optional.of(300L));
+
+            // when & then
+            assertThatThrownBy(() -> chatService.createPrivateChat(request, "creator"))
+                    .isInstanceOf(DuplicateChatMemberException.class);
+        }
     }
 
-    @Test
-    void createGroupChat_DuplicateMembers_ThrowsException() {
-        CreateGroupChatRequest request = new CreateGroupChatRequest();
-        request.setGroupName("Test");
-        request.setInitialMemberIds(Arrays.asList(2L, 2L));
+    // -----------------------------
+    // Управление участниками чата
+    // -----------------------------
+    @Nested
+    @DisplayName("Управление участниками чата")
+    class ManageChatMembers {
 
-        when(userRepository.findByUsername("creator")).thenReturn(Optional.of(creator));
+        @Nested
+        @DisplayName("Добавление участника")
+        class AddMember {
 
-        assertThrows(DuplicateChatMemberException.class, () ->
-                chatService.createGroupChat(request, "creator"));
+            @Test
+            @DisplayName("✅ Успешное добавление участника в групповой чат")
+            void success() {
+                // given
+                AddChatMemberRequestDto request = new AddChatMemberRequestDto();
+                request.setChatId(100L);
+                request.setUserId(3L);
+
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(userRepository.findById(3L)).thenReturn(Optional.of(member2));
+                when(chatMemberRepository.existsByChatIdAndUserId(100L, 3L)).thenReturn(false);
+
+                // when
+                chatService.addChatMember(request, "creator");
+
+                // then
+                verify(chatMemberRepository).save(any());
+                verify(systemMessageService).createUserAddedMessage(any(), any(), any());
+            }
+
+            @Test
+            @DisplayName("❌ Чат не найден")
+            void chatNotFound() {
+                // given
+                when(chatRepository.findById(999L)).thenReturn(Optional.empty());
+                AddChatMemberRequestDto request = new AddChatMemberRequestDto();
+                request.setChatId(999L);
+
+                // when & then
+                assertThatThrownBy(() -> chatService.addChatMember(request, "creator"))
+                        .isInstanceOf(ChatNotFoundException.class);
+            }
+
+            @Test
+            @DisplayName("❌ Участник уже в чате")
+            void memberAlreadyExists() {
+                // given
+                AddChatMemberRequestDto request = new AddChatMemberRequestDto();
+                request.setChatId(100L);
+                request.setUserId(2L);
+
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
+                when(chatMemberRepository.existsByChatIdAndUserId(100L, 2L)).thenReturn(true);
+
+                // when & then
+                assertThatThrownBy(() -> chatService.addChatMember(request, "creator"))
+                        .isInstanceOf(DuplicateChatMemberException.class);
+            }
+
+            @Test
+            @DisplayName("❌ Попытка добавить участника в приватный чат")
+            void privateChatNotAllowed() {
+                // given
+                AddChatMemberRequestDto request = new AddChatMemberRequestDto();
+                request.setChatId(200L);
+                request.setUserId(3L);
+
+                when(chatRepository.findById(200L)).thenReturn(Optional.of(privateChat));
+                when(userRepository.findById(3L)).thenReturn(Optional.of(member2));
+
+                // when & then
+                assertThatThrownBy(() -> chatService.addChatMember(request, "creator"))
+                        .isInstanceOf(ChatOperationNotAllowedException.class);
+            }
+        }
+
+        @Nested
+        @DisplayName("Назначение администратора")
+        class SetAdmin {
+
+            @Test
+            @DisplayName("✅ Успешное назначение админа (владелец → участник)")
+            void success() {
+                // given
+                ChatMember regular = createChatMember(100L, 2L, member1, ChatRole.MEMBER);
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
+                when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 1L)).thenReturn(Optional.of(createChatMember(100L, 1L, creator, ChatRole.OWNER)));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 2L)).thenReturn(Optional.of(regular));
+
+                // when
+                chatService.setAdmin(100L, 2L, 1L);
+
+                // then
+                assertThat(regular.getRole()).isEqualTo(ChatRole.ADMIN);
+                verify(systemMessageService).createUserPromotedMessage(any(), any(), any());
+                verify(notificationService).notifyUserPromoted(any(), any(), any());
+            }
+
+            @Test
+            @DisplayName("❌ Пользователь уже админ")
+            void userAlreadyAdmin() {
+                // given
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
+                when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 1L)).thenReturn(Optional.of(createChatMember(100L, 1L, creator, ChatRole.OWNER)));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 2L)).thenReturn(Optional.of(createChatMember(100L, 2L, member1, ChatRole.ADMIN)));
+
+                // when & then
+                assertThatThrownBy(() -> chatService.setAdmin(100L, 2L, 1L))
+                        .isInstanceOf(BusinessLogicException.class);
+            }
+
+            @Test
+            @DisplayName("❌ Только владелец может назначать админов")
+            void onlyOwnerCanPromote() {
+                // given
+                ChatMember requester = createChatMember(100L, 2L, member1, ChatRole.MEMBER);
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
+                when(userRepository.findById(3L)).thenReturn(Optional.of(member2));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 2L)).thenReturn(Optional.of(requester));
+
+                // when & then
+                assertThatThrownBy(() -> chatService.setAdmin(100L, 3L, 2L))
+                        .isInstanceOf(AccessDeniedException.class);
+            }
+        }
+
+        @Nested
+        @DisplayName("Исключение участника")
+        class RemoveMember {
+
+            @Test
+            @DisplayName("✅ Владелец исключает участника")
+            void ownerRemovesMember() {
+                // given
+                ChatMember regular = createChatMember(100L, 3L, member2, ChatRole.MEMBER);
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
+                when(userRepository.findById(3L)).thenReturn(Optional.of(member2));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 1L)).thenReturn(Optional.of(createChatMember(100L, 1L, creator, ChatRole.OWNER)));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 3L)).thenReturn(Optional.of(regular));
+
+                // when
+                chatService.removeChatMember(100L, 3L, 1L);
+
+                // then
+                verify(chatMemberRepository).delete(regular);
+            }
+
+            @Test
+            @DisplayName("❌ Владелец не может исключить себя")
+            void ownerCantRemoveSelf() {
+                // given
+                ChatMember owner = createChatMember(100L, 1L, creator, ChatRole.OWNER);
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 1L)).thenReturn(Optional.of(owner));
+
+                // when & then
+                assertThatThrownBy(() -> chatService.removeChatMember(100L, 1L, 1L))
+                        .isInstanceOf(BusinessLogicException.class);
+            }
+
+            @Test
+            @DisplayName("✅ Админ исключает участника")
+            void adminRemovesMember() {
+                // given
+                ChatMember admin = createChatMember(100L, 2L, member1, ChatRole.ADMIN);
+                ChatMember regular = createChatMember(100L, 3L, member2, ChatRole.MEMBER);
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
+                when(userRepository.findById(3L)).thenReturn(Optional.of(member2));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 2L)).thenReturn(Optional.of(admin));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 3L)).thenReturn(Optional.of(regular));
+
+                // when
+                chatService.removeChatMember(100L, 3L, 2L);
+
+                // then
+                verify(chatMemberRepository).delete(regular);
+            }
+
+            @Test
+            @DisplayName("❌ Обычный участник не может исключать других")
+            void memberCannotRemove() {
+                // given
+                ChatMember requester = createChatMember(100L, 3L, member2, ChatRole.MEMBER);
+                ChatMember target = createChatMember(100L, 2L, member1, ChatRole.MEMBER);
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(userRepository.findById(3L)).thenReturn(Optional.of(member2));
+                when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 3L)).thenReturn(Optional.of(requester));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 2L)).thenReturn(Optional.of(target));
+
+                // when & then
+                assertThatThrownBy(() -> chatService.removeChatMember(100L, 2L, 3L))
+                        .isInstanceOf(AccessDeniedException.class);
+            }
+        }
+
+        @Nested
+        @DisplayName("Выход из чата")
+        class LeaveChat {
+
+            @Test
+            @DisplayName("✅ Участник покидает групповой чат")
+            void success() {
+                // given
+                ChatMember leaver = createChatMember(100L, 2L, member1, ChatRole.MEMBER);
+                ChatMember owner = createChatMember(100L, 1L, creator, ChatRole.OWNER);
+                Set<ChatMember> members = Set.of(owner, leaver);
+                groupChat.setChatMembers(members);
+
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 2L)).thenReturn(Optional.of(leaver));
+
+                // when
+                chatService.leaveChat(100L, 2L);
+
+                // then
+                verify(chatMemberRepository).delete(leaver);
+                verify(systemMessageService).createUserLeftMessage(any(), any());
+            }
+
+            @Test
+            @DisplayName("❌ Владелец не может покинуть чат")
+            void ownerCantLeave() {
+                // given
+                ChatMember owner = createChatMember(100L, 1L, creator, ChatRole.OWNER);
+                groupChat.setChatMembers(Set.of(owner));
+
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 1L)).thenReturn(Optional.of(owner));
+
+                // when & then
+                assertThatThrownBy(() -> chatService.leaveChat(100L, 1L))
+                        .isInstanceOf(BusinessLogicException.class);
+            }
+
+            @Test
+            @DisplayName("❌ Нельзя покинуть приватный чат через этот метод")
+            void privateChatNotAllowed() {
+                // given
+                when(chatRepository.findById(200L)).thenReturn(Optional.of(privateChat));
+                when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
+
+                // when & then
+                assertThatThrownBy(() -> chatService.leaveChat(200L, 1L))
+                        .isInstanceOf(NotGroupChatException.class);
+            }
+        }
     }
 
-    @Test
-    void createPrivateChat_Success() {
-        CreatePrivateChatRequest request = new CreatePrivateChatRequest();
-        request.setRecipientUsername("member1");
+    // -----------------------------
+    // Обновление настроек чата
+    // -----------------------------
+    @Nested
+    @DisplayName("Обновление настроек чата")
+    class UpdateChatSettings {
 
-        when(userRepository.findByUsername("creator")).thenReturn(Optional.of(creator));
-        when(userRepository.findByUsername("member1")).thenReturn(Optional.of(member1));
-        when(chatRepository.save(any(Chat.class))).thenReturn(privateChat);
-        when(chatMemberRepository.findPrivateChatIdByUserIds(1L, 2L)).thenReturn(Optional.empty());
-        when(chatRepository.findById(200L)).thenReturn(Optional.of(privateChat));
+        @Nested
+        @DisplayName("Изменение названия группы")
+        class UpdateGroupName {
 
-        chatService.createPrivateChat(request, "creator");
+            @Test
+            @DisplayName("✅ Владелец успешно меняет название")
+            void success() {
+                // given
+                String newName = "New Group Name";
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 1L))
+                        .thenReturn(Optional.of(createChatMember(100L, 1L, creator, ChatRole.OWNER)));
 
-        verify(chatRepository, times(2)).save(any(Chat.class));
-        verify(chatMemberRepository, times(2)).save(any(ChatMember.class));
+                // when
+                chatService.updateGroupName(100L, newName, 1L);
+
+                // then
+                assertThat(groupChat.getGroupChat().getGroupName()).isEqualTo(newName);
+                verify(chatRepository, times(2)).save(groupChat);
+                verify(systemMessageService).createGroupNameChangedMessage(any(), any(), any(), any());
+                verify(notificationService).notifyGroupNameChanged(any(), any(), any(), any());
+            }
+
+            @Test
+            @DisplayName("❌ Нельзя изменить название приватного чата")
+            void privateChatNotAllowed() {
+                // given
+                when(chatRepository.findById(200L)).thenReturn(Optional.of(privateChat));
+
+                // when & then
+                assertThatThrownBy(() -> chatService.updateGroupName(200L, "New", 1L))
+                        .isInstanceOf(BusinessLogicException.class);
+            }
+
+            @Test
+            @DisplayName("❌ Только владелец или админ могут менять название")
+            void onlyOwnerOrAdmin() {
+                // given
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 3L))
+                        .thenReturn(Optional.of(createChatMember(100L, 3L, member2, ChatRole.MEMBER)));
+
+                // when & then
+                assertThatThrownBy(() -> chatService.updateGroupName(100L, "New", 3L))
+                        .isInstanceOf(AccessDeniedException.class);
+            }
+        }
+
+        @Nested
+        @DisplayName("Изменение аватара чата")
+        class UpdateAvatar {
+
+            @Test
+            @DisplayName("✅ Владелец успешно меняет аватар")
+            void success() {
+                // given
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 1L))
+                        .thenReturn(Optional.of(createChatMember(100L, 1L, creator, ChatRole.OWNER)));
+                when(multipartFile.isEmpty()).thenReturn(false);
+                when(fileStorageService.saveChatAvatar(multipartFile, 100L)).thenReturn("avatar-url");
+
+                // when
+                chatService.updateChatAvatar(100L, multipartFile, 1L);
+
+                // then
+                assertThat(groupChat.getGroupChat().getAvatarUrl()).isEqualTo("avatar-url");
+                verify(chatRepository, times(2)).save(groupChat);
+                verify(systemMessageService).createGroupPhotoChangedMessage(any(), any());
+                verify(notificationService).notifyGroupPhotoChanged(any(), any());
+            }
+
+            @Test
+            @DisplayName("❌ Пустой файл")
+            void emptyFile() {
+                // given
+                when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+                when(chatMemberRepository.findByChatIdAndUserId(100L, 1L))
+                        .thenReturn(Optional.of(createChatMember(100L, 1L, creator, ChatRole.OWNER)));
+                when(multipartFile.isEmpty()).thenReturn(true);
+
+                // when & then
+                assertThatThrownBy(() -> chatService.updateChatAvatar(100L, multipartFile, 1L))
+                        .isInstanceOf(BusinessLogicException.class);
+            }
+
+            @Test
+            @DisplayName("❌ Приватный чат не поддерживает аватар")
+            void privateChatNotAllowed() {
+                // given
+                when(chatRepository.findById(200L)).thenReturn(Optional.of(privateChat));
+                when(chatMemberRepository.findByChatIdAndUserId(200L, 1L))
+                        .thenReturn(Optional.of(createChatMember(200L, 1L, creator, ChatRole.MEMBER)));
+
+                // when & then
+                assertThatThrownBy(() -> chatService.updateChatAvatar(200L, multipartFile, 1L))
+                        .isInstanceOf(BusinessLogicException.class);
+            }
+        }
     }
 
-    @Test
-    void createPrivateChat_ChatWithSelf_ThrowsException() {
-        CreatePrivateChatRequest request = new CreatePrivateChatRequest();
-        request.setRecipientUsername("creator");
-
-        when(userRepository.findByUsername("creator")).thenReturn(Optional.of(creator));
-
-        assertThrows(ChatOperationNotAllowedException.class, () ->
-                chatService.createPrivateChat(request, "creator"));
-    }
-
-    @Test
-    void createPrivateChat_AlreadyExists_ThrowsException() {
-        CreatePrivateChatRequest request = new CreatePrivateChatRequest();
-        request.setRecipientUsername("member1");
-
-        when(userRepository.findByUsername("creator")).thenReturn(Optional.of(creator));
-        when(userRepository.findByUsername("member1")).thenReturn(Optional.of(member1));
-        when(chatMemberRepository.findPrivateChatIdByUserIds(1L, 2L)).thenReturn(Optional.of(300L));
-
-        assertThrows(DuplicateChatMemberException.class, () ->
-                chatService.createPrivateChat(request, "creator"));
-    }
-
-    @Test
-    void addChatMember_Success() {
-        AddChatMemberRequestDto request = new AddChatMemberRequestDto();
-        request.setChatId(100L);
-        request.setUserId(3L);
-
-        when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
-        when(userRepository.findById(3L)).thenReturn(Optional.of(member2));
-        when(chatMemberRepository.existsByChatIdAndUserId(100L, 3L)).thenReturn(false);
-
-        chatService.addChatMember(request, "creator");
-
-        verify(chatMemberRepository).save(any());
-        verify(systemMessageService).createUserAddedMessage(any(), any(), any());
-    }
-
-    @Test
-    void addChatMember_ChatNotFound_ThrowsException() {
-        when(chatRepository.findById(999L)).thenReturn(Optional.empty());
-        AddChatMemberRequestDto request = new AddChatMemberRequestDto();
-        request.setChatId(999L);
-
-        assertThrows(ChatNotFoundException.class, () ->
-                chatService.addChatMember(request, "creator"));
-    }
-
-    @Test
-    void addChatMember_AlreadyInChat_ThrowsException() {
-        AddChatMemberRequestDto request = new AddChatMemberRequestDto();
-        request.setChatId(100L);
-        request.setUserId(2L);
-
-        when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
-        when(chatMemberRepository.existsByChatIdAndUserId(100L, 2L)).thenReturn(true);
-
-        assertThrows(DuplicateChatMemberException.class, () ->
-                chatService.addChatMember(request, "creator"));
-    }
-
-    @Test
-    void addChatMember_PrivateChat_ThrowsException() {
-        AddChatMemberRequestDto request = new AddChatMemberRequestDto();
-        request.setChatId(200L);
-        request.setUserId(3L);
-
-        when(chatRepository.findById(200L)).thenReturn(Optional.of(privateChat));
-        when(userRepository.findById(3L)).thenReturn(Optional.of(member2));
-
-        assertThrows(ChatOperationNotAllowedException.class, () ->
-                chatService.addChatMember(request, "creator"));
-    }
-
-    @Test
-    void setAdmin_Success() {
-        Long chatId = 100L;
-        ChatMember regularMember = createChatMember(chatId, 2L, member1, ChatRole.MEMBER);
-
-        when(chatRepository.findById(chatId)).thenReturn(Optional.of(groupChat));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
-        when(chatMemberRepository.findByChatIdAndUserId(chatId, 1L)).thenReturn(Optional.of(creatorMember));
-        when(chatMemberRepository.findByChatIdAndUserId(chatId, 2L)).thenReturn(Optional.of(regularMember));
-
-        chatService.setAdmin(chatId, 2L, 1L);
-
-        assertEquals(ChatRole.ADMIN, regularMember.getRole());
-        verify(systemMessageService).createUserPromotedMessage(any(), any(), any());
-        verify(notificationService).notifyUserPromoted(any(), any(), any());
-    }
-
-    @Test
-    void setAdmin_UserAlreadyAdmin_ThrowsException() {
-        when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 1L)).thenReturn(Optional.of(creatorMember));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 2L)).thenReturn(Optional.of(adminMember));
-
-        assertThrows(BusinessLogicException.class, () ->
-                chatService.setAdmin(100L, 2L, 1L));
-    }
-
-    @Test
-    void setAdmin_NotOwner_ThrowsException() {
-        ChatMember requester = createChatMember(100L, 2L, member1, ChatRole.MEMBER);
-
-        when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
-        when(userRepository.findById(3L)).thenReturn(Optional.of(member2));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 2L)).thenReturn(Optional.of(requester));
-
-        assertThrows(AccessDeniedException.class, () ->
-                chatService.setAdmin(100L, 3L, 2L));
-    }
-
-    @Test
-    void demoteAdminToMember_Success() {
-        when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 1L)).thenReturn(Optional.of(creatorMember));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 2L)).thenReturn(Optional.of(adminMember));
-
-        chatService.demoteAdminToMember(100L, 2L, 1L);
-
-        verify(chatMemberRepository).save(argThat(member -> member.getRole() == ChatRole.MEMBER));
-    }
-
-    @Test
-    void demoteAdminToMember_PrivateChat_ThrowsException() {
-        User requester = createUser(1L, "requester");
-        User target = createUser(2L, "target");
-
-        when(chatRepository.findById(200L)).thenReturn(Optional.of(privateChat));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(target));
-
-        assertThrows(ChatOperationNotAllowedException.class, () ->
-                chatService.demoteAdminToMember(200L, 2L, 1L));
-    }
-
-    @Test
-    void demoteAdminToMember_NotOwner_ThrowsException() {
-        ChatMember requester = createChatMember(100L, 2L, member1, ChatRole.ADMIN);
-        ChatMember target = createChatMember(100L, 3L, member2, ChatRole.ADMIN);
-
-        when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
-        when(userRepository.findById(3L)).thenReturn(Optional.of(member2));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 2L)).thenReturn(Optional.of(requester));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 3L)).thenReturn(Optional.of(target));
-
-        assertThrows(AccessDeniedException.class, () ->
-                chatService.demoteAdminToMember(100L, 3L, 2L));
-    }
-
-    @Test
-    void removeChatMember_OwnerRemovesMember_Success() {
-        when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
-        when(userRepository.findById(3L)).thenReturn(Optional.of(member2));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 1L)).thenReturn(Optional.of(creatorMember));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 3L)).thenReturn(Optional.of(regularMember));
-
-        chatService.removeChatMember(100L, 3L, 1L);
-
-        verify(chatMemberRepository).delete(regularMember);
-    }
-
-    @Test
-    void removeChatMember_OwnerRemovesSelf_ThrowsException() {
-        when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 1L)).thenReturn(Optional.of(creatorMember));
-
-        assertThrows(BusinessLogicException.class, () ->
-                chatService.removeChatMember(100L, 1L, 1L));
-    }
-
-    @Test
-    void removeChatMember_AdminRemovesMember_Success() {
-        when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
-        when(userRepository.findById(3L)).thenReturn(Optional.of(member2));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 2L)).thenReturn(Optional.of(adminMember));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 3L)).thenReturn(Optional.of(regularMember));
-
-        chatService.removeChatMember(100L, 3L, 2L);
-
-        verify(chatMemberRepository).delete(regularMember);
-    }
-
-    @Test
-    void removeChatMember_MemberTriesToRemove_ThrowsException() {
-        Long chatId = 100L;
-        ChatMember requester = createChatMember(chatId, 3L, member2, ChatRole.MEMBER);
-        ChatMember target = createChatMember(chatId, 2L, member1, ChatRole.MEMBER);
-
-        when(chatRepository.findById(chatId)).thenReturn(Optional.of(groupChat));
-        when(userRepository.findById(3L)).thenReturn(Optional.of(member2));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
-        when(chatMemberRepository.findByChatIdAndUserId(chatId, 3L)).thenReturn(Optional.of(requester));
-        when(chatMemberRepository.findByChatIdAndUserId(chatId, 2L)).thenReturn(Optional.of(target));
-
-        assertThrows(AccessDeniedException.class, () ->
-                chatService.removeChatMember(chatId, 2L, 3L));
-    }
-
-    @Test
-    void leaveChat_Success() {
-        Long chatId = 100L;
-        ChatMember memberToLeave = createChatMember(chatId, 2L, member1, ChatRole.MEMBER);
-        ChatMember owner = createChatMember(chatId, 1L, creator, ChatRole.OWNER);
-
-        Set<ChatMember> chatMembers = new HashSet<>(Arrays.asList(owner, memberToLeave));
-        groupChat.setChatMembers(chatMembers);
-
-        when(chatRepository.findById(chatId)).thenReturn(Optional.of(groupChat));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(member1));
-        when(chatMemberRepository.findByChatIdAndUserId(chatId, 2L)).thenReturn(Optional.of(memberToLeave));
-
-        chatService.leaveChat(chatId, 2L);
-
-        verify(chatMemberRepository).delete(memberToLeave);
-        verify(systemMessageService).createUserLeftMessage(any(), any());
-    }
-
-    @Test
-    void leaveChat_OwnerTriesToLeave_ThrowsException() {
-        Long chatId = 100L;
-        ChatMember owner = createChatMember(chatId, 1L, creator, ChatRole.OWNER);
-        Set<ChatMember> chatMembers = new HashSet<>(Collections.singletonList(owner));
-        groupChat.setChatMembers(chatMembers);
-
-        when(chatRepository.findById(chatId)).thenReturn(Optional.of(groupChat));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
-        when(chatMemberRepository.findByChatIdAndUserId(chatId, 1L)).thenReturn(Optional.of(owner));
-
-        assertThrows(BusinessLogicException.class, () ->
-                chatService.leaveChat(chatId, 1L));
-    }
-
-    @Test
-    void leaveChat_PrivateChat_ThrowsException() {
-        when(chatRepository.findById(200L)).thenReturn(Optional.of(privateChat));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(creator));
-
-        assertThrows(NotGroupChatException.class, () ->
-                chatService.leaveChat(200L, 1L));
-    }
-
-    @Test
-    void updateGroupName_Success() {
-        Long chatId = 100L;
-        String newName = "New Group Name";
-
-        when(chatRepository.findById(chatId)).thenReturn(Optional.of(groupChat));
-        when(chatMemberRepository.findByChatIdAndUserId(chatId, 1L)).thenReturn(Optional.of(creatorMember));
-
-        chatService.updateGroupName(chatId, newName, 1L);
-
-        assertEquals(newName, groupChat.getGroupChat().getGroupName());
-        verify(systemMessageService).createGroupNameChangedMessage(any(), any(), any(), any());
-        verify(notificationService).notifyGroupNameChanged(any(), any(), any(), any());
-        verify(chatRepository, times(2)).save(groupChat);
-    }
-
-    @Test
-    void updateGroupName_PrivateChat_ThrowsException() {
-        when(chatRepository.findById(200L)).thenReturn(Optional.of(privateChat));
-
-        assertThrows(BusinessLogicException.class, () ->
-                chatService.updateGroupName(200L, "New Name", 1L));
-    }
-
-    @Test
-    void updateGroupName_RegularMember_ThrowsException() {
-        when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 3L)).thenReturn(Optional.of(regularMember));
-
-        assertThrows(AccessDeniedException.class, () ->
-                chatService.updateGroupName(100L, "New Name", 3L));
-    }
-
-    @Test
-    void updateChatAvatar_Success() {
-        Long chatId = 100L;
-
-        when(chatRepository.findById(chatId)).thenReturn(Optional.of(groupChat));
-        when(chatMemberRepository.findByChatIdAndUserId(chatId, 1L)).thenReturn(Optional.of(creatorMember));
-        when(multipartFile.isEmpty()).thenReturn(false);
-        when(fileStorageService.saveChatAvatar(multipartFile, chatId)).thenReturn("avatar-url");
-
-        chatService.updateChatAvatar(chatId, multipartFile, 1L);
-
-        assertEquals("avatar-url", groupChat.getGroupChat().getAvatarUrl());
-        verify(systemMessageService).createGroupPhotoChangedMessage(any(), any());
-        verify(notificationService).notifyGroupPhotoChanged(any(), any());
-        verify(chatRepository, times(2)).save(groupChat);
-    }
-
-    @Test
-    void updateChatAvatar_EmptyFile_ThrowsException() {
-        when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
-        when(chatMemberRepository.findByChatIdAndUserId(100L, 1L)).thenReturn(Optional.of(creatorMember));
-        when(multipartFile.isEmpty()).thenReturn(true);
-
-        assertThrows(BusinessLogicException.class, () ->
-                chatService.updateChatAvatar(100L, multipartFile, 1L));
-    }
-
-    @Test
-    void updateChatAvatar_PrivateChat_ThrowsException() {
-        Long chatId = 200L;
-        ChatMember member = createChatMember(chatId, 1L, creator, ChatRole.MEMBER);
-        Set<ChatMember> members = new HashSet<>(Collections.singletonList(member));
-        privateChat.setChatMembers(members);
-
-        when(chatRepository.findById(chatId)).thenReturn(Optional.of(privateChat));
-        when(chatMemberRepository.findByChatIdAndUserId(chatId, 1L)).thenReturn(Optional.of(member));
-
-        assertThrows(BusinessLogicException.class, () ->
-                chatService.updateChatAvatar(chatId, multipartFile, 1L));
-    }
-
-    @Test
-    void updateChatActivity_Success() {
-        when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
-
-        chatService.updateChatActivity(100L);
-
-        verify(chatRepository).save(groupChat);
-        assertNotNull(groupChat.getLastActivityAt());
-    }
-
-    @Test
-    void updateChatActivity_ChatNotFound_ThrowsException() {
-        when(chatRepository.findById(999L)).thenReturn(Optional.empty());
-
-        assertThrows(ChatNotFoundException.class, () ->
-                chatService.updateChatActivity(999L));
+    // -----------------------------
+    // Обновление активности
+    // -----------------------------
+    @Nested
+    @DisplayName("Обновление активности чата")
+    class UpdateActivity {
+
+        @Test
+        @DisplayName("✅ Успешное обновление активности")
+        void success() {
+            // given
+            OffsetDateTime oldTime = groupChat.getLastActivityAt();
+            when(chatRepository.findById(100L)).thenReturn(Optional.of(groupChat));
+
+            // when
+            chatService.updateChatActivity(100L);
+
+            // then
+            verify(chatRepository).save(groupChat);
+            assertThat(groupChat.getLastActivityAt()).isAfter(oldTime);
+        }
+
+        @Test
+        @DisplayName("❌ Чат не найден")
+        void chatNotFound() {
+            // given
+            when(chatRepository.findById(999L)).thenReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> chatService.updateChatActivity(999L))
+                    .isInstanceOf(ChatNotFoundException.class);
+        }
     }
 }

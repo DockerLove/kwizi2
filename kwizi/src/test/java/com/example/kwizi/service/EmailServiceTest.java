@@ -1,12 +1,11 @@
 package com.example.kwizi.service;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -21,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("EmailService Тесты")
 class EmailServiceTest {
 
     @Mock
@@ -42,192 +42,170 @@ class EmailServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Настраиваем properties через ReflectionTestUtils
         ReflectionTestUtils.setField(emailService, "fromEmail", FROM_EMAIL);
         ReflectionTestUtils.setField(emailService, "verificationBaseUrl", BASE_URL);
     }
 
-    // ===== ТЕСТЫ ДЛЯ УСПЕШНОЙ ОТПРАВКИ =====
+    @Nested
+    @DisplayName("Основные сценарии")
+    class MainScenarios {
 
-    @Test
-    void sendVerificationEmailAsync_WithValidParameters_ShouldSendEmail() throws MessagingException {
-        // Arrange
-        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
-
-        // Act
-        emailService.sendVerificationEmailAsync(TO_EMAIL, VERIFICATION_TOKEN);
-
-        // Assert
-        verify(mailSender).send(mimeMessageCaptor.capture());
-        verify(mailSender).send(any(MimeMessage.class));
-    }
-
-    // ===== ТЕСТЫ ДЛЯ ВАЛИДАЦИИ ПАРАМЕТРОВ =====
-
-    @Test
-    void sendVerificationEmailAsync_WithNullEmail_ShouldThrowException() {
-        // Act & Assert
-        assertThatThrownBy(() -> emailService.sendVerificationEmailAsync(null, VERIFICATION_TOKEN))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Email адрес получателя не может быть пустым");
-
-        verify(mailSender, never()).send(any(MimeMessage.class));
-    }
-
-    @Test
-    void sendVerificationEmailAsync_WithEmptyEmail_ShouldThrowException() {
-        // Act & Assert
-        assertThatThrownBy(() -> emailService.sendVerificationEmailAsync("", VERIFICATION_TOKEN))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Email адрес получателя не может быть пустым");
-
-        verify(mailSender, never()).send(any(MimeMessage.class));
-    }
-
-    @Test
-    void sendVerificationEmailAsync_WithBlankEmail_ShouldThrowException() {
-        // Act & Assert
-        assertThatThrownBy(() -> emailService.sendVerificationEmailAsync("   ", VERIFICATION_TOKEN))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Email адрес получателя не может быть пустым");
-
-        verify(mailSender, never()).send(any(MimeMessage.class));
-    }
-
-    @Test
-    void sendVerificationEmailAsync_WithNullToken_ShouldThrowException() {
-        // Act & Assert
-        assertThatThrownBy(() -> emailService.sendVerificationEmailAsync(TO_EMAIL, null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Токен верификации не может быть пустым");
-
-        verify(mailSender, never()).send(any(MimeMessage.class));
-    }
-
-    @Test
-    void sendVerificationEmailAsync_WithEmptyToken_ShouldThrowException() {
-        // Act & Assert
-        assertThatThrownBy(() -> emailService.sendVerificationEmailAsync(TO_EMAIL, ""))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Токен верификации не может быть пустым");
-
-        verify(mailSender, never()).send(any(MimeMessage.class));
-    }
-
-    // ===== ТЕСТЫ ДЛЯ ОШИБОК ОТПРАВКИ =====
-
-    @Test
-    void sendVerificationEmailAsync_WhenMailSendingFails_ShouldThrowRuntimeException() throws MessagingException {
-        // Arrange
-        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
-        doThrow(new MailException("SMTP error") {}).when(mailSender).send(any(MimeMessage.class));
-
-        // Act & Assert
-        assertThatThrownBy(() -> emailService.sendVerificationEmailAsync(TO_EMAIL, VERIFICATION_TOKEN))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Не удалось отправить email верификации")
-                .hasCauseInstanceOf(MailException.class);
-    }
-
-
-    // ===== ТЕСТЫ ДЛЯ ФОРМАТИРОВАНИЯ EMAIL =====
-
-    @Test
-    void createEmailHtmlContent_ShouldGenerateValidHtmlWithVerificationLink() {
-        // Arrange
-        String token = "test-token-123";
-
-        // Act (тестируем приватный метод через публичный)
-        String htmlContent = (String) ReflectionTestUtils.invokeMethod(
-                emailService, "createEmailHtmlContent", token
-        );
-
-        // Assert
-        assertThat(htmlContent).isNotNull();
-        assertThat(htmlContent).contains("<!DOCTYPE html>");
-        assertThat(htmlContent).contains("<html lang=\"ru\">");
-        assertThat(htmlContent).contains("Подтверждение Email");
-        assertThat(htmlContent).contains("https://example.com/api/email-verification/verify-email?token=test-token-123");
-        assertThat(htmlContent).contains("Команда Authentication Service");
-    }
-
-    @Test
-    void createEmailHtmlContent_WithDifferentTokens_ShouldIncludeTokenInLink() {
-        // Arrange
-        String token1 = "token-one";
-        String token2 = "token-two";
-
-        // Act
-        String html1 = (String) ReflectionTestUtils.invokeMethod(
-                emailService, "createEmailHtmlContent", token1
-        );
-        String html2 = (String) ReflectionTestUtils.invokeMethod(
-                emailService, "createEmailHtmlContent", token2
-        );
-
-        // Assert
-        assertThat(html1).contains("token=token-one");
-        assertThat(html2).contains("token=token-two");
-        assertThat(html1).isNotEqualTo(html2);
-    }
-
-    // ===== ТЕСТЫ ДЛЯ РАЗНЫХ EMAIL АДРЕСОВ =====
-
-    @Test
-    void sendVerificationEmailAsync_WithDifferentEmailFormats_ShouldHandleCorrectly() throws MessagingException {
-        // Arrange
-        String[] validEmails = {
-                "user@example.com",
-                "user.name@example.com",
-                "user+tag@example.com",
-                "user@sub.domain.com"
-        };
-
-        for (String email : validEmails) {
-            // Для каждого email настраиваем мок
+        @Test
+        @DisplayName("✅ Успешная отправка email верификации")
+        void sendVerificationEmailAsync_WithValidParameters_ShouldSendEmail() throws MessagingException {
             when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
-            // Act & Assert - должен выполниться без исключений
-            emailService.sendVerificationEmailAsync(email, VERIFICATION_TOKEN);
-            verify(mailSender).send(any(MimeMessage.class));
+            emailService.sendVerificationEmailAsync(TO_EMAIL, VERIFICATION_TOKEN);
 
-            // Reset invocation count для следующей итерации
-            reset(mailSender);
+            verify(mailSender).send(mimeMessageCaptor.capture());
+            verify(mailSender).send(any(MimeMessage.class));
         }
     }
 
-    // ===== ТЕСТ ДЛЯ ПРОВЕРКИ КОНФИГУРАЦИИ =====
+    @Nested
+    @DisplayName("Валидация параметров")
+    class ValidationTests {
 
-    @Test
-    void emailService_ShouldUseConfiguredProperties() {
-        // Arrange
-        String customFromEmail = "custom@example.com";
-        String customBaseUrl = "https://custom.example.com";
+        @ParameterizedTest
+        @NullAndEmptySource
+        @ValueSource(strings = {" ", "  ", "\t"})
+        @DisplayName("❌ Некорректный email адрес")
+        void sendVerificationEmailAsync_WithInvalidEmail_ShouldThrowException(String invalidEmail) {
+            assertThatThrownBy(() -> emailService.sendVerificationEmailAsync(invalidEmail, VERIFICATION_TOKEN))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Email адрес получателя не может быть пустым");
 
-        ReflectionTestUtils.setField(emailService, "fromEmail", customFromEmail);
-        ReflectionTestUtils.setField(emailService, "verificationBaseUrl", customBaseUrl);
+            verify(mailSender, never()).send(any(MimeMessage.class));
+        }
 
-        // Act
-        String htmlContent = (String) ReflectionTestUtils.invokeMethod(
-                emailService, "createEmailHtmlContent", VERIFICATION_TOKEN
-        );
+        @ParameterizedTest
+        @NullAndEmptySource
+        @ValueSource(strings = {" ", "  ", "\t"})
+        @DisplayName("❌ Некорректный токен верификации")
+        void sendVerificationEmailAsync_WithInvalidToken_ShouldThrowException(String invalidToken) {
+            assertThatThrownBy(() -> emailService.sendVerificationEmailAsync(TO_EMAIL, invalidToken))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Токен верификации не может быть пустым");
 
-        // Assert
-        assertThat(htmlContent).contains(customBaseUrl + "/api/email-verification/verify-email?token=" + VERIFICATION_TOKEN);
+            verify(mailSender, never()).send(any(MimeMessage.class));
+        }
     }
 
-    // ===== ТЕСТ ДЛЯ ПРОВЕРКИ СОДЕРЖАНИЯ EMAIL =====
+    @Nested
+    @DisplayName("Обработка ошибок")
+    class ErrorHandlingTests {
 
-    @Test
-    void createVerificationEmail_ShouldSetCorrectHeadersAndContent() throws Exception {
-        // Arrange
-        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+        @Test
+        @DisplayName("❌ Ошибка при отправке email")
+        void sendVerificationEmailAsync_WhenMailSendingFails_ShouldThrowRuntimeException() throws MessagingException {
+            when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+            doThrow(new MailException("SMTP error") {}).when(mailSender).send(any(MimeMessage.class));
 
-        // Act (тестируем приватный метод через отладку)
-        emailService.sendVerificationEmailAsync(TO_EMAIL, VERIFICATION_TOKEN);
+            assertThatThrownBy(() -> emailService.sendVerificationEmailAsync(TO_EMAIL, VERIFICATION_TOKEN))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("Не удалось отправить email верификации")
+                    .hasCauseInstanceOf(MailException.class);
+        }
+    }
 
-        // Assert - проверяем что методы создания email были вызваны
-        verify(mailSender).createMimeMessage();
-        verify(mailSender).send(any(MimeMessage.class));
+    @Nested
+    @DisplayName("Форматирование HTML контента")
+    class HtmlContentTests {
+
+        @Test
+        @DisplayName("✅ Генерация валидного HTML с ссылкой верификации")
+        void createEmailHtmlContent_ShouldGenerateValidHtmlWithVerificationLink() {
+            String htmlContent = (String) ReflectionTestUtils.invokeMethod(
+                    emailService, "createEmailHtmlContent", VERIFICATION_TOKEN
+            );
+
+            assertThat(htmlContent)
+                    .isNotNull()
+                    .contains("<!DOCTYPE html>")
+                    .contains("<html lang=\"ru\">")
+                    .contains("Подтверждение Email")
+                    .contains("https://example.com/api/email-verification/verify-email?token=test-verification-token-123")
+                    .contains("Команда Authentication Service");
+        }
+
+        @Test
+        @DisplayName("✅ Токен включается в ссылку верификации")
+        void createEmailHtmlContent_WithDifferentTokens_ShouldIncludeTokenInLink() {
+            String token1 = "token-one";
+            String token2 = "token-two";
+
+            String html1 = (String) ReflectionTestUtils.invokeMethod(
+                    emailService, "createEmailHtmlContent", token1
+            );
+            String html2 = (String) ReflectionTestUtils.invokeMethod(
+                    emailService, "createEmailHtmlContent", token2
+            );
+
+            assertThat(html1).contains("token=token-one");
+            assertThat(html2).contains("token=token-two");
+            assertThat(html1).isNotEqualTo(html2);
+        }
+    }
+
+    @Nested
+    @DisplayName("Работа с конфигурацией")
+    class ConfigurationTests {
+
+        @Test
+        @DisplayName("✅ Использование настроенных свойств")
+        void emailService_ShouldUseConfiguredProperties() {
+            String customFromEmail = "custom@example.com";
+            String customBaseUrl = "https://custom.example.com";
+
+            ReflectionTestUtils.setField(emailService, "fromEmail", customFromEmail);
+            ReflectionTestUtils.setField(emailService, "verificationBaseUrl", customBaseUrl);
+
+            String htmlContent = (String) ReflectionTestUtils.invokeMethod(
+                    emailService, "createEmailHtmlContent", VERIFICATION_TOKEN
+            );
+
+            assertThat(htmlContent).contains(customBaseUrl + "/api/email-verification/verify-email?token=" + VERIFICATION_TOKEN);
+        }
+    }
+
+    @Nested
+    @DisplayName("Работа с почтовым клиентом")
+    class MailClientTests {
+
+        @Test
+        @DisplayName("✅ Создание и отправка MimeMessage")
+        void sendVerificationEmailAsync_ShouldCreateAndSendMimeMessage() throws Exception {
+            when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+            emailService.sendVerificationEmailAsync(TO_EMAIL, VERIFICATION_TOKEN);
+
+            verify(mailSender).createMimeMessage();
+            verify(mailSender).send(any(MimeMessage.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("Обработка разных форматов email")
+    class EmailFormatsTests {
+
+        @Test
+        @DisplayName("✅ Корректная обработка разных форматов email")
+        void sendVerificationEmailAsync_WithDifferentEmailFormats_ShouldHandleCorrectly() throws MessagingException {
+            String[] validEmails = {
+                    "user@example.com",
+                    "user.name@example.com",
+                    "user+tag@example.com",
+                    "user@sub.domain.com"
+            };
+
+            for (String email : validEmails) {
+                when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+                emailService.sendVerificationEmailAsync(email, VERIFICATION_TOKEN);
+                verify(mailSender).send(any(MimeMessage.class));
+
+                reset(mailSender);
+            }
+        }
     }
 }

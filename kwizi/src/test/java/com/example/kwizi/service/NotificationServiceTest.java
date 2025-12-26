@@ -1,18 +1,25 @@
 package com.example.kwizi.service;
 
 import com.example.kwizi.websocket.UniversalChatHandler;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.regex.Pattern;
+
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("NotificationService тесты")
 class NotificationServiceTest {
 
     @Mock
@@ -30,221 +37,281 @@ class NotificationServiceTest {
     private final Long CHAT_ID = 1L;
     private final Long MESSAGE_ID = 100L;
     private final String USERNAME = "testuser";
-    private final String ANOTHER_USERNAME = "anotheruser";
     private final String ADMIN_USERNAME = "adminuser";
 
-    // ===== ТЕСТЫ ДЛЯ УВЕДОМЛЕНИЙ О СООБЩЕНИЯХ =====
+    private final Pattern TIMESTAMP_PATTERN = Pattern.compile(
+            "\"timestamp\":\"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z\""
+    );
 
-    @Test
-    void notifyMessageEdited_WithValidData_ShouldSendCorrectPayload() {
-        // Arrange
-        String newText = "Updated message text";
-        String editedBy = USERNAME;
+    @Nested
+    @DisplayName("Уведомления о сообщениях")
+    class MessageNotificationsTests {
 
-        // Act
-        notificationService.notifyMessageEdited(CHAT_ID, MESSAGE_ID, newText, editedBy);
+        @Test
+        @DisplayName("✅ Уведомление об изменении сообщения")
+        void notifyMessageEdited_WithValidData_ShouldSendCorrectPayload() {
+            // given
+            String newText = "Updated message text";
+            String editedBy = USERNAME;
 
-        // Assert
-        verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+            // when
+            notificationService.notifyMessageEdited(CHAT_ID, MESSAGE_ID, newText, editedBy);
 
-        assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
-        assertThat(payloadCaptor.getValue()).isEqualTo(
-                "{\"type\":\"MESSAGE_EDITED\", \"data\":{\"messageId\":100, \"chatId\":1, \"newText\":\"Updated message text\", \"editedBy\":\"testuser\"}}"
-        );
+            // then
+            verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+
+            assertThat(chatIdCaptor.getValue())
+                    .as("Должен отправить в правильный чат")
+                    .isEqualTo(CHAT_ID);
+
+            assertThat(payloadCaptor.getValue())
+                    .as("Должен отправить корректный JSON")
+                    .isEqualTo(
+                            "{\"type\":\"MESSAGE_EDITED\", \"data\":{\"messageId\":100, \"chatId\":1, \"newText\":\"Updated message text\", \"editedBy\":\"testuser\"}}"
+                    );
+        }
+
+        @Test
+        @DisplayName("✅ Уведомление об удалении сообщения")
+        void notifyMessageDeleted_WithValidData_ShouldSendCorrectPayload() {
+            // given
+            String deletedBy = ADMIN_USERNAME;
+
+            // when
+            notificationService.notifyMessageDeleted(CHAT_ID, MESSAGE_ID, deletedBy);
+
+            // then
+            verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+
+            String payload = payloadCaptor.getValue();
+
+            assertThat(chatIdCaptor.getValue())
+                    .as("Должен отправить в правильный чат")
+                    .isEqualTo(CHAT_ID);
+
+            assertThat(payload)
+                    .as("Должен содержать правильный тип")
+                    .contains("\"type\":\"MESSAGE_DELETED\"")
+                    .as("Должен содержать ID сообщения")
+                    .contains("\"messageId\":100")
+                    .as("Должен содержать ID чата")
+                    .contains("\"chatId\":1")
+                    .as("Должен содержать кто удалил")
+                    .contains("\"deletedBy\":\"adminuser\"")
+                    .as("Должен содержать валидный timestamp")
+                    .containsPattern(TIMESTAMP_PATTERN);
+        }
     }
 
-    @Test
-    void notifyMessageDeleted_WithValidData_ShouldSendCorrectPayload() {
-        // Arrange
-        String deletedBy = ADMIN_USERNAME;
+    @Nested
+    @DisplayName("Уведомления о пользователях")
+    class UserNotificationsTests {
 
-        // Act
-        notificationService.notifyMessageDeleted(CHAT_ID, MESSAGE_ID, deletedBy);
+        @Test
+        @DisplayName("✅ Уведомление о добавлении пользователя")
+        void notifyUserAdded_WithValidData_ShouldSendCorrectPayload() {
+            // when
+            notificationService.notifyUserAdded(CHAT_ID, USERNAME, ADMIN_USERNAME);
 
-        // Assert
-        verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+            // then
+            verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
 
-        String payload = payloadCaptor.getValue();
-        assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
-        assertThat(payload).contains("\"type\":\"MESSAGE_DELETED\"");
-        assertThat(payload).contains("\"messageId\":100");
-        assertThat(payload).contains("\"chatId\":1");
-        assertThat(payload).contains("\"deletedBy\":\"adminuser\"");
+            String payload = payloadCaptor.getValue();
 
-        // Правильное регулярное выражение
-        assertThat(payload).containsPattern("\"timestamp\":\"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z\"");
+            assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
+            assertThat(payload)
+                    .contains("\"type\":\"USER_ADDED\"")
+                    .contains("\"addedUsername\":\"testuser\"")
+                    .contains("\"addedByUsername\":\"adminuser\"")
+                    .containsPattern(TIMESTAMP_PATTERN);
+        }
+
+        @Test
+        @DisplayName("✅ Уведомление об удалении пользователя")
+        void notifyUserRemoved_WithValidData_ShouldSendCorrectPayload() {
+            // when
+            notificationService.notifyUserRemoved(CHAT_ID, USERNAME, ADMIN_USERNAME);
+
+            // then
+            verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+
+            String payload = payloadCaptor.getValue();
+
+            assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
+            assertThat(payload)
+                    .contains("\"type\":\"USER_REMOVED\"")
+                    .contains("\"removedUsername\":\"testuser\"")
+                    .contains("\"removedByUsername\":\"adminuser\"")
+                    .containsPattern(TIMESTAMP_PATTERN);
+        }
+
+        @Test
+        @DisplayName("✅ Уведомление о выходе пользователя")
+        void notifyUserLeft_WithValidData_ShouldSendCorrectPayload() {
+            // when
+            notificationService.notifyUserLeft(CHAT_ID, USERNAME);
+
+            // then
+            verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+
+            String payload = payloadCaptor.getValue();
+
+            assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
+            assertThat(payload)
+                    .contains("\"type\":\"USER_LEFT\"")
+                    .contains("\"username\":\"testuser\"")
+                    .containsPattern(TIMESTAMP_PATTERN);
+        }
+
+        @Test
+        @DisplayName("✅ Уведомление о назначении администратора")
+        void notifyUserPromoted_WithValidData_ShouldSendCorrectPayload() {
+            // when
+            notificationService.notifyUserPromoted(CHAT_ID, USERNAME, ADMIN_USERNAME);
+
+            // then
+            verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+
+            String payload = payloadCaptor.getValue();
+
+            assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
+            assertThat(payload)
+                    .contains("\"type\":\"USER_PROMOTED\"")
+                    .contains("\"targetUsername\":\"testuser\"")
+                    .contains("\"promotedByUsername\":\"adminuser\"")
+                    .containsPattern(TIMESTAMP_PATTERN);
+        }
+
+        @Test
+        @DisplayName("✅ Уведомление о снятии прав администратора")
+        void notifyUserDemoted_WithValidData_ShouldSendCorrectPayload() {
+            // when
+            notificationService.notifyUserDemoted(CHAT_ID, USERNAME, ADMIN_USERNAME);
+
+            // then
+            verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+
+            String payload = payloadCaptor.getValue();
+
+            assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
+            assertThat(payload)
+                    .contains("\"type\":\"USER_DEMOTED\"")
+                    .contains("\"targetUsername\":\"testuser\"")
+                    .contains("\"demotedByUsername\":\"adminuser\"")
+                    .containsPattern(TIMESTAMP_PATTERN);
+        }
     }
 
-    // ===== ТЕСТЫ ДЛЯ УВЕДОМЛЕНИЙ О ПОЛЬЗОВАТЕЛЯХ =====
+    @Nested
+    @DisplayName("Уведомления о группах")
+    class GroupNotificationsTests {
 
-    @Test
-    void notifyUserAdded_WithValidData_ShouldSendCorrectPayload() {
-        // Act
-        notificationService.notifyUserAdded(CHAT_ID, USERNAME, ADMIN_USERNAME);
+        @Test
+        @DisplayName("✅ Уведомление об изменении названия группы")
+        void notifyGroupNameChanged_WithValidData_ShouldSendCorrectPayload() {
+            // given
+            String oldName = "Old Group Name";
+            String newName = "New Group Name";
+            String changedBy = ADMIN_USERNAME;
 
-        // Assert
-        verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+            // when
+            notificationService.notifyGroupNameChanged(CHAT_ID, oldName, newName, changedBy);
 
-        String payload = payloadCaptor.getValue();
-        assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
-        assertThat(payload).contains("\"type\":\"USER_ADDED\"");
-        assertThat(payload).contains("\"addedUsername\":\"testuser\"");
-        assertThat(payload).contains("\"addedByUsername\":\"adminuser\"");
-        assertThat(payload).contains("\"timestamp\":");
+            // then
+            verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+
+            String payload = payloadCaptor.getValue();
+
+            assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
+            assertThat(payload)
+                    .contains("\"type\":\"GROUP_NAME_CHANGED\"")
+                    .contains("\"oldName\":\"Old Group Name\"")
+                    .contains("\"newName\":\"New Group Name\"")
+                    .contains("\"changedBy\":\"adminuser\"")
+                    .containsPattern(TIMESTAMP_PATTERN);
+        }
+
+        @Test
+        @DisplayName("✅ Уведомление об изменении фотографии группы")
+        void notifyGroupPhotoChanged_WithValidData_ShouldSendCorrectPayload() {
+            // when
+            notificationService.notifyGroupPhotoChanged(CHAT_ID, ADMIN_USERNAME);
+
+            // then
+            verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+
+            String payload = payloadCaptor.getValue();
+
+            assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
+            assertThat(payload)
+                    .contains("\"type\":\"GROUP_PHOTO_CHANGED\"")
+                    .contains("\"changedBy\":\"adminuser\"")
+                    .containsPattern(TIMESTAMP_PATTERN);
+        }
     }
 
-    @Test
-    void notifyUserRemoved_WithValidData_ShouldSendCorrectPayload() {
-        // Act
-        notificationService.notifyUserRemoved(CHAT_ID, USERNAME, ADMIN_USERNAME);
+    @Nested
+    @DisplayName("Обработка специальных символов в тексте")
+    class SpecialCharactersHandlingTests {
 
-        // Assert
-        verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+        @Test
+        @DisplayName("✅ Текст с кавычками корректно форматируется")
+        void notifyMessageEdited_WithQuotesInText_ShouldEscapeCorrectly() {
+            // given
+            String newText = "Message with \"quotes\" inside";
+            String editedBy = USERNAME;
 
-        String payload = payloadCaptor.getValue();
-        assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
-        assertThat(payload).contains("\"type\":\"USER_REMOVED\"");
-        assertThat(payload).contains("\"removedUsername\":\"testuser\"");
-        assertThat(payload).contains("\"removedByUsername\":\"adminuser\"");
-        assertThat(payload).contains("\"timestamp\":");
+            // when
+            notificationService.notifyMessageEdited(CHAT_ID, MESSAGE_ID, newText, editedBy);
+
+            // then
+            verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+
+            assertThat(payloadCaptor.getValue())
+                    .as("Должен корректно обрабатывать кавычки в тексте")
+                    .contains("\"newText\":\"Message with \"quotes\" inside\"");
+        }
+
+        @Test
+        @DisplayName("✅ Username со спецсимволами корректно форматируется")
+        void notifyUserAdded_WithSpecialCharactersInUsername_ShouldHandleCorrectly() {
+            // given
+            String specialUsername = "user-name.test";
+
+            // when
+            notificationService.notifyUserAdded(CHAT_ID, specialUsername, ADMIN_USERNAME);
+
+            // then
+            verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+
+            String payload = payloadCaptor.getValue();
+
+            assertThat(payload)
+                    .as("Должен корректно обрабатывать username со спецсимволами")
+                    .contains("\"addedUsername\":\"user-name.test\"");
+        }
+
+        @ParameterizedTest
+        @NullAndEmptySource
+        @DisplayName("✅ Пустой текст сообщения корректно обрабатывается")
+        void notifyMessageEdited_WithEmptyText_ShouldHandleCorrectly(String newText) {
+            // given
+            String editedBy = USERNAME;
+
+            // when
+            notificationService.notifyMessageEdited(CHAT_ID, MESSAGE_ID, newText, editedBy);
+
+            // then
+            verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
+
+            String payload = payloadCaptor.getValue();
+
+            if (newText == null) {
+                assertThat(payload).contains("\"newText\":\"null\"");
+            } else {
+                assertThat(payload).contains("\"newText\":\"\"");
+            }
+        }
     }
 
-    @Test
-    void notifyUserLeft_WithValidData_ShouldSendCorrectPayload() {
-        // Act
-        notificationService.notifyUserLeft(CHAT_ID, USERNAME);
-
-        // Assert
-        verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
-
-        String payload = payloadCaptor.getValue();
-        assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
-        assertThat(payload).contains("\"type\":\"USER_LEFT\"");
-        assertThat(payload).contains("\"username\":\"testuser\"");
-        assertThat(payload).contains("\"timestamp\":");
-    }
-
-    @Test
-    void notifyUserPromoted_WithValidData_ShouldSendCorrectPayload() {
-        // Act
-        notificationService.notifyUserPromoted(CHAT_ID, USERNAME, ADMIN_USERNAME);
-
-        // Assert
-        verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
-
-        String payload = payloadCaptor.getValue();
-        assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
-        assertThat(payload).contains("\"type\":\"USER_PROMOTED\"");
-        assertThat(payload).contains("\"targetUsername\":\"testuser\"");
-        assertThat(payload).contains("\"promotedByUsername\":\"adminuser\"");
-        assertThat(payload).contains("\"timestamp\":");
-    }
-
-    @Test
-    void notifyUserDemoted_WithValidData_ShouldSendCorrectPayload() {
-        // Act
-        notificationService.notifyUserDemoted(CHAT_ID, USERNAME, ADMIN_USERNAME);
-
-        // Assert
-        verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
-
-        String payload = payloadCaptor.getValue();
-        assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
-        assertThat(payload).contains("\"type\":\"USER_DEMOTED\"");
-        assertThat(payload).contains("\"targetUsername\":\"testuser\"");
-        assertThat(payload).contains("\"demotedByUsername\":\"adminuser\"");
-        assertThat(payload).contains("\"timestamp\":");
-    }
-
-    // ===== ТЕСТЫ ДЛЯ УВЕДОМЛЕНИЙ О ГРУППАХ =====
-
-    @Test
-    void notifyGroupNameChanged_WithValidData_ShouldSendCorrectPayload() {
-        // Arrange
-        String oldName = "Old Group Name";
-        String newName = "New Group Name";
-        String changedBy = ADMIN_USERNAME;
-
-        // Act
-        notificationService.notifyGroupNameChanged(CHAT_ID, oldName, newName, changedBy);
-
-        // Assert
-        verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
-
-        String payload = payloadCaptor.getValue();
-        assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
-        assertThat(payload).contains("\"type\":\"GROUP_NAME_CHANGED\"");
-        assertThat(payload).contains("\"oldName\":\"Old Group Name\"");
-        assertThat(payload).contains("\"newName\":\"New Group Name\"");
-        assertThat(payload).contains("\"changedBy\":\"adminuser\"");
-        assertThat(payload).contains("\"timestamp\":");
-    }
-
-    @Test
-    void notifyGroupPhotoChanged_WithValidData_ShouldSendCorrectPayload() {
-        // Act
-        notificationService.notifyGroupPhotoChanged(CHAT_ID, ADMIN_USERNAME);
-
-        // Assert
-        verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
-
-        String payload = payloadCaptor.getValue();
-        assertThat(chatIdCaptor.getValue()).isEqualTo(CHAT_ID);
-        assertThat(payload).contains("\"type\":\"GROUP_PHOTO_CHANGED\"");
-        assertThat(payload).contains("\"changedBy\":\"adminuser\"");
-        assertThat(payload).contains("\"timestamp\":");
-    }
-
-    // ===== ТЕСТЫ ДЛЯ ГРАНИЧНЫХ СЛУЧАЕВ =====
-
-    @Test
-    void notifyMessageEdited_WithSpecialCharacters_ShouldHandleCorrectly() {
-        // Arrange
-        String newText = "Message with \"quotes\" and 'apostrophes'";
-        String editedBy = "user-name.test";
-
-        // Act
-        notificationService.notifyMessageEdited(CHAT_ID, MESSAGE_ID, newText, editedBy);
-
-        // Assert
-        verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
-
-        String payload = payloadCaptor.getValue();
-        assertThat(payload).contains("\"newText\":\"Message with \"quotes\" and 'apostrophes'\"");
-        assertThat(payload).contains("\"editedBy\":\"user-name.test\"");
-    }
-
-    @Test
-    void notifyMessageEdited_WithEmptyText_ShouldHandleCorrectly() {
-        // Arrange
-        String newText = "";
-        String editedBy = USERNAME;
-
-        // Act
-        notificationService.notifyMessageEdited(CHAT_ID, MESSAGE_ID, newText, editedBy);
-
-        // Assert
-        verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
-
-        String payload = payloadCaptor.getValue();
-        assertThat(payload).contains("\"newText\":\"\"");
-    }
-
-    @Test
-    void notifyGroupNameChanged_WithLongNames_ShouldHandleCorrectly() {
-        // Arrange
-        String oldName = "Очень длинное название группы которое может быть очень длинным";
-        String newName = "Еще более длинное новое название группы";
-        String changedBy = USERNAME;
-
-        // Act
-        notificationService.notifyGroupNameChanged(CHAT_ID, oldName, newName, changedBy);
-
-        // Assert
-        verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
-
-        String payload = payloadCaptor.getValue();
-        assertThat(payload).contains("\"oldName\":\"Очень длинное название группы которое может быть очень длинным\"");
-        assertThat(payload).contains("\"newName\":\"Еще более длинное новое название группы\"");
-    }
 }

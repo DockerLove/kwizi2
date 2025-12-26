@@ -33,7 +33,6 @@ public class EmailVerificationController {
                     .contentType(MediaType.TEXT_HTML)
                     .body("Email успешно подтвержден! Можете закрыть эту страницу.");
         } catch (IllegalArgumentException e) {
-            logger.warn("Ошибка при подтверждении email для токена {}: {}", token, e.getMessage()); // Логируем ошибку
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .contentType(MediaType.TEXT_HTML)
                     .body("Ошибка: " + e.getMessage());

@@ -16,6 +16,8 @@ import com.example.kwizi.repository.ChatRepository;
 import com.example.kwizi.repository.MessageRepository;
 import com.example.kwizi.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -28,30 +30,20 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
+@DisplayName("ChatMessageService тесты")
 class ChatMessageServiceTest {
 
-    @Mock
-    private MessageRepository messageRepository;
-
-    @Mock
-    private ChatRepository chatRepository;
-
-    @Mock
-    private UserRepository userRepository;
-
-    @Mock
-    private ChatMemberRepository chatMemberRepository;
-
-    @Mock
-    private NotificationService notificationService;
-
-    @Mock
-    private ChatService chatService;
+    @Mock private MessageRepository messageRepository;
+    @Mock private ChatRepository chatRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private ChatMemberRepository chatMemberRepository;
+    @Mock private NotificationService notificationService;
+    @Mock private ChatService chatService;
 
     @InjectMocks
     private ChatMessageService chatMessageService;
@@ -65,7 +57,6 @@ class ChatMessageServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Arrange common test data
         testUser = new User();
         testUser.setId(1L);
         testUser.setUsername("testUser");
@@ -92,290 +83,356 @@ class ChatMessageServiceTest {
         messageDto.setText("Test message");
     }
 
-    // ✅ Тесты для sendMessage
-    @Test
-    void sendMessage_ShouldSuccessfullySendMessage_WhenValidInput() {
-        // Arrange
-        when(chatRepository.findById(1L)).thenReturn(Optional.of(testChat));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
-        when(chatMemberRepository.existsByChatIdAndUserId(1L, 1L)).thenReturn(true);
-        when(messageRepository.save(any(Message.class))).thenReturn(testMessage);
+    // ==================================================
+    // Отправка сообщений
+    // ==================================================
+    @Nested
+    @DisplayName("Отправка сообщений")
+    class SendMessage {
 
-        // Act
-        Message result = chatMessageService.sendMessage(messageDto, 1L);
+        @Nested
+        @DisplayName("Обычная отправка в чат")
+        class InChat {
 
-        // Assert
-        assertNotNull(result);
-        verify(chatRepository).findById(1L);
-        verify(userRepository).findById(1L);
-        verify(chatMemberRepository).existsByChatIdAndUserId(1L, 1L);
-        verify(messageRepository).save(any(Message.class));
-        verify(chatService).updateChatActivity(1L);
+            @Test
+            @DisplayName("✅ Успешная отправка при валидных данных")
+            void success() {
+                // given
+                when(chatRepository.findById(1L)).thenReturn(Optional.of(testChat));
+                when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+                when(chatMemberRepository.existsByChatIdAndUserId(1L, 1L)).thenReturn(true);
+                when(messageRepository.save(any(Message.class))).thenReturn(testMessage);
+
+                // when
+                Message result = chatMessageService.sendMessage(messageDto, 1L);
+
+                // then
+                assertThat(result).isNotNull();
+                verify(chatRepository).findById(1L);
+                verify(userRepository).findById(1L);
+                verify(chatMemberRepository).existsByChatIdAndUserId(1L, 1L);
+                verify(messageRepository).save(any(Message.class));
+                verify(chatService).updateChatActivity(1L);
+            }
+
+            @Test
+            @DisplayName("❌ Чат не найден")
+            void chatNotFound() {
+                // given
+                when(chatRepository.findById(1L)).thenReturn(Optional.empty());
+
+                // when & then
+                assertThatThrownBy(() -> chatMessageService.sendMessage(messageDto, 1L))
+                        .isInstanceOf(ChatNotFoundException.class);
+
+                verify(userRepository, never()).findById(anyLong());
+                verify(messageRepository, never()).save(any(Message.class));
+            }
+
+            @Test
+            @DisplayName("❌ Пользователь не найден")
+            void userNotFound() {
+                // given
+                when(chatRepository.findById(1L)).thenReturn(Optional.of(testChat));
+                when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+                // when & then
+                assertThatThrownBy(() -> chatMessageService.sendMessage(messageDto, 1L))
+                        .isInstanceOf(UserNotFoundException.class);
+
+                verify(messageRepository, never()).save(any(Message.class));
+            }
+
+            @Test
+            @DisplayName("❌ Пользователь не состоит в чате")
+            void userNotInChat() {
+                // given
+                when(chatRepository.findById(1L)).thenReturn(Optional.of(testChat));
+                when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+                when(chatMemberRepository.existsByChatIdAndUserId(1L, 1L)).thenReturn(false);
+
+                // when & then
+                assertThatThrownBy(() -> chatMessageService.sendMessage(messageDto, 1L))
+                        .isInstanceOf(SecurityException.class);
+
+                verify(messageRepository, never()).save(any(Message.class));
+            }
+        }
+
+        @Nested
+        @DisplayName("Отправка приватного сообщения")
+        class PrivateMessage {
+
+            @Test
+            @DisplayName("✅ Создаёт новый чат, если не существует")
+            void createsNewChat() {
+                // given
+                MessageDto dto = new MessageDto();
+                dto.setText("Private message");
+
+                when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+                when(userRepository.findById(2L)).thenReturn(Optional.of(testRecipient));
+                when(chatMemberRepository.findPrivateChatIdByUserIds(1L, 2L)).thenReturn(Optional.empty());
+                when(chatRepository.save(any(Chat.class))).thenReturn(testChat);
+                when(chatMemberRepository.saveAll(anyList())).thenReturn(List.of(testChatMember));
+                when(messageRepository.save(any(Message.class))).thenReturn(testMessage);
+
+                // when
+                Message result = chatMessageService.sendPrivateMessage(dto, 1L, 2L);
+
+                // then
+                assertThat(result).isNotNull();
+                verify(chatRepository).save(any(Chat.class));
+                verify(chatMemberRepository).saveAll(anyList());
+                verify(chatService).updateChatActivity(testChat.getId());
+            }
+
+            @Test
+            @DisplayName("✅ Использует существующий чат")
+            void usesExistingChat() {
+                // given
+                MessageDto dto = new MessageDto();
+                dto.setText("Private message");
+
+                when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+                when(userRepository.findById(2L)).thenReturn(Optional.of(testRecipient));
+                when(chatMemberRepository.findPrivateChatIdByUserIds(1L, 2L)).thenReturn(Optional.of(1L));
+                when(chatRepository.findById(1L)).thenReturn(Optional.of(testChat));
+                when(messageRepository.save(any(Message.class))).thenReturn(testMessage);
+
+                // when
+                Message result = chatMessageService.sendPrivateMessage(dto, 1L, 2L);
+
+                // then
+                assertThat(result).isNotNull();
+                verify(chatRepository, never()).save(any(Chat.class));
+                verify(chatService).updateChatActivity(1L);
+            }
+        }
     }
 
-    @Test
-    void sendMessage_ShouldThrowChatNotFoundException_WhenChatNotFound() {
-        // Arrange
-        when(chatRepository.findById(1L)).thenReturn(Optional.empty());
+    // ==================================================
+    // Получение истории чата
+    // ==================================================
+    @Nested
+    @DisplayName("Получение истории чата")
+    class GetChatHistory {
 
-        // Act & Assert
-        assertThrows(ChatNotFoundException.class, () ->
-                chatMessageService.sendMessage(messageDto, 1L));
+        @Test
+        @DisplayName("✅ Успешное получение истории при наличии доступа")
+        void success() {
+            // given
+            Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Order.desc("createdAt")));
+            Page<Message> messagePage = new PageImpl<>(List.of(testMessage));
 
-        verify(userRepository, never()).findById(anyLong());
-        verify(messageRepository, never()).save(any(Message.class));
+            when(chatMemberRepository.existsByChatIdAndUsername(1L, "testUser")).thenReturn(true);
+            when(messageRepository.findByChatId(1L, pageable)).thenReturn(messagePage);
+
+            // when
+            Page<ChatHistoryResponse> result = chatMessageService.getChatHistory(1L, 0, 10, "desc", "testUser");
+
+            // then
+            assertThat(result).isNotNull();
+            assertThat(result.getContent()).hasSize(1);
+            verify(chatMemberRepository).existsByChatIdAndUsername(1L, "testUser");
+            verify(messageRepository).findByChatId(1L, pageable);
+        }
+
+        @Test
+        @DisplayName("❌ Отказано в доступе, если пользователь не в чате")
+        void accessDenied() {
+            // given
+            when(chatMemberRepository.existsByChatIdAndUsername(1L, "unauthorizedUser")).thenReturn(false);
+
+            // when & then
+            assertThatThrownBy(() -> chatMessageService.getChatHistory(1L, 0, 10, "desc", "unauthorizedUser"))
+                    .isInstanceOf(AccessDeniedException.class);
+
+            verify(messageRepository, never()).findByChatId(anyLong(), any(Pageable.class));
+        }
     }
 
-    @Test
-    void sendMessage_ShouldThrowUserNotFoundException_WhenUserNotFound() {
-        // Arrange
-        when(chatRepository.findById(1L)).thenReturn(Optional.of(testChat));
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+    // ==================================================
+    // Редактирование сообщения
+    // ==================================================
+    @Nested
+    @DisplayName("Редактирование сообщения")
+    class EditMessage {
 
-        // Act & Assert
-        assertThrows(UserNotFoundException.class, () ->
-                chatMessageService.sendMessage(messageDto, 1L));
+        @Test
+        @DisplayName("✅ Успешное редактирование (владелец, в сроке)")
+        void success() {
+            // given
+            String newText = "Updated text";
+            testMessage.setCreatedAt(OffsetDateTime.now().minusHours(12)); // < 24h
 
-        verify(messageRepository, never()).save(any(Message.class));
+            when(messageRepository.findById(1L)).thenReturn(Optional.of(testMessage));
+            when(messageRepository.save(any(Message.class))).thenReturn(testMessage);
+
+            // when
+            chatMessageService.editMessage(1L, newText, "testUser");
+
+            // then
+            assertThat(testMessage.getText()).isEqualTo(newText);
+            assertThat(testMessage.isEdited()).isTrue();
+            verify(notificationService).notifyMessageEdited(1L, 1L, newText, "testUser");
+        }
+
+        @Test
+        @DisplayName("❌ Попытка редактировать чужое сообщение")
+        void notOwner() {
+            // given
+            when(messageRepository.findById(1L)).thenReturn(Optional.of(testMessage));
+
+            // when & then
+            assertThatThrownBy(() -> chatMessageService.editMessage(1L, "new", "otherUser"))
+                    .isInstanceOf(AccessDeniedException.class);
+
+            verify(messageRepository, never()).save(any(Message.class));
+            verify(notificationService, never()).notifyMessageEdited(anyLong(), anyLong(), anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("❌ Превышен лимит времени редактирования (24ч)")
+        void timeExpired() {
+            // given
+            testMessage.setCreatedAt(OffsetDateTime.now().minusHours(25)); // > 24h
+            when(messageRepository.findById(1L)).thenReturn(Optional.of(testMessage));
+
+            // when & then
+            assertThatThrownBy(() -> chatMessageService.editMessage(1L, "new", "testUser"))
+                    .isInstanceOf(MessageEditTimeExpiredException.class);
+
+            verify(messageRepository, never()).save(any(Message.class));
+        }
     }
 
-    @Test
-    void sendMessage_ShouldThrowSecurityException_WhenUserNotInChat() {
-        // Arrange
-        when(chatRepository.findById(1L)).thenReturn(Optional.of(testChat));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
-        when(chatMemberRepository.existsByChatIdAndUserId(1L, 1L)).thenReturn(false);
+    // ==================================================
+    // Удаление сообщения
+    // ==================================================
+    @Nested
+    @DisplayName("Удаление сообщения")
+    class DeleteMessage {
 
-        // Act & Assert
-        assertThrows(SecurityException.class, () ->
-                chatMessageService.sendMessage(messageDto, 1L));
+        @Test
+        @DisplayName("✅ Владелец удаляет своё сообщение")
+        void senderDeletes() {
+            // given
+            when(userRepository.findByUsername("testUser")).thenReturn(Optional.of(testUser));
+            when(messageRepository.findById(1L)).thenReturn(Optional.of(testMessage));
+            when(chatMemberRepository.findByChatIdAndUserId(1L, 1L))
+                    .thenReturn(Optional.of(testChatMember));
 
-        verify(messageRepository, never()).save(any(Message.class));
+            // when
+            chatMessageService.deleteMessage(1L, "testUser");
+
+            // then
+            verify(messageRepository).delete(testMessage);
+            verify(notificationService).notifyMessageDeleted(1L, 1L, "testUser");
+        }
+
+        @Test
+        @DisplayName("✅ Админ удаляет сообщение")
+        void adminDeletes() {
+            // given
+            User admin = new User();
+            admin.setId(3L);
+            admin.setUsername("adminUser");
+            ChatMember adminMember = new ChatMember(testChat, admin, ChatRole.ADMIN);
+
+            when(userRepository.findByUsername("adminUser")).thenReturn(Optional.of(admin));
+            when(messageRepository.findById(1L)).thenReturn(Optional.of(testMessage));
+            when(chatMemberRepository.findByChatIdAndUserId(1L, 3L))
+                    .thenReturn(Optional.of(adminMember));
+
+            // when
+            chatMessageService.deleteMessage(1L, "adminUser");
+
+            // then
+            verify(messageRepository).delete(testMessage);
+            verify(notificationService).notifyMessageDeleted(1L, 1L, "adminUser");
+        }
+
+        @Test
+        @DisplayName("❌ Обычный участник без прав пытается удалить")
+        void noPermission() {
+            // given
+            User other = new User();
+            other.setId(3L);
+            other.setUsername("otherUser");
+            ChatMember member = new ChatMember(testChat, other, ChatRole.MEMBER);
+
+            when(userRepository.findByUsername("otherUser")).thenReturn(Optional.of(other));
+            when(messageRepository.findById(1L)).thenReturn(Optional.of(testMessage));
+            when(chatMemberRepository.findByChatIdAndUserId(1L, 3L))
+                    .thenReturn(Optional.of(member));
+
+            // when & then
+            assertThatThrownBy(() -> chatMessageService.deleteMessage(1L, "otherUser"))
+                    .isInstanceOf(AccessDeniedException.class);
+
+            verify(messageRepository, never()).delete(any(Message.class));
+            verify(notificationService, never()).notifyMessageDeleted(anyLong(), anyLong(), anyString());
+        }
     }
 
-    // ✅ Тесты для sendPrivateMessage
-    @Test
-    void sendPrivateMessage_ShouldCreateNewChat_WhenNoExistingChat() {
-        // Arrange
-        MessageDto privateMessageDto = new MessageDto();
-        privateMessageDto.setText("Private message");
+    // ==================================================
+    // Получение участников чата
+    // ==================================================
+    @Nested
+    @DisplayName("Получение участников чата")
+    class GetChatMembers {
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(testRecipient));
-        when(chatMemberRepository.findPrivateChatIdByUserIds(1L, 2L)).thenReturn(Optional.empty());
-        when(chatRepository.save(any(Chat.class))).thenReturn(testChat);
-        when(chatMemberRepository.saveAll(anyList())).thenReturn(List.of(testChatMember));
-        when(messageRepository.save(any(Message.class))).thenReturn(testMessage);
+        @Test
+        @DisplayName("✅ Успешное получение списка участников")
+        void success() {
+            // given
+            List<Long> expected = List.of(1L, 2L, 3L);
+            when(chatRepository.existsById(1L)).thenReturn(true);
+            when(chatMemberRepository.findUserIdsByChatId(1L)).thenReturn(expected);
 
-        // Act
-        Message result = chatMessageService.sendPrivateMessage(privateMessageDto, 1L, 2L);
+            // when
+            List<Long> result = chatMessageService.getChatMembers(1L);
 
-        // Assert
-        assertNotNull(result);
-        verify(chatRepository).save(any(Chat.class));
-        verify(chatMemberRepository).saveAll(anyList());
-        verify(chatService).updateChatActivity(testChat.getId());
+            // then
+            assertThat(result).isEqualTo(expected);
+            verify(chatRepository).existsById(1L);
+            verify(chatMemberRepository).findUserIdsByChatId(1L);
+        }
+
+        @Test
+        @DisplayName("❌ Чат не найден")
+        void chatNotFound() {
+            // given
+            when(chatRepository.existsById(1L)).thenReturn(false);
+
+            // when & then
+            assertThatThrownBy(() -> chatMessageService.getChatMembers(1L))
+                    .isInstanceOf(ChatNotFoundException.class);
+
+            verify(chatMemberRepository, never()).findUserIdsByChatId(anyLong());
+        }
     }
 
-    @Test
-    void sendPrivateMessage_ShouldUseExistingChat_WhenChatExists() {
-        // Arrange
-        MessageDto privateMessageDto = new MessageDto();
-        privateMessageDto.setText("Private message");
+    // ==================================================
+    // Вспомогательные методы
+    // ==================================================
+    @Nested
+    @DisplayName("Конвертация сообщения")
+    class Conversion {
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(testRecipient));
-        when(chatMemberRepository.findPrivateChatIdByUserIds(1L, 2L)).thenReturn(Optional.of(1L));
-        when(chatRepository.findById(1L)).thenReturn(Optional.of(testChat));
-        when(messageRepository.save(any(Message.class))).thenReturn(testMessage);
+        @Test
+        @DisplayName("✅ Корректная конвертация в ChatHistoryResponse")
+        void convertToChatHistoryResponse() {
+            // when
+            ChatHistoryResponse response = chatMessageService.convertToChatHistoryResponse(testMessage);
 
-        // Act
-        Message result = chatMessageService.sendPrivateMessage(privateMessageDto, 1L, 2L);
-
-        // Assert
-        assertNotNull(result);
-        verify(chatRepository, never()).save(any(Chat.class));
-        verify(chatService).updateChatActivity(1L);
-    }
-
-    // ✅ Тесты для getChatHistory
-    @Test
-    void getChatHistory_ShouldReturnChatHistory_WhenUserHasAccess() {
-        // Arrange
-        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Order.desc("createdAt")));
-        Page<Message> messagePage = new PageImpl<>(List.of(testMessage));
-
-        when(chatMemberRepository.existsByChatIdAndUsername(1L, "testUser")).thenReturn(true);
-        when(messageRepository.findByChatId(1L, pageable)).thenReturn(messagePage);
-
-        // Act
-        Page<ChatHistoryResponse> result = chatMessageService.getChatHistory(1L, 0, 10, "desc", "testUser");
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(1, result.getContent().size());
-        verify(chatMemberRepository).existsByChatIdAndUsername(1L, "testUser");
-        verify(messageRepository).findByChatId(1L, pageable);
-    }
-
-    @Test
-    void getChatHistory_ShouldThrowAccessDeniedException_WhenUserNoAccess() {
-        // Arrange
-        when(chatMemberRepository.existsByChatIdAndUsername(1L, "unauthorizedUser")).thenReturn(false);
-
-        // Act & Assert
-        assertThrows(AccessDeniedException.class, () ->
-                chatMessageService.getChatHistory(1L, 0, 10, "desc", "unauthorizedUser"));
-
-        verify(messageRepository, never()).findByChatId(anyLong(), any(Pageable.class));
-    }
-
-    // ✅ Тесты для editMessage
-    @Test
-    void editMessage_ShouldSuccessfullyEditMessage_WhenValidConditions() {
-        // Arrange
-        String newText = "Updated text";
-        testMessage.setCreatedAt(OffsetDateTime.now().minusHours(12)); // Within 24 hours
-
-        when(messageRepository.findById(1L)).thenReturn(Optional.of(testMessage));
-        when(messageRepository.save(any(Message.class))).thenReturn(testMessage);
-
-        // Act
-        chatMessageService.editMessage(1L, newText, "testUser");
-
-        // Assert
-        verify(messageRepository).save(testMessage);
-        verify(notificationService).notifyMessageEdited(1L, 1L, newText, "testUser");
-        assertTrue(testMessage.isEdited());
-    }
-
-    @Test
-    void editMessage_ShouldThrowAccessDeniedException_WhenNotMessageOwner() {
-        // Arrange
-        when(messageRepository.findById(1L)).thenReturn(Optional.of(testMessage));
-
-        // Act & Assert
-        assertThrows(AccessDeniedException.class, () ->
-                chatMessageService.editMessage(1L, "new text", "otherUser"));
-
-        verify(messageRepository, never()).save(any(Message.class));
-        verify(notificationService, never()).notifyMessageEdited(anyLong(), anyLong(), anyString(), anyString());
-    }
-
-    @Test
-    void editMessage_ShouldThrowMessageEditTimeExpiredException_WhenTimeExpired() {
-        // Arrange
-        testMessage.setCreatedAt(OffsetDateTime.now().minusHours(25)); // More than 24 hours
-
-        when(messageRepository.findById(1L)).thenReturn(Optional.of(testMessage));
-
-        // Act & Assert
-        assertThrows(MessageEditTimeExpiredException.class, () ->
-                chatMessageService.editMessage(1L, "new text", "testUser"));
-
-        verify(messageRepository, never()).save(any(Message.class));
-    }
-
-    // ✅ Тесты для deleteMessage
-    @Test
-    void deleteMessage_ShouldSuccessfullyDelete_WhenUserIsMessageSender() {
-        // Arrange
-        when(userRepository.findByUsername("testUser")).thenReturn(Optional.of(testUser));
-        when(messageRepository.findById(1L)).thenReturn(Optional.of(testMessage));
-        when(chatMemberRepository.findByChatIdAndUserId(1L, 1L))
-                .thenReturn(Optional.of(testChatMember));
-
-        // Act
-        chatMessageService.deleteMessage(1L, "testUser");
-
-        // Assert
-        verify(messageRepository).delete(testMessage);
-        verify(notificationService).notifyMessageDeleted(1L, 1L, "testUser");
-    }
-
-    @Test
-    void deleteMessage_ShouldSuccessfullyDelete_WhenUserIsAdmin() {
-        // Arrange
-        User adminUser = new User();
-        adminUser.setId(3L);
-        adminUser.setUsername("adminUser");
-
-        ChatMember adminMember = new ChatMember(testChat, adminUser, ChatRole.ADMIN);
-
-        when(userRepository.findByUsername("adminUser")).thenReturn(Optional.of(adminUser));
-        when(messageRepository.findById(1L)).thenReturn(Optional.of(testMessage));
-        when(chatMemberRepository.findByChatIdAndUserId(1L, 3L))
-                .thenReturn(Optional.of(adminMember));
-
-        // Act
-        chatMessageService.deleteMessage(1L, "adminUser");
-
-        // Assert
-        verify(messageRepository).delete(testMessage);
-        verify(notificationService).notifyMessageDeleted(1L, 1L, "adminUser");
-    }
-
-    @Test
-    void deleteMessage_ShouldThrowAccessDeniedException_WhenNoPermissions() {
-        // Arrange
-        User otherUser = new User();
-        otherUser.setId(3L);
-        otherUser.setUsername("otherUser");
-
-        when(userRepository.findByUsername("otherUser")).thenReturn(Optional.of(otherUser));
-        when(messageRepository.findById(1L)).thenReturn(Optional.of(testMessage));
-        when(chatMemberRepository.findByChatIdAndUserId(1L, 3L))
-                .thenReturn(Optional.of(testChatMember));
-
-        // Act & Assert
-        assertThrows(AccessDeniedException.class, () ->
-                chatMessageService.deleteMessage(1L, "otherUser"));
-
-        verify(messageRepository, never()).delete(any(Message.class));
-        verify(notificationService, never()).notifyMessageDeleted(anyLong(), anyLong(), anyString());
-    }
-
-    // ✅ Тесты для getChatMembers
-    @Test
-    void getChatMembers_ShouldReturnMemberList_WhenChatExists() {
-        // Arrange
-        List<Long> expectedMembers = List.of(1L, 2L, 3L);
-
-        when(chatRepository.existsById(1L)).thenReturn(true);
-        when(chatMemberRepository.findUserIdsByChatId(1L)).thenReturn(expectedMembers);
-
-        // Act
-        List<Long> result = chatMessageService.getChatMembers(1L);
-
-        // Assert
-        assertEquals(expectedMembers, result);
-        verify(chatRepository).existsById(1L);
-        verify(chatMemberRepository).findUserIdsByChatId(1L);
-    }
-
-    @Test
-    void getChatMembers_ShouldThrowChatNotFoundException_WhenChatNotExists() {
-        // Arrange
-        when(chatRepository.existsById(1L)).thenReturn(false);
-
-        // Act & Assert
-        assertThrows(ChatNotFoundException.class, () ->
-                chatMessageService.getChatMembers(1L));
-
-        verify(chatMemberRepository, never()).findUserIdsByChatId(anyLong());
-    }
-
-    // ✅ Тест для convertToChatHistoryResponse
-    @Test
-    void convertToChatHistoryResponse_ShouldConvertCorrectly() {
-        // Act
-        ChatHistoryResponse response = chatMessageService.convertToChatHistoryResponse(testMessage);
-
-        // Assert
-        assertEquals(testMessage.getId(), response.getMessageId());
-        assertEquals(testMessage.getText(), response.getText());
-        assertEquals(testMessage.getSender().getId(), response.getSenderId());
-        assertEquals(testMessage.getSender().getUsername(), response.getSenderName());
-        assertEquals(testMessage.getCreatedAt().toLocalDateTime(), response.getCreatedAt());
+            // then
+            assertThat(response.getMessageId()).isEqualTo(testMessage.getId());
+            assertThat(response.getText()).isEqualTo(testMessage.getText());
+            assertThat(response.getSenderId()).isEqualTo(testMessage.getSender().getId());
+            assertThat(response.getSenderName()).isEqualTo(testMessage.getSender().getUsername());
+            assertThat(response.getCreatedAt()).isEqualTo(testMessage.getCreatedAt().toLocalDateTime());
+        }
     }
 }
