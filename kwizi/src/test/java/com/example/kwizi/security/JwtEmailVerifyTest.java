@@ -1,135 +1,120 @@
 package com.example.kwizi.security;
-import com.example.kwizi.security.JwtEmailVerify;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.security.Key;
-import java.util.Date;
 
-import static org.junit.jupiter.api.Assertions.*;
-
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
+@DisplayName("JwtEmailVerify тесты")
 @ExtendWith(MockitoExtension.class)
 public class JwtEmailVerifyTest {
-
     private JwtEmailVerify jwtEmailVerify;
 
-    private final String validSecret = "testsecrettestsecrettestsecrettestsecret"; // must be at least 32 bytes for HS256
-    private final long validExpiration = 3600000; // 1 hour in milliseconds
+    private final String validSecret = "testsecrettestsecrettestsecrettestsecret";
+    private final long validExpiration = 3600000;
     private Key testKey;
 
     @BeforeEach
     void setUp() {
         jwtEmailVerify = new JwtEmailVerify();
-        // Set up a valid Key for tests
         testKey = Keys.hmacShaKeyFor(validSecret.getBytes());
-
-        // Manually set fields using ReflectionTestUtils (since no Spring context)
         ReflectionTestUtils.setField(jwtEmailVerify, "secret", validSecret);
         ReflectionTestUtils.setField(jwtEmailVerify, "verificationTokenExpiration", validExpiration);
-
-        // Call the setSecret method explicitly (since no Spring context to run @PostConstruct)
         jwtEmailVerify.setSecret();
-        //Set the testKey to the created key
         ReflectionTestUtils.setField(jwtEmailVerify, "key", testKey);
-
     }
 
-    @Test
-    void generateVerificationToken_ShouldGenerateValidToken() {
-        // Arrange
-        Long userId = 123L;
+    @Nested
+    @DisplayName("Генерация токена подтверждения")
+    class GenerateVerificationTokenTests {
 
-        // Act
-        String token = jwtEmailVerify.generateVerificationToken(userId);
-
-        // Assert
-        assertNotNull(token);
-        assertFalse(token.isEmpty());
+        @Test
+        @DisplayName("✅ Генерирует непустой токен при валидном ID пользователя")
+        void generateVerificationToken_ShouldGenerateValidToken() {
+            Long userId = 123L;
+            String token = jwtEmailVerify.generateVerificationToken(userId);
+            assertThat(token).isNotNull().isNotEmpty();
+        }
     }
 
-    @Test
-    void getUserIdFromToken_ShouldReturnUserId_WhenTokenIsValid() {
-        // Arrange
-        Long userId = 123L;
-        String token = jwtEmailVerify.generateVerificationToken(userId);
+    @Nested
+    @DisplayName("Извлечение ID пользователя")
+    class GetUserIdFromTokenTests {
 
-        // Act
-        String extractedUserId = jwtEmailVerify.getUserIdFromToken(token);
+        @Test
+        @DisplayName("✅ Возвращает корректный ID пользователя из валидного токена")
+        void getUserIdFromToken_ShouldReturnUserId_WhenTokenIsValid() {
+            Long userId = 123L;
+            String token = jwtEmailVerify.generateVerificationToken(userId);
+            String extractedUserId = jwtEmailVerify.getUserIdFromToken(token);
+            assertThat(extractedUserId).isEqualTo(String.valueOf(userId));
+        }
 
-        // Assert
-        assertEquals(String.valueOf(userId), extractedUserId);
+        @Test
+        @DisplayName("❌ Возвращает null при невалидном токене")
+        void getUserIdFromToken_ShouldReturnNull_WhenTokenIsInvalid() {
+            String invalidToken = "invalidToken";
+            String extractedUserId = jwtEmailVerify.getUserIdFromToken(invalidToken);
+            assertThat(extractedUserId).isNull();
+        }
     }
 
-    @Test
-    void getUserIdFromToken_ShouldReturnNull_WhenTokenIsInvalid() {
-        // Arrange
-        String invalidToken = "invalidToken";
+    @Nested
+    @DisplayName("Проверка срока действия токена")
+    class IsTokenExpiredTests {
 
-        // Act
-        String extractedUserId = jwtEmailVerify.getUserIdFromToken(invalidToken);
+        @Test
+        @DisplayName("✅ Возвращает false для невышедшего токена")
+        void isTokenExpired_ShouldReturnFalse_WhenTokenIsNotExpired() {
+            Long userId = 123L;
+            String token = jwtEmailVerify.generateVerificationToken(userId);
+            boolean isExpired = jwtEmailVerify.isTokenExpired(token);
+            assertThat(isExpired).isFalse();
+        }
 
-        // Assert
-        assertNull(extractedUserId);
+        @Test
+        @DisplayName("✅ Возвращает true для просроченного токена")
+        void isTokenExpired_ShouldReturnTrue_WhenTokenIsExpired() throws InterruptedException {
+            JwtEmailVerify jwtEmailVerifyExpired = new JwtEmailVerify();
+            ReflectionTestUtils.setField(jwtEmailVerifyExpired, "secret", validSecret);
+            ReflectionTestUtils.setField(jwtEmailVerifyExpired, "verificationTokenExpiration", 1);
+            jwtEmailVerifyExpired.setSecret();
+
+            Long userId = 123L;
+            String token = jwtEmailVerifyExpired.generateVerificationToken(userId);
+            Thread.sleep(2);
+            boolean isExpired = jwtEmailVerifyExpired.isTokenExpired(token);
+            assertThat(isExpired).isTrue();
+        }
+
+        @Test
+        @DisplayName("✅ Возвращает true при невалидном токене")
+        void isTokenExpired_ShouldReturnTrue_WhenTokenIsInvalid() {
+            String invalidToken = "invalidToken";
+            boolean isExpired = jwtEmailVerify.isTokenExpired(invalidToken);
+            assertThat(isExpired).isTrue();
+        }
     }
 
-    @Test
-    void isTokenExpired_ShouldReturnFalse_WhenTokenIsNotExpired() {
-        // Arrange
-        Long userId = 123L;
-        String token = jwtEmailVerify.generateVerificationToken(userId);
+    @Nested
+    @DisplayName("Инициализация секретного ключа")
+    class SetSecretTests {
 
-        // Act
-        boolean isExpired = jwtEmailVerify.isTokenExpired(token);
-
-        // Assert
-        assertFalse(isExpired);
+        @Test
+        @DisplayName("✅ Не выбрасывает исключение при валидном секрете")
+        void setSecret_ShouldNotThrowException_WhenSecretIsValid() {
+            // Уже проинициализировано в setUp(), проверяем только отсутствие исключений
+            assertThatNoException().isThrownBy(() -> {
+                // nothing to do — setup already succeeded
+            });
+        }
     }
-
-    @Test
-    void isTokenExpired_ShouldReturnTrue_WhenTokenIsExpired() throws InterruptedException {
-        // Arrange
-        JwtEmailVerify jwtEmailVerifyExpired = new JwtEmailVerify();
-
-        //Manually set fields with expired token
-        ReflectionTestUtils.setField(jwtEmailVerifyExpired, "secret", validSecret);
-        ReflectionTestUtils.setField(jwtEmailVerifyExpired, "verificationTokenExpiration", 1);
-        jwtEmailVerifyExpired.setSecret();
-
-        Long userId = 123L;
-        String token = jwtEmailVerifyExpired.generateVerificationToken(userId);
-
-        // Act
-        Thread.sleep(2); // Wait for token to expire
-
-        boolean isExpired = jwtEmailVerifyExpired.isTokenExpired(token);
-
-        // Assert
-        assertTrue(isExpired);
-    }
-
-    @Test
-    void isTokenExpired_ShouldReturnTrue_WhenTokenIsInvalid() {
-        // Arrange
-        String invalidToken = "invalidToken";
-
-        // Act
-        boolean isExpired = jwtEmailVerify.isTokenExpired(invalidToken);
-
-        // Assert
-        assertTrue(isExpired);
-    }
-
-    @Test
-    void setSecret_ShouldNotThrowException_WhenSecretIsValid() {
-        // Arrange and Act: Already done in the setup
-        // Assert: No exception is thrown. The tests passes if no exception
-    }
-
 }

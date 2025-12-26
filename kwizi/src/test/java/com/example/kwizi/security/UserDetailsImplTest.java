@@ -2,156 +2,137 @@ package com.example.kwizi.security;
 
 import com.example.kwizi.model.User;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.GrantedAuthority;
 
+import java.lang.reflect.Field;
 import java.util.Collection;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+@DisplayName("UserDetailsImpl тесты")
+@ExtendWith(MockitoExtension.class)
 class UserDetailsImplTest {
 
+    @Mock
     private User mockUser;
+
     private UserDetailsImpl userDetails;
 
     @BeforeEach
     void setUp() {
-        // Создаем мок User
         mockUser = mock(User.class);
-
-        // Настраиваем мок
         when(mockUser.getId()).thenReturn(1L);
         when(mockUser.getUsername()).thenReturn("testuser");
         when(mockUser.getPassword()).thenReturn("password123");
         when(mockUser.getEmail()).thenReturn("test@example.com");
-
-        // Создаем тестируемый объект
         userDetails = new UserDetailsImpl(mockUser);
     }
 
-    @Test
-    void constructor_ShouldCreateInstanceWithUser() {
-        // Arrange & Act уже в @BeforeEach
+    @Nested
+    @DisplayName("Основные сценарии")
+    class MainScenarios {
 
-        // Assert
-        assertNotNull(userDetails);
-    }
+        @Test
+        @DisplayName("✅ Создание экземпляра с пользователем")
+        void constructor_ShouldCreateInstanceWithUser() {
+            assertThat(userDetails).isNotNull();
+        }
 
-    @Test
-    void getAuthorities_ShouldReturnEmptyCollection() {
-        // Act
-        Collection<? extends GrantedAuthority> authorities = userDetails.getAuthorities();
+        @Test
+        @DisplayName("✅ Получение пустых полномочий")
+        void getAuthorities_ShouldReturnEmptyCollection() {
+            Collection<? extends GrantedAuthority> authorities = userDetails.getAuthorities();
+            assertThat(authorities).isNotNull().isEmpty();
+        }
 
-        // Assert
-        assertNotNull(authorities);
-        assertTrue(authorities.isEmpty());
-    }
+        @Test
+        @DisplayName("✅ Получение пароля")
+        void getPassword_ShouldReturnUserPassword() {
+            String password = userDetails.getPassword();
+            assertThat(password).isEqualTo("password123");
+            verify(mockUser).getPassword();
+        }
 
-    @Test
-    void getPassword_ShouldReturnUserPassword() {
-        // Act
-        String password = userDetails.getPassword();
+        @Test
+        @DisplayName("✅ Получение имени пользователя")
+        void getUsername_ShouldReturnUsername() {
+            String username = userDetails.getUsername();
+            assertThat(username).isEqualTo("testuser");
+            verify(mockUser).getUsername();
+        }
 
-        // Assert
-        assertEquals("password123", password);
-        verify(mockUser).getPassword();
-    }
+        @Test
+        @DisplayName("✅ Аккаунт не истёк")
+        void isAccountNonExpired_ShouldAlwaysReturnTrue() {
+            assertThat(userDetails.isAccountNonExpired()).isTrue();
+        }
 
-    @Test
-    void getUsername_ShouldReturnUsername() {
-        // Act
-        String username = userDetails.getUsername();
+        @Test
+        @DisplayName("✅ Аккаунт не заблокирован")
+        void isAccountNonLocked_ShouldAlwaysReturnTrue() {
+            assertThat(userDetails.isAccountNonLocked()).isTrue();
+        }
 
-        // Assert
-        assertEquals("testuser", username);
-        verify(mockUser).getUsername();
-    }
+        @Test
+        @DisplayName("✅ Учётные данные не истекли")
+        void isCredentialsNonExpired_ShouldAlwaysReturnTrue() {
+            assertThat(userDetails.isCredentialsNonExpired()).isTrue();
+        }
 
-    @Test
-    void isAccountNonExpired_ShouldAlwaysReturnTrue() {
-        // Act & Assert
-        assertTrue(userDetails.isAccountNonExpired());
-    }
+        @Test
+        @DisplayName("✅ Аккаунт включён")
+        void isEnabled_ShouldAlwaysReturnTrue() {
+            assertThat(userDetails.isEnabled()).isTrue();
+        }
 
-    @Test
-    void isAccountNonLocked_ShouldAlwaysReturnTrue() {
-        // Act & Assert
-        assertTrue(userDetails.isAccountNonLocked());
-    }
+        @Test
+        @DisplayName("✅ Получение ID пользователя")
+        void getId_ShouldReturnUserId() {
+            Long id = userDetails.getId();
+            assertThat(id).isEqualTo(1L);
+            verify(mockUser).getId();
+        }
 
-    @Test
-    void isCredentialsNonExpired_ShouldAlwaysReturnTrue() {
-        // Act & Assert
-        assertTrue(userDetails.isCredentialsNonExpired());
-    }
+        @Test
+        @DisplayName("✅ Получение email пользователя")
+        void getEmail_ShouldReturnUserEmail() {
+            String email = userDetails.getEmail();
+            assertThat(email).isEqualTo("test@example.com");
+            verify(mockUser).getEmail();
+        }
 
-    @Test
-    void isEnabled_ShouldAlwaysReturnTrue() {
-        // Act & Assert
-        assertTrue(userDetails.isEnabled());
-    }
+        @Test
+        @DisplayName("✅ Повторный вызов getAuthorities возвращает пустую коллекцию")
+        void getAuthorities_ShouldReturnSameInstanceMultipleTimes() {
+            Collection<? extends GrantedAuthority> authorities1 = userDetails.getAuthorities();
+            Collection<? extends GrantedAuthority> authorities2 = userDetails.getAuthorities();
+            assertThat(authorities1).isNotNull().isEmpty();
+            assertThat(authorities2).isNotNull().isEmpty();
+        }
 
-    @Test
-    void getId_ShouldReturnUserId() {
-        // Act
-        Long id = userDetails.getId();
+        @Test
+        @DisplayName("✅ Внутренний пользователь совпадает с переданным")
+        void getUser_ShouldReturnCorrectUser() throws Exception {
+            Field userField = UserDetailsImpl.class.getDeclaredField("user");
+            userField.setAccessible(true);
+            User retrievedUser = (User) userField.get(userDetails);
+            assertThat(retrievedUser).isSameAs(mockUser);
+        }
 
-        // Assert
-        assertEquals(1L, id);
-        verify(mockUser).getId();
-    }
-
-    @Test
-    void getEmail_ShouldReturnUserEmail() {
-        // Act
-        String email = userDetails.getEmail();
-
-        // Assert
-        assertEquals("test@example.com", email);
-        verify(mockUser).getEmail();
-    }
-
-    @Test
-    void getAuthorities_ShouldReturnSameInstanceMultipleTimes() {
-        // Act
-        Collection<? extends GrantedAuthority> authorities1 = userDetails.getAuthorities();
-        Collection<? extends GrantedAuthority> authorities2 = userDetails.getAuthorities();
-
-        // Assert
-        assertNotNull(authorities1);
-        assertNotNull(authorities2);
-        // Могут быть разные инстансы, но оба должны быть пустыми
-        assertTrue(authorities1.isEmpty());
-        assertTrue(authorities2.isEmpty());
-    }
-
-    @Test
-    void getUser_ShouldReturnCorrectUser() throws Exception {
-        // Arrange - используем reflection для доступа к private полю
-        java.lang.reflect.Field userField = UserDetailsImpl.class.getDeclaredField("user");
-        userField.setAccessible(true);
-
-        // Act
-        User retrievedUser = (User) userField.get(userDetails);
-
-        // Assert
-        assertSame(mockUser, retrievedUser);
-    }
-
-
-    // Тест на неизменяемость
-    @Test
-    void shouldBeImmutable() {
-        // Arrange - создаем другой пользователь
-        User anotherUser = mock(User.class);
-        when(anotherUser.getUsername()).thenReturn("anotheruser");
-
-        // Act - пытаемся "изменить" userDetails (но это невозможно)
-        // Объект immutable, поэтому мы не можем изменить внутреннего пользователя
-
-        // Assert - оригинальный пользователь остается тем же
-        assertEquals("testuser", userDetails.getUsername());
-        assertNotEquals("anotheruser", userDetails.getUsername());
+        @Test
+        @DisplayName("✅ Объект неизменяем")
+        void shouldBeImmutable() {
+            User anotherUser = mock(User.class);
+            when(anotherUser.getUsername()).thenReturn("anotheruser");
+            assertThat(userDetails.getUsername()).isEqualTo("testuser");
+            assertThat(userDetails.getUsername()).isNotEqualTo("anotheruser");
+        }
     }
 }

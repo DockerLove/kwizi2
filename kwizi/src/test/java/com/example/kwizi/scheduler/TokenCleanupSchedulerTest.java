@@ -1,15 +1,17 @@
 package com.example.kwizi.scheduler;
+
 import com.example.kwizi.repository.RevokedTokenRepository;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
+@DisplayName("TokenCleanupScheduler тесты")
 @ExtendWith(MockitoExtension.class)
 public class TokenCleanupSchedulerTest {
 
@@ -19,30 +21,25 @@ public class TokenCleanupSchedulerTest {
     @InjectMocks
     private TokenCleanupScheduler tokenCleanupScheduler;
 
-    @Test
-    public void cleanExpiredTokens_ShouldCallDeleteExpiredTokens() {
-        // Arrange
-        doNothing().when(revokedTokenRepo).deleteExpiredTokens();
+    @Nested
+    @DisplayName("Очистка просроченных токенов")
+    class CleanExpiredTokensTests {
 
-        // Act
-        tokenCleanupScheduler.cleanExpiredTokens();
+        @Test
+        @DisplayName("✅ Вызывает deleteExpiredTokens при успешной очистке")
+        void cleanExpiredTokens_ShouldCallDeleteExpiredTokens() {
+            doNothing().when(revokedTokenRepo).deleteExpiredTokens();
+            tokenCleanupScheduler.cleanExpiredTokens();
+            verify(revokedTokenRepo).deleteExpiredTokens();
+        }
 
-        // Assert
-        verify(revokedTokenRepo).deleteExpiredTokens();
-    }
-
-    @Test
-    public void cleanExpiredTokens_ShouldHandleException() {
-        // Arrange
-        RuntimeException exception = new RuntimeException("Simulated exception");
-        doThrow(exception).when(revokedTokenRepo).deleteExpiredTokens();
-
-        // Act
-        tokenCleanupScheduler.cleanExpiredTokens();
-
-        // Assert
-        verify(revokedTokenRepo).deleteExpiredTokens(); // Ensure that the method was called even if an exception occurred
-
-        // Можно добавить дополнительную проверку, что логгер был вызван с ошибкой, но это требует больше setup для мок логгера
+        @Test
+        @DisplayName("✅ Обрабатывает исключение при ошибке удаления")
+        void cleanExpiredTokens_ShouldHandleException() {
+            RuntimeException exception = new RuntimeException("Simulated exception");
+            doThrow(exception).when(revokedTokenRepo).deleteExpiredTokens();
+            tokenCleanupScheduler.cleanExpiredTokens();
+            verify(revokedTokenRepo).deleteExpiredTokens();
+        }
     }
 }
