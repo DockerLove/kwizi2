@@ -10,7 +10,8 @@ import org.junit.jupiter.params.provider.EnumSource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
-@DisplayName("TimeUnit Conversions")
+
+@DisplayName("TimeUnit тесты")
 class TimeUnitTest {
 
     @Nested
