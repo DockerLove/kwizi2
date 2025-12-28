@@ -15,7 +15,7 @@ public class EmailVerificationController {
     private static final Logger logger = LoggerFactory.getLogger(EmailVerificationController.class);
 
 
-    private AuthenticationService authenticationService;
+    private final AuthenticationService authenticationService;
 
     @Autowired
     public EmailVerificationController(AuthenticationService authenticationService) {

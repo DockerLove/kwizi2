@@ -43,8 +43,8 @@ public class ChatMessageService implements ChatMessageServiceInterface {
     private final MessageRepository messageRepository;
     private final ChatRepository chatRepository;
     private final UserRepository userRepository;
-    private NotificationService notificationService;
-    private ChatService chatService;
+    private final NotificationService notificationService;
+    private final ChatService chatService;
     private final SystemMessageService systemMessageService;
     private final ChatMemberRepository chatMemberRepository;
 

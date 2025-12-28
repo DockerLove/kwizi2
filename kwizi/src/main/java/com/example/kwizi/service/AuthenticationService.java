@@ -36,7 +36,7 @@ public class AuthenticationService {
     private final JwtEmailVerify jwtEmailVerify;
     private final EmailService emailService;
     private final JwtUtils jwtUtils;
-    private UserService userService;
+    private final UserService userService;
     private final RevokedTokenRepository revokedTokenRepo;
 
 
