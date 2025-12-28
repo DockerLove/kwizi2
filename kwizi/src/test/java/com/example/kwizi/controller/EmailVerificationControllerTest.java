@@ -1,32 +1,31 @@
 package com.example.kwizi.controller;
 
 import com.example.kwizi.service.AuthenticationService;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doThrow;
 //todo вот пример хорошего unit теста для класса надо будет переписать все остальные классы также +
 // для контроллеров только надо написать интеграционные тесты это тоже отдельный клас но под инт тесты +
 // также надо уточнить то нужно использовать AssertJ для тестов
 @DisplayName("EmailVerificationController тесты")
-@Nested
+@ExtendWith(MockitoExtension.class)
 class EmailVerificationControllerTest {
-
     @Mock
     private AuthenticationService authService;
 
+    @InjectMocks
     private EmailVerificationController controller;
-
-    @BeforeEach
-    void setUp() {
-        authService = mock(AuthenticationService.class);
-        controller = new EmailVerificationController(authService);
-    }
 
     @Nested
     @DisplayName("Основные сценарии")
