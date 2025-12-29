@@ -1,7 +1,11 @@
 package com.example.kwizi.security;
 
 import com.example.kwizi.exception.JwtAuthenticationException;
-import io.jsonwebtoken.*;
+import com.example.kwizi.repository.RevokedTokenRepository;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
@@ -26,10 +30,12 @@ public class JwtUtils {
 
     private Key key;
     private final JwtExceptionHandler jwtExceptionHandler;
+    private final RevokedTokenRepository revokedTokenRepository;
 
     @Autowired
-    public JwtUtils(JwtExceptionHandler jwtExceptionHandler) {
+    public JwtUtils(JwtExceptionHandler jwtExceptionHandler,RevokedTokenRepository revokedTokenRepository) {
         this.jwtExceptionHandler = jwtExceptionHandler;
+        this.revokedTokenRepository = revokedTokenRepository;
     }
 
     @PostConstruct
@@ -44,22 +50,28 @@ public class JwtUtils {
         }
     }
 
-    public String generateToken(String username) {
-        logger.info("Генерация JWT для пользователя: {}", username);
+    // НОВЫЙ метод — рекомендуемый для WebSocket и future-proof
+    public String generateToken(String username, Long userId) {
+        logger.info("Генерация JWT для пользователя: {}, ID: {}", username, userId);
 
         if (username == null || username.trim().isEmpty()) {
             throw new IllegalArgumentException("Имя пользователя не может быть пустым");
+        }
+        if (userId == null || userId <= 0) {
+            throw new IllegalArgumentException("ID пользователя должен быть положительным числом");
         }
 
         String jti = UUID.randomUUID().toString();
         String token = Jwts.builder()
                 .setId(jti)
-                .setSubject(username)
+                .setSubject(username)               // username остаётся в subject (для Spring Security)
+                .claim("userId", userId)            // ← ДОБАВЛЯЕМ userId как кастомный claim
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10)) // 10 hours
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10)) // 10 часов
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
-        logger.info("JWT успешно сгенерирован для пользователя: {}", username);
+
+        logger.info("JWT успешно сгенерирован для пользователя: {} (ID: {})", username, userId);
         return token;
     }
 
@@ -111,7 +123,7 @@ public class JwtUtils {
             throw new JwtAuthenticationException("Отсутствует или невалидный заголовок Authorization");
         }
 
-        String token = authorizationHeader.substring(7);
+        String token = authorizationHeader.substring(7).trim();
 
         if (token.trim().isEmpty()) {
             throw new JwtAuthenticationException("Токен не может быть пустым");
@@ -173,5 +185,51 @@ public class JwtUtils {
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+    public Long getUserIdFromToken(String token) {
+        return jwtExceptionHandler.handleJwtOperation(() -> {
+            logger.debug("Извлечение userId из токена.");
+            Claims claims = extractAllClaims(token);
+            Object userIdObj = claims.get("userId");
+
+            if (userIdObj == null) {
+                logger.warn("Токен не содержит claim 'userId'");
+                throw new JwtAuthenticationException("Отсутствует userId в токене");
+            }
+
+            Long userId;
+            if (userIdObj instanceof Integer) {
+                userId = ((Integer) userIdObj).longValue();
+            } else if (userIdObj instanceof Long) {
+                userId = (Long) userIdObj;
+            } else if (userIdObj instanceof String) {
+                userId = Long.parseLong((String) userIdObj);
+            } else {
+                throw new JwtAuthenticationException("Неверный формат userId в токене");
+            }
+
+            if (userId <= 0) {
+                throw new JwtAuthenticationException("userId в токене недопустим");
+            }
+
+            logger.debug("userId из токена: {}", userId);
+            return userId;
+        }, "извлечении userId из токена");
+    }
+
+    public boolean isTokenRevoked(String token) {
+        return jwtExceptionHandler.handleJwtOperation(() -> {
+            logger.debug("Проверка отзыва токена.");
+
+            // Извлекаем JTI из токена
+            String jti = extractJti(token);
+
+            // Проверяем наличие в чёрном списке
+            boolean revoked = revokedTokenRepository.existsById(jti);
+
+            logger.debug("Токен (JTI: {}) отозван: {}", jti, revoked);
+            return revoked;
+        }, "проверке отзыва токена");
     }
 }

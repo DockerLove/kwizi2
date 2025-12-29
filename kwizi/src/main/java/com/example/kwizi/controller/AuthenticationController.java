@@ -92,9 +92,8 @@ public class AuthenticationController {
         logger.debug("Загрузка UserDetails для пользователя: {}", username);
         final UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-
         logger.debug("Генерация JWT токена для пользователя: {}", username);
-        final String jwt = jwtUtils.generateToken(userDetails.getUsername());
+        final String jwt = jwtUtils.generateToken(userDetails.getUsername(),(userService.findByUsername(userDetails.getUsername()).get().getId()));
 
         logger.info("Успешная аутентификация пользователя: {}", username);
         return ResponseEntity.ok((new AuthenticationResponse(jwt)));

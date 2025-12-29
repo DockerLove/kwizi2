@@ -14,6 +14,7 @@ import com.example.kwizi.repository.AuthenticationRepository;
 import com.example.kwizi.repository.RevokedTokenRepository;
 import com.example.kwizi.security.JwtEmailVerify;
 import com.example.kwizi.security.JwtUtils;
+import com.example.kwizi.websocket.UniversalChatHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,13 +39,16 @@ public class AuthenticationService {
     private final JwtUtils jwtUtils;
     private final UserService userService;
     private final RevokedTokenRepository revokedTokenRepo;
+    private final UniversalChatHandler universalChatHandler;
 
 
     @Autowired
     public AuthenticationService(AuthenticationRepository authenticationRepository,
                                  PasswordEncoder passwordEncoder,
                                  JwtEmailVerify jwtEmailVerify,
-                                 EmailService emailService,JwtUtils jwtUtils,RevokedTokenRepository revokedTokenRepo,UserService userService) {
+                                 EmailService emailService,JwtUtils jwtUtils,
+                                 RevokedTokenRepository revokedTokenRepo,
+                                 UserService userService,UniversalChatHandler universalChatHandler) {
         this.authenticationRepository = authenticationRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtEmailVerify = jwtEmailVerify;
@@ -52,6 +56,7 @@ public class AuthenticationService {
         this.revokedTokenRepo = revokedTokenRepo;
         this.userService = userService;
         this.jwtUtils = jwtUtils;
+        this.universalChatHandler = universalChatHandler;
     }
 
     @Transactional
@@ -73,6 +78,8 @@ public class AuthenticationService {
         logger.debug("Создаем запись об отозванном токене");
         RevokedToken revokedToken = new RevokedToken(jti, user.getId(), expiresAt.toInstant(), username);
         revokedTokenRepo.save(revokedToken);
+
+        universalChatHandler.closeUserSession(user.getId());
 
         logger.info("Токен отозван для пользователя: {}", username);
     }

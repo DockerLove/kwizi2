@@ -12,6 +12,7 @@ import com.example.kwizi.repository.AuthenticationRepository;
 import com.example.kwizi.repository.RevokedTokenRepository;
 import com.example.kwizi.security.JwtEmailVerify;
 import com.example.kwizi.security.JwtUtils;
+import com.example.kwizi.websocket.UniversalChatHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -41,6 +42,7 @@ class AuthenticationServiceTest {
     @Mock private JwtUtils jwtUtils;
     @Mock private UserService userService;
     @Mock private RevokedTokenRepository revokedTokenRepo;
+    @Mock private UniversalChatHandler universalChatHandler;
 
     @InjectMocks
     private AuthenticationService authenticationService;
