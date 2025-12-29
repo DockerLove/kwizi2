@@ -56,7 +56,7 @@ public class UserService {
             user.setUsername(username);
 
             // Генерируем новый токен
-            String token = jwtUtils.generateToken(username);
+            String token = jwtUtils.generateToken(username,user.getId());
             logger.info("Сгенерирован новый токен для пользователя ID: {}", userId);
 
             return token;

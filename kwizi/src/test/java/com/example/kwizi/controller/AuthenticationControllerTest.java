@@ -5,6 +5,7 @@ import com.example.kwizi.DTO.request.ChangePasswordRequest;
 import com.example.kwizi.DTO.request.RegistrationRequest;
 import com.example.kwizi.DTO.response.ApiResponse;
 import com.example.kwizi.DTO.response.AuthenticationResponse;
+import com.example.kwizi.model.User;
 import com.example.kwizi.repository.RevokedTokenRepository;
 import com.example.kwizi.security.JwtUtils;
 import com.example.kwizi.security.UserDetailsImpl;
@@ -32,6 +33,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -76,6 +79,7 @@ class AuthenticationControllerTest {
     private AuthenticationController authenticationController;
 
     private static final String TEST_USERNAME = "testUser";
+    private static final Long TEST_USER_ID = 1L;
     private static final String TEST_PASSWORD = "password123";
     private static final String TEST_JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
     private static final String TEST_NEW_PASSWORD = "newPassword123";
@@ -268,13 +272,22 @@ class AuthenticationControllerTest {
             UserDetails userDetails = mock(UserDetails.class);
             when(userDetails.getUsername()).thenReturn(TEST_USERNAME);
 
+            // 👇 Создаём мок User для userService
+            User mockUser = new User();
+            mockUser.setId(TEST_USER_ID);
+            mockUser.setUsername(TEST_USERNAME);
+
             when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                     .thenReturn(authentication);
 
             when(userDetailsService.loadUserByUsername(TEST_USERNAME))
                     .thenReturn(userDetails);
 
-            when(jwtUtils.generateToken(TEST_USERNAME))
+            // 👇 МОКИРУЕМ userService
+            when(userService.findByUsername(TEST_USERNAME))
+                    .thenReturn(Optional.of(mockUser)); // ← вот ключевая строка!
+
+            when(jwtUtils.generateToken(TEST_USERNAME, TEST_USER_ID))
                     .thenReturn(TEST_JWT_TOKEN);
 
             // when
@@ -287,10 +300,11 @@ class AuthenticationControllerTest {
             assertThat(authResponse).isNotNull();
             assertThat(authResponse.getJwt()).isEqualTo(TEST_JWT_TOKEN);
 
-            verify(authenticationManager, times(1)).authenticate(
-                    new UsernamePasswordAuthenticationToken(TEST_USERNAME, TEST_PASSWORD));
+            verify(authenticationManager, times(1))
+                    .authenticate(new UsernamePasswordAuthenticationToken(TEST_USERNAME, TEST_PASSWORD));
             verify(userDetailsService, times(1)).loadUserByUsername(TEST_USERNAME);
-            verify(jwtUtils, times(1)).generateToken(TEST_USERNAME);
+            verify(userService, times(1)).findByUsername(TEST_USERNAME); // ← не забудь проверить вызов
+            verify(jwtUtils, times(1)).generateToken(TEST_USERNAME, TEST_USER_ID);
         }
 
         @Test

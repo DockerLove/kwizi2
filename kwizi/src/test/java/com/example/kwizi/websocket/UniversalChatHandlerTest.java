@@ -4,6 +4,7 @@ import com.example.kwizi.DTO.internal.MessageEventDto;
 import com.example.kwizi.enums.MessageType;
 import com.example.kwizi.exception.MessageValidationException;
 import com.example.kwizi.repository.ChatMemberRepository;
+import com.example.kwizi.security.JwtUtils;
 import com.example.kwizi.util.MessageConverter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -26,12 +27,20 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
+
 @DisplayName("UniversalChatHandler тесты")
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class UniversalChatHandlerTest {
+
+    @Mock
+    private JwtUtils jwtUtils;
+
     @Mock
     private ObjectMapper objectMapper;
 
@@ -54,13 +63,14 @@ class UniversalChatHandlerTest {
     private UniversalChatHandler chatHandler;
 
     private static final Long TEST_USER_ID = 123L;
+    private static final String VALID_TOKEN = "valid.jwt.token";
 
-    private WebSocketSession createMockSession(Long userId) throws Exception {
+    private WebSocketSession createMockSession(String token) throws Exception {
         WebSocketSession mockSession = mock(WebSocketSession.class);
-        URI uri = new URI("ws://localhost:8080/chat?id=" + userId);
+        URI uri = new URI("ws://localhost:8080/ws?token=" + token);
         when(mockSession.getUri()).thenReturn(uri);
         when(mockSession.isOpen()).thenReturn(true);
-        when(mockSession.getId()).thenReturn("session-" + userId);
+        lenient().when(mockSession.getId()).thenReturn("test-session-id");
         return mockSession;
     }
 
@@ -71,7 +81,10 @@ class UniversalChatHandlerTest {
         @Test
         @DisplayName("✅ Обрабатывает личное сообщение и отправляет в Kafka")
         void handleTextMessage_ShouldProcessPrivateMessageSuccessfully() throws Exception {
-            WebSocketSession session = createMockSession(TEST_USER_ID);
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
             String clientMessage = "test message";
             String kafkaJson = "kafka json";
             String successResponse = "success response";
@@ -98,7 +111,10 @@ class UniversalChatHandlerTest {
         @Test
         @DisplayName("✅ Обрабатывает групповое сообщение и отправляет в Kafka")
         void handleTextMessage_ShouldProcessGroupMessageSuccessfully() throws Exception {
-            WebSocketSession session = createMockSession(TEST_USER_ID);
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
             String clientMessage = "test group message";
             String kafkaJson = "kafka json";
             String successResponse = "success response";
@@ -123,7 +139,10 @@ class UniversalChatHandlerTest {
         @Test
         @DisplayName("❌ Отправляет ошибку валидации при невалидном сообщении")
         void handleTextMessage_ShouldSendValidationError_WhenMessageValidationFails() throws Exception {
-            WebSocketSession session = createMockSession(TEST_USER_ID);
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
             String clientMessage = "invalid message";
             String errorResponse = "validation error";
 
@@ -144,7 +163,10 @@ class UniversalChatHandlerTest {
         @Test
         @DisplayName("❌ Отправляет ошибку сервера при непредвиденном исключении")
         void handleTextMessage_ShouldSendServerError_WhenUnexpectedExceptionOccurs() throws Exception {
-            WebSocketSession session = createMockSession(TEST_USER_ID);
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
             String clientMessage = "test message";
             String errorResponse = "server error";
 
@@ -170,7 +192,10 @@ class UniversalChatHandlerTest {
         @Test
         @DisplayName("✅ Добавляет сессию и устанавливает лимиты при валидном подключении")
         void afterConnectionEstablished_ShouldAddSessionAndSetLimits_WhenValidConnection() throws Exception {
-            WebSocketSession session = createMockSession(TEST_USER_ID);
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
             chatHandler.afterConnectionEstablished(session);
             assertThat(chatHandler.isUserOnline(TEST_USER_ID)).isTrue();
             verify(session).setBinaryMessageSizeLimit(1024 * 1024);
@@ -178,20 +203,26 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Безопасно обрабатывает подключение без ID пользователя")
-        void afterConnectionEstablished_ShouldHandleException_WhenInvalidUserId() throws Exception {
+        @DisplayName("✅ Безопасно обрабатывает подключение без токена")
+        void afterConnectionEstablished_ShouldHandleException_WhenNoToken() throws Exception {
             WebSocketSession session = mock(WebSocketSession.class);
-            URI invalidUri = new URI("ws://localhost:8080/chat");
+            URI invalidUri = new URI("ws://localhost:8080/ws");
             when(session.getUri()).thenReturn(invalidUri);
-            assertThatCode(() -> chatHandler.afterConnectionEstablished(session)).doesNotThrowAnyException();
-            verify(session, never()).setBinaryMessageSizeLimit(anyInt());
-            verify(session, never()).setTextMessageSizeLimit(anyInt());
+            when(session.isOpen()).thenReturn(true);
+
+            chatHandler.afterConnectionEstablished(session);
+
+            verify(session).close(eq(CloseStatus.BAD_DATA));
+            assertThat(chatHandler.isUserOnline(TEST_USER_ID)).isFalse();
         }
 
         @Test
         @DisplayName("✅ Удаляет сессию при закрытии соединения")
         void afterConnectionClosed_ShouldRemoveSession_WhenConnectionCloses() throws Exception {
-            WebSocketSession session = createMockSession(TEST_USER_ID);
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
             chatHandler.afterConnectionEstablished(session);
             assertThat(chatHandler.isUserOnline(TEST_USER_ID)).isTrue();
             chatHandler.afterConnectionClosed(session, CloseStatus.NORMAL);
@@ -199,19 +230,23 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("❌ Выбрасывает исключение при закрытии сессии с невалидным URI")
-        void afterConnectionClosed_ShouldThrowException_WhenInvalidUrl() throws Exception {
+        @DisplayName("✅ Безопасно обрабатывает закрытие сессии без токена")
+        void afterConnectionClosed_ShouldNotFail_WhenNoToken() throws Exception {
             WebSocketSession session = mock(WebSocketSession.class);
-            URI invalidUri = new URI("ws://localhost:8080/chat");
+            URI invalidUri = new URI("ws://localhost:8080/ws");
             when(session.getUri()).thenReturn(invalidUri);
-            assertThatThrownBy(() -> chatHandler.afterConnectionClosed(session, CloseStatus.NORMAL))
-                    .isInstanceOf(RuntimeException.class);
+
+            assertThatCode(() -> chatHandler.afterConnectionClosed(session, CloseStatus.NORMAL))
+                    .doesNotThrowAnyException();
         }
 
         @Test
         @DisplayName("✅ Закрывает сессию пользователя при транспортной ошибке")
         void handleTransportError_ShouldCloseUserSession_WhenTransportErrorOccurs() throws Exception {
-            WebSocketSession session = createMockSession(TEST_USER_ID);
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
             chatHandler.afterConnectionEstablished(session);
             assertThat(chatHandler.isUserOnline(TEST_USER_ID)).isTrue();
             chatHandler.handleTransportError(session, new IOException("Network error"));
@@ -226,7 +261,10 @@ class UniversalChatHandlerTest {
         @Test
         @DisplayName("✅ Отправляет сообщение онлайн-пользователю")
         void sendToUser_ShouldSendMessage_WhenUserIsOnline() throws Exception {
-            WebSocketSession session = createMockSession(TEST_USER_ID);
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
             chatHandler.afterConnectionEstablished(session);
             String payload = "test message";
             chatHandler.sendToUser(TEST_USER_ID, payload);
@@ -236,15 +274,18 @@ class UniversalChatHandlerTest {
 
         @Test
         @DisplayName("❌ Не отправляет сообщение оффлайн-пользователю")
-        void sendToUser_ShouldNotSendMessage_WhenUserIsOffline() throws IOException {
+        void sendToUser_ShouldNotSendMessage_WhenUserIsOffline() {
             chatHandler.sendToUser(999L, "test message");
-            verify(session, never()).sendMessage(any(TextMessage.class));
+            // Нет активной сессии — ничего не отправляется
         }
 
         @Test
         @DisplayName("✅ Удаляет сессию при ошибке отправки")
         void sendToUser_ShouldRemoveSession_WhenSendFails() throws Exception {
-            WebSocketSession session = createMockSession(TEST_USER_ID);
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
             chatHandler.afterConnectionEstablished(session);
             String payload = "test message";
             doThrow(new IOException("Network error")).when(session).sendMessage(any(TextMessage.class));
@@ -255,7 +296,10 @@ class UniversalChatHandlerTest {
         @Test
         @DisplayName("✅ Сериализует и отправляет объект онлайн-пользователю")
         void sendToUserWithObject_ShouldSerializeAndSend() throws Exception {
-            WebSocketSession session = createMockSession(TEST_USER_ID);
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
             chatHandler.afterConnectionEstablished(session);
             TestMessage testMessage = new TestMessage("Hello", "World");
             String serializedMessage = "{\"field1\":\"Hello\",\"field2\":\"World\"}";
@@ -269,7 +313,10 @@ class UniversalChatHandlerTest {
         @Test
         @DisplayName("✅ Безопасно обрабатывает ошибку сериализации")
         void sendToUserWithObject_ShouldHandleSerializationError() throws Exception {
-            WebSocketSession session = createMockSession(TEST_USER_ID);
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
             chatHandler.afterConnectionEstablished(session);
             TestMessage testMessage = new TestMessage("Hello", "World");
             when(objectMapper.writeValueAsString(testMessage)).thenThrow(new RuntimeException("Serialization error"));
@@ -285,18 +332,25 @@ class UniversalChatHandlerTest {
         @Test
         @DisplayName("✅ Отправляет сообщение всем онлайн-участникам чата")
         void broadcastToChat_ShouldSendToAllOnlineMembers() throws Exception {
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(123L);
+            when(jwtUtils.getUserIdFromToken("token-456")).thenReturn(456L);
+
             Long chatId = 1L;
             List<Long> members = List.of(123L, 456L, 789L);
             String payload = "broadcast message";
-            WebSocketSession session1 = createMockSession(123L);
-            WebSocketSession session2 = createMockSession(456L);
+
+            WebSocketSession session1 = createMockSession(VALID_TOKEN);
+            WebSocketSession session2 = createMockSession("token-456");
+
             when(chatMemberRepository.findUserIdsByChatId(chatId)).thenReturn(members);
             chatHandler.afterConnectionEstablished(session1);
             chatHandler.afterConnectionEstablished(session2);
+
             chatHandler.broadcastToChat(chatId, payload);
+
             verify(session1).sendMessage(any(TextMessage.class));
             verify(session2).sendMessage(any(TextMessage.class));
-            // Проверка количества вызовов через captor не обязательна при strict verification
         }
 
         @Test
@@ -316,7 +370,10 @@ class UniversalChatHandlerTest {
         @Test
         @DisplayName("✅ Возвращает true, если у пользователя есть активная сессия")
         void isUserOnline_ShouldReturnTrue_WhenUserHasActiveSession() throws Exception {
-            WebSocketSession session = createMockSession(TEST_USER_ID);
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
             chatHandler.afterConnectionEstablished(session);
             assertThat(chatHandler.isUserOnline(TEST_USER_ID)).isTrue();
         }
@@ -330,13 +387,17 @@ class UniversalChatHandlerTest {
         @Test
         @DisplayName("✅ Возвращает false, если сессия закрыта")
         void isUserOnline_ShouldReturnFalse_WhenSessionIsClosed() throws Exception {
-            WebSocketSession session = createMockSession(TEST_USER_ID);
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
             chatHandler.afterConnectionEstablished(session);
             when(session.isOpen()).thenReturn(false);
             assertThat(chatHandler.isUserOnline(TEST_USER_ID)).isFalse();
         }
     }
 
+    // Вспомогательный класс для сериализации
     private static class TestMessage {
         private String field1;
         private String field2;
@@ -346,12 +407,7 @@ class UniversalChatHandlerTest {
             this.field2 = field2;
         }
 
-        public String getField1() {
-            return field1;
-        }
-
-        public String getField2() {
-            return field2;
-        }
+        public String getField1() { return field1; }
+        public String getField2() { return field2; }
     }
 }

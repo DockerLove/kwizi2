@@ -74,7 +74,9 @@ class UserServiceTest {
 
             when(userRepository.existsByUsername(NEW_USERNAME)).thenReturn(false);
             when(userRepository.findById(EXISTING_USER_ID)).thenReturn(Optional.of(existingUser));
-            when(jwtUtils.generateToken(NEW_USERNAME)).thenReturn(NEW_TOKEN);
+
+            // 🔁 ИЗМЕНИЛ: теперь мокаем generateToken(username, userId)
+            when(jwtUtils.generateToken(NEW_USERNAME, EXISTING_USER_ID)).thenReturn(NEW_TOKEN);
 
             // when
             String resultToken = userService.updateUsername(EXISTING_USER_ID, NEW_USERNAME);
@@ -90,7 +92,9 @@ class UserServiceTest {
 
             verify(userRepository).existsByUsername(NEW_USERNAME);
             verify(userRepository).findById(EXISTING_USER_ID);
-            verify(jwtUtils).generateToken(NEW_USERNAME);
+
+            // 🔁 ИЗМЕНИЛ: проверяем вызов с двумя аргументами
+            verify(jwtUtils).generateToken(NEW_USERNAME, EXISTING_USER_ID);
         }
 
         @Test
@@ -229,7 +233,7 @@ class UserServiceTest {
 
             verify(userRepository).existsByUsername(NEW_USERNAME);
             verify(userRepository, never()).findById(anyLong());
-            verify(jwtUtils, never()).generateToken(anyString());
+            verify(jwtUtils, never()).generateToken(anyString(),anyLong());
         }
 
         @Test
