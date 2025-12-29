@@ -31,17 +31,6 @@ public class ChatController {
         this.chatService = chatService;
     }
 
-    @PostMapping("/group")
-    public ResponseEntity<?> createGroupChat(
-            @Valid @RequestBody CreateGroupChatRequest createChatRequestDto,
-            @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        String username = userDetails.getUsername();
-        logger.info("Запрос на создание группового чата. Инициатор: {}, название чата: {}", username, createChatRequestDto.getGroupName());
-        chatService.createGroupChat(createChatRequestDto, username);
-        logger.info("Групповой чат успешно создан. Название чата: {}, Инициатор: {}", createChatRequestDto.getGroupName(), username);
-        return ResponseEntity.ok(ApiResponse.success("Групповой чат успешно создан", null));
-    }
-
     @PostMapping("/private")
     public ResponseEntity<?> createPrivateChat(
             @Valid @RequestBody CreatePrivateChatRequest createPrivateChatRequest,
@@ -51,6 +40,17 @@ public class ChatController {
         chatService.createPrivateChat(createPrivateChatRequest, username);
         logger.info("Приватный чат успешно создан. Инициатор: {}, получатель: {}", username, createPrivateChatRequest.getRecipientUsername());
         return ResponseEntity.ok(ApiResponse.success("Приватный чат успешно создан", null));
+    }
+
+    @PostMapping("/group")
+    public ResponseEntity<?> createGroupChat(
+            @Valid @RequestBody CreateGroupChatRequest createChatRequestDto,
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        String username = userDetails.getUsername();
+        logger.info("Запрос на создание группового чата. Инициатор: {}, название чата: {}", username, createChatRequestDto.getGroupName());
+        chatService.createGroupChat(createChatRequestDto, username);
+        logger.info("Групповой чат успешно создан. Название чата: {}, Инициатор: {}", createChatRequestDto.getGroupName(), username);
+        return ResponseEntity.ok(ApiResponse.success("Групповой чат успешно создан", null));
     }
 
     @PostMapping("/{chatId}/members")
