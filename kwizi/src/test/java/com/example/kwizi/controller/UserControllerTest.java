@@ -1,7 +1,7 @@
 package com.example.kwizi.controller;
 
 import com.example.kwizi.DTO.request.*;
-import com.example.kwizi.DTO.response.ApiResponse;
+import com.example.kwizi.DTO.response.ApiResponseDto;
 import com.example.kwizi.DTO.response.UserProfileResponse;
 import com.example.kwizi.exception.UserNotFoundException;
 import com.example.kwizi.security.UserDetailsImpl;
@@ -292,7 +292,7 @@ class UserControllerTest {
             
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             Object body = response.getBody();
-            assertThat(body).isInstanceOf(ApiResponse.class);
+            assertThat(body).isInstanceOf(ApiResponseDto.class);
         }
     }
 

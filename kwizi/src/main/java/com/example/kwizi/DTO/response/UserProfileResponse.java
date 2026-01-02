@@ -1,10 +1,49 @@
 package com.example.kwizi.DTO.response;
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "Профиль пользователя")
 public class UserProfileResponse {
+
+    @Schema(
+            description = "Уникальный идентификатор пользователя",
+            example = "1",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     private Long id;
+
+    @Schema(
+            description = "Имя пользователя (логин)",
+            example = "john_doe",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     private String username;
+
+    @Schema(
+            description = "Имя пользователя",
+            example = "Иван",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     private String firstName;
+
+    @Schema(
+            description = "Фамилия пользователя",
+            example = "Иванов",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     private String lastName;
+
+    @Schema(
+            description = "Биография пользователя",
+            example = "Программист, любитель путешествий",
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED
+    )
     private String bio;
+
+    @Schema(
+            description = "Email пользователя",
+            example = "ivan@example.com",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     private String email;
 
     public UserProfileResponse(Long id, String firstName, String lastName, String username, String bio, String email) {

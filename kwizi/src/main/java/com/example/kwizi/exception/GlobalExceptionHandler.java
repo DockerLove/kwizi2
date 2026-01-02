@@ -1,6 +1,6 @@
 package com.example.kwizi.exception;
 
-import com.example.kwizi.DTO.response.ApiResponse;
+import com.example.kwizi.DTO.response.ApiResponseDto;
 import com.example.kwizi.controller.AuthenticationController;
 import com.example.kwizi.controller.ChatController;
 import com.example.kwizi.controller.MessageController;
@@ -28,7 +28,7 @@ public class GlobalExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<List<String>>> handleValidationErrors(
+    public ResponseEntity<ApiResponseDto<List<String>>> handleValidationErrors(
             MethodArgumentNotValidException ex) {
         List<String> errors = ex.getBindingResult().getFieldErrors()
                 .stream()
@@ -38,146 +38,146 @@ public class GlobalExceptionHandler {
         logger.warn("Ошибка валидации: {}", errors);
 
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error("Ошибка валидации", errors));
+                .body(ApiResponseDto.error("Ошибка валидации", errors));
     }
 
     @ExceptionHandler(UsernameAlreadyExistsException.class)
-    public ResponseEntity<ApiResponse<Void>> handleUsernameAlreadyExists(UsernameAlreadyExistsException ex) {
+    public ResponseEntity<ApiResponseDto<Void>> handleUsernameAlreadyExists(UsernameAlreadyExistsException ex) {
         logger.warn("Конфликт username: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
-    public ResponseEntity<ApiResponse<Void>> handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
+    public ResponseEntity<ApiResponseDto<Void>> handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
         logger.warn("Конфликт email: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(EmailAlreadyVerifiedException.class)
-    public ResponseEntity<ApiResponse<?>> handleEmailAlreadyVerifiedException(EmailAlreadyVerifiedException ex) {
+    public ResponseEntity<ApiResponseDto<?>> handleEmailAlreadyVerifiedException(EmailAlreadyVerifiedException ex) {
         logger.warn("Email уже подтвержден: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ApiResponse<?>> handleUserNotFound(UserNotFoundException ex) {
+    public ResponseEntity<ApiResponseDto<?>> handleUserNotFound(UserNotFoundException ex) {
         logger.warn("Пользователь не найден: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<?>> handleIllegalArgument(IllegalArgumentException ex) {
+    public ResponseEntity<ApiResponseDto<?>> handleIllegalArgument(IllegalArgumentException ex) {
         logger.warn("Неверный аргумент: {}", ex.getMessage());
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<?>> handleOtherExceptions(Exception ex) {
+    public ResponseEntity<ApiResponseDto<?>> handleOtherExceptions(Exception ex) {
         logger.error("Внутренняя ошибка сервера: {}", ex.getMessage(), ex);
         return ResponseEntity.internalServerError()
-                .body(ApiResponse.error("Internal server error", null));
+                .body(ApiResponseDto.error("Internal server error", null));
     }
 
     @ExceptionHandler(RateLimitExceededException.class)
-    public ResponseEntity<ApiResponse<?>> handleRateLimitError(RateLimitExceededException ex) {
+    public ResponseEntity<ApiResponseDto<?>> handleRateLimitError(RateLimitExceededException ex) {
         logger.warn("Превышен лимит запросов: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<ApiResponse<?>> handleIllegalState(IllegalStateException ex) {
+    public ResponseEntity<ApiResponseDto<?>> handleIllegalState(IllegalStateException ex) {
         logger.warn("Ошибка состояния: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage(), null));
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {
+    public ResponseEntity<ApiResponseDto<Void>> handleBadCredentials(BadCredentialsException ex) {
         logger.warn("Ошибка аутентификации: {}",ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("Неверный логин или пароль", null));
+                .body(ApiResponseDto.error("Неверный логин или пароль", null));
     }
 
     @ExceptionHandler(JwtAuthenticationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleJwtAuthentication(JwtAuthenticationException ex) {
+    public ResponseEntity<ApiResponseDto<Void>> handleJwtAuthentication(JwtAuthenticationException ex) {
         logger.warn("Ошибка JWT аутентификации: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(InvalidPasswordException.class)
-    public ResponseEntity<ApiResponse<Void>> handleInvalidPassword(InvalidPasswordException ex) {
+    public ResponseEntity<ApiResponseDto<Void>> handleInvalidPassword(InvalidPasswordException ex) {
         logger.warn("Ошибка при попытке смены пароля: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(MessageNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleMessageNotFound(MessageNotFoundException ex) {
+    public ResponseEntity<ApiResponseDto<Void>> handleMessageNotFound(MessageNotFoundException ex) {
         logger.warn("Сообщение не найдено: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+    public ResponseEntity<ApiResponseDto<Void>> handleAccessDenied(AccessDeniedException ex) {
         logger.warn("Попытка редактирования или удаления чужого сообщения: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(MessageEditTimeExpiredException.class)
-    public ResponseEntity<ApiResponse<Void>> handleEditTimeExpired(MessageEditTimeExpiredException ex) {
+    public ResponseEntity<ApiResponseDto<Void>> handleEditTimeExpired(MessageEditTimeExpiredException ex) {
         logger.warn("Попытка редактирования просроченного сообщения: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(ChatMemberNotFoundException.class)
-    public ResponseEntity<ApiResponse<?>> handleUserNotFound(ChatMemberNotFoundException ex) {
+    public ResponseEntity<ApiResponseDto<?>> handleUserNotFound(ChatMemberNotFoundException ex) {
         logger.warn("Пользователь не является участником чата: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(BusinessLogicException.class)
     public ResponseEntity<?> handleBusinessLogicException(BusinessLogicException ex) {
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(NotGroupChatException.class)
     public ResponseEntity<?> handleNotGroupChatException(NotGroupChatException ex) {
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(DuplicateChatMemberException.class)
     public ResponseEntity<?> handleDuplicateChatMemberException(DuplicateChatMemberException ex) {
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(ChatOperationNotAllowedException.class)
     public ResponseEntity<?> handleChatOperationNotAllowedException(ChatOperationNotAllowedException ex) {
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(InsufficientPermissionsException.class)
     public ResponseEntity<?> handleInsufficientPermissionsException(InsufficientPermissionsException ex) {
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 
     @ExceptionHandler(ChatNotFoundException.class)
     public ResponseEntity<?> handleChatNotFoundException(ChatNotFoundException ex) {
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(ex.getMessage(), null));
+                .body(ApiResponseDto.error(ex.getMessage(), null));
     }
 }
