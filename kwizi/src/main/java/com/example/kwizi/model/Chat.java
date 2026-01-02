@@ -41,6 +41,7 @@ public class Chat {
 
     public Chat(ChatType chatType) {
         this.chatType = chatType;
+        this.lastActivityAt = OffsetDateTime.now();
     }
 
     public String getGroupName() {
