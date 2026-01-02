@@ -33,7 +33,6 @@ public class ChatMember {
     @Column(name = "joined_at", nullable = false)
     private OffsetDateTime joinedAt;
 
-    // Конструкторы
     public ChatMember() {
     }
 
@@ -50,7 +49,6 @@ public class ChatMember {
         this.role = role;
     }
 
-    // Геттеры и сеттеры
     public ChatMemberId getId() {
         return id;
     }
@@ -83,15 +81,10 @@ public class ChatMember {
         this.role = role;
     }
 
-    public OffsetDateTime getJoinedAt() {
-        return joinedAt;
-    }
-
     public void setJoinedAt(OffsetDateTime joinedAt) {
         this.joinedAt = joinedAt;
     }
 
-    // Вспомогательные методы для проверки ролей
     public boolean isOwner() {
         return ChatRole.OWNER.equals(this.role);
     }
@@ -117,7 +110,6 @@ public class ChatMember {
         return Objects.hash(id);
     }
 
-    // Вложенный класс для составного ключа
     @Embeddable
     public static class ChatMemberId implements Serializable {
         private Long chatId;
@@ -131,7 +123,6 @@ public class ChatMember {
             this.userId = userId;
         }
 
-        // Геттеры и сеттеры для chatId и userId
         public Long getChatId() {
             return chatId;
         }

@@ -5,7 +5,7 @@ import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
 import com.example.kwizi.DTO.request.UpdateGroupNameRequest;
 import com.example.kwizi.DTO.response.ApiResponse;
-import com.example.kwizi.DTO.response.ChatPreviewDto;
+import com.example.kwizi.DTO.response.ChatPreviewResponse;
 import com.example.kwizi.enums.ChatType;
 import com.example.kwizi.exception.ChatNotFoundException;
 import com.example.kwizi.security.UserDetailsImpl;
@@ -60,20 +60,19 @@ class ChatControllerTest {
         when(userDetails.getId()).thenReturn(TEST_USER_ID);
     }
 
-    private ChatPreviewDto createChatPreviewDto() {
-        ChatPreviewDto chatPreviewDto = new ChatPreviewDto();
-        chatPreviewDto.setId(TEST_CHAT_ID);
-        chatPreviewDto.setChatType(ChatType.GROUP);
-        chatPreviewDto.setDisplayName("Test chat");
-        return chatPreviewDto;
+    private ChatPreviewResponse createChatPreviewDto() {
+        ChatPreviewResponse chatPreviewResponse = new ChatPreviewResponse();
+        chatPreviewResponse.setId(TEST_CHAT_ID);
+        chatPreviewResponse.setChatType(ChatType.GROUP);
+        chatPreviewResponse.setDisplayName("Test chat");
+        return chatPreviewResponse;
     }
 
-    private Page<ChatPreviewDto> createChatPreviewPage(int page, int size) {
-        List<ChatPreviewDto> chats = Collections.singletonList(createChatPreviewDto());
+    private Page<ChatPreviewResponse> createChatPreviewPage(int page, int size) {
+        List<ChatPreviewResponse> chats = Collections.singletonList(createChatPreviewDto());
         return new PageImpl<>(chats, PageRequest.of(page, size), 1);
     }
 
-    // Вспомогательный метод для извлечения ApiResponse
     @SuppressWarnings("unchecked")
     private <T> ApiResponse<T> extractApiResponse(ResponseEntity<?> responseEntity) {
         return (ApiResponse<T>) responseEntity.getBody();
@@ -84,9 +83,8 @@ class ChatControllerTest {
     class CreateChatTests {
 
         @Test
-        @DisplayName("✅ Успешное создание группового чата")
+        @DisplayName("Успешное создание группового чата")
         void createGroupChat_Success() {
-            // given
             CreateGroupChatRequest request = new CreateGroupChatRequest();
             request.setGroupName("Новая группа");
             request.setInitialMemberIds(List.of(2L, 3L));
@@ -94,10 +92,8 @@ class ChatControllerTest {
             doNothing().when(chatService)
                     .createGroupChat(eq(request), eq(TEST_USERNAME));
 
-            // when
             ResponseEntity<?> response = chatController.createGroupChat(request, userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
             ApiResponse<?> apiResponse = extractApiResponse(response);
@@ -109,19 +105,16 @@ class ChatControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Успешное создание приватного чата")
+        @DisplayName("Успешное создание приватного чата")
         void createPrivateChat_Success() {
-            // given
             CreatePrivateChatRequest request = new CreatePrivateChatRequest();
             request.setRecipientUsername("recipientUser");
 
             doNothing().when(chatService)
                     .createPrivateChat(eq(request), eq(TEST_USERNAME));
 
-            // when
             ResponseEntity<?> response = chatController.createPrivateChat(request, userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
             ApiResponse<?> apiResponse = extractApiResponse(response);
@@ -133,9 +126,8 @@ class ChatControllerTest {
         }
 
         @Test
-        @DisplayName("❌ Создание группового чата с пустым названием")
+        @DisplayName("Создание группового чата с пустым названием")
         void createGroupChat_EmptyName_ThrowsException() {
-            // given
             CreateGroupChatRequest request = new CreateGroupChatRequest();
             request.setGroupName("");
             request.setInitialMemberIds(List.of(2L));
@@ -143,7 +135,6 @@ class ChatControllerTest {
             doThrow(new IllegalArgumentException("Название группы не может быть пустым"))
                     .when(chatService).createGroupChat(eq(request), eq(TEST_USERNAME));
 
-            // when & then
             assertThatThrownBy(() -> chatController.createGroupChat(request, userDetails))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Название группы не может быть пустым");
@@ -155,19 +146,16 @@ class ChatControllerTest {
     class MemberManagementTests {
 
         @Test
-        @DisplayName("✅ Успешное добавление участника в чат")
+        @DisplayName("Успешное добавление участника в чат")
         void addChatMember_Success() {
-            // given
             AddChatMemberRequestDto request = new AddChatMemberRequestDto();
             request.setUserId(TEST_OTHER_USER_ID);
 
             doNothing().when(chatService)
                     .addChatMember(any(AddChatMemberRequestDto.class), eq(TEST_USERNAME));
 
-            // when
             ResponseEntity<?> response = chatController.addChatMember(TEST_CHAT_ID, request, userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
             ApiResponse<?> apiResponse = extractApiResponse(response);
@@ -182,16 +170,13 @@ class ChatControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Успешное назначение администратора")
+        @DisplayName("Успешное назначение администратора")
         void setAdmin_Success() {
-            // given
             doNothing().when(chatService)
                     .setAdmin(eq(TEST_CHAT_ID), eq(TEST_OTHER_USER_ID), eq(TEST_USER_ID));
 
-            // when
             ResponseEntity<?> response = chatController.setAdmin(TEST_CHAT_ID, TEST_OTHER_USER_ID, userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
             ApiResponse<?> apiResponse = extractApiResponse(response);
@@ -203,16 +188,13 @@ class ChatControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Успешное удаление участника из чата")
+        @DisplayName("Успешное удаление участника из чата")
         void removeChatMember_Success() {
-            // given
             doNothing().when(chatService)
                     .removeChatMember(eq(TEST_CHAT_ID), eq(TEST_OTHER_USER_ID), eq(TEST_USER_ID));
 
-            // when
             ResponseEntity<?> response = chatController.removeChatMember(TEST_CHAT_ID, TEST_OTHER_USER_ID, userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
             ApiResponse<?> apiResponse = extractApiResponse(response);
@@ -229,20 +211,17 @@ class ChatControllerTest {
     class ChatUpdateTests {
 
         @Test
-        @DisplayName("✅ Успешное обновление названия группы")
+        @DisplayName("Успешное обновление названия группы")
         void updateGroupName_Success() {
-            // given
             UpdateGroupNameRequest request = new UpdateGroupNameRequest();
             request.setGroupName("Новое название группы");
 
             doNothing().when(chatService)
                     .updateGroupName(eq(TEST_CHAT_ID), eq("Новое название группы"), eq(TEST_USER_ID));
 
-            // when
             ResponseEntity<ApiResponse<String>> response =
                     chatController.updateGroupName(TEST_CHAT_ID, request, userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
             ApiResponse<String> apiResponse = response.getBody();
@@ -255,18 +234,15 @@ class ChatControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Успешное обновление аватара чата")
+        @DisplayName("Успешное обновление аватара чата")
         void updateAvatar_Success() throws Exception {
-            // given
             MultipartFile file = mock(MultipartFile.class);
 
             doNothing().when(chatService)
                     .updateChatAvatar(eq(TEST_CHAT_ID), eq(file), eq(TEST_USER_ID));
 
-            // when
             ResponseEntity<?> response = chatController.updateAvatar(TEST_CHAT_ID, file, userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
             ApiResponse<?> apiResponse = extractApiResponse(response);
@@ -283,22 +259,19 @@ class ChatControllerTest {
     class GetChatsTests {
 
         @Test
-        @DisplayName("✅ Успешное получение списка чатов с параметрами по умолчанию")
+        @DisplayName("Успешное получение списка чатов с параметрами по умолчанию")
         void getUserChats_WithDefaultParameters_Success() {
-            // given
-            Page<ChatPreviewDto> mockPage = createChatPreviewPage(0, 50);
+            Page<ChatPreviewResponse> mockPage = createChatPreviewPage(0, 50);
 
             when(chatService.getUserChatsPreview(eq(TEST_USER_ID), eq(0), eq(50)))
                     .thenReturn(mockPage);
 
-            // when
-            ResponseEntity<ApiResponse<Page<ChatPreviewDto>>> response =
+            ResponseEntity<ApiResponse<Page<ChatPreviewResponse>>> response =
                     chatController.getUserChats(userDetails, 50, 0);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<Page<ChatPreviewDto>> apiResponse = response.getBody();
+            ApiResponse<Page<ChatPreviewResponse>> apiResponse = response.getBody();
             assertThat(apiResponse.isSuccess()).isTrue();
             assertThat(apiResponse.getMessage()).isEqualTo("Самые новые чаты успешно загружены");
             assertThat(apiResponse.getData().getContent()).hasSize(1);
@@ -308,22 +281,19 @@ class ChatControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Получение пустого списка чатов")
+        @DisplayName("Получение пустого списка чатов")
         void getUserChats_EmptyList_Success() {
-            // given
-            Page<ChatPreviewDto> emptyPage = Page.empty(PageRequest.of(0, 50));
+            Page<ChatPreviewResponse> emptyPage = Page.empty(PageRequest.of(0, 50));
 
             when(chatService.getUserChatsPreview(eq(TEST_USER_ID), anyInt(), anyInt()))
                     .thenReturn(emptyPage);
 
-            // when
-            ResponseEntity<ApiResponse<Page<ChatPreviewDto>>> response =
+            ResponseEntity<ApiResponse<Page<ChatPreviewResponse>>> response =
                     chatController.getUserChats(userDetails, 50, 0);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<Page<ChatPreviewDto>> apiResponse = response.getBody();
+            ApiResponse<Page<ChatPreviewResponse>> apiResponse = response.getBody();
             assertThat(apiResponse.getData().isEmpty()).isTrue();
             assertThat(apiResponse.getData().getTotalElements()).isEqualTo(0);
         }
@@ -334,45 +304,39 @@ class ChatControllerTest {
     class ExceptionHandlingTests {
 
         @Test
-        @DisplayName("❌ Попытка добавления уже существующего участника")
+        @DisplayName("Попытка добавления уже существующего участника")
         void addChatMember_AlreadyMember_ThrowsException() {
-            // given
             AddChatMemberRequestDto request = new AddChatMemberRequestDto();
             request.setUserId(TEST_OTHER_USER_ID);
 
             doThrow(new IllegalArgumentException("Пользователь уже является участником чата"))
                     .when(chatService).addChatMember(any(AddChatMemberRequestDto.class), eq(TEST_USERNAME));
 
-            // when & then
             assertThatThrownBy(() -> chatController.addChatMember(TEST_CHAT_ID, request, userDetails))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Пользователь уже является участником чата");
         }
 
         @Test
-        @DisplayName("❌ Удаление участника без прав администратора")
+        @DisplayName("Удаление участника без прав администратора")
         void removeChatMember_NoAdminRights_ThrowsException() {
-            // given
             doThrow(new AccessDeniedException("Недостаточно прав для удаления участника"))
                     .when(chatService).removeChatMember(eq(TEST_CHAT_ID), eq(TEST_OTHER_USER_ID), eq(TEST_USER_ID));
 
-            // when & then
             assertThatThrownBy(() -> chatController.removeChatMember(TEST_CHAT_ID, TEST_OTHER_USER_ID, userDetails))
                     .isInstanceOf(AccessDeniedException.class)
                     .hasMessageContaining("Недостаточно прав для удаления участника");
         }
 
         @Test
-        @DisplayName("❌ Обновление названия несуществующего чата")
+        @DisplayName("Обновление названия несуществующего чата")
         void updateGroupName_ChatNotFound_ThrowsException() {
-            // given
             UpdateGroupNameRequest request = new UpdateGroupNameRequest();
             request.setGroupName("Новое название");
 
             doThrow(new ChatNotFoundException("Чат не найден"))
                     .when(chatService).updateGroupName(eq(TEST_CHAT_ID), eq("Новое название"), eq(TEST_USER_ID));
 
-            // when & then
             assertThatThrownBy(() -> chatController.updateGroupName(TEST_CHAT_ID, request, userDetails))
                     .isInstanceOf(ChatNotFoundException.class)
                     .hasMessageContaining("Чат не найден");
@@ -384,16 +348,13 @@ class ChatControllerTest {
     class EdgeCasesTests {
 
         @Test
-        @DisplayName("✅ Выход из чата")
+        @DisplayName("Выход из чата")
         void leaveChat_Success() {
-            // given
             doNothing().when(chatService)
                     .leaveChat(eq(TEST_CHAT_ID), eq(TEST_USER_ID));
 
-            // when
             ResponseEntity<?> response = chatController.leaveChat(TEST_CHAT_ID, userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
             ApiResponse<?> apiResponse = extractApiResponse(response);
@@ -405,16 +366,13 @@ class ChatControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Разжалование администратора")
+        @DisplayName("Разжалование администратора")
         void demoteAdminToMember_Success() {
-            // given
             doNothing().when(chatService)
                     .demoteAdminToMember(eq(TEST_CHAT_ID), eq(TEST_OTHER_USER_ID), eq(TEST_USER_ID));
 
-            // when
             ResponseEntity<?> response = chatController.demoteAdminToMember(TEST_CHAT_ID, TEST_OTHER_USER_ID, userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
             ApiResponse<?> apiResponse = extractApiResponse(response);

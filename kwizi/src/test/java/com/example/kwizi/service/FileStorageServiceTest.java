@@ -34,7 +34,7 @@ class FileStorageServiceTest {
     class MainScenarios {
 
         @Test
-        @DisplayName("✅ Сохранение аватара чата")
+        @DisplayName("Сохранение аватара чата")
         void saveChatAvatar_WithValidFile_ShouldSaveFileAndReturnPath() throws IOException {
             MockMultipartFile file = createTestImageFile("test-image.png", "image/png");
 
@@ -54,7 +54,7 @@ class FileStorageServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Сохранение аватара пользователя")
+        @DisplayName("Сохранение аватара пользователя")
         void saveUserAvatar_WithValidFile_ShouldSaveFileAndReturnPath() throws IOException {
             MockMultipartFile file = createTestImageFile("avatar.jpg", "image/jpeg");
 
@@ -79,7 +79,7 @@ class FileStorageServiceTest {
     class ErrorScenarios {
 
         @Test
-        @DisplayName("❌ Ошибка создания директории")
+        @DisplayName("Ошибка создания директории")
         void saveChatAvatar_WhenDirectoryCreationFails_ShouldThrowException() {
             String invalidPath = "invalid|path|with|pipes";
             org.springframework.test.util.ReflectionTestUtils.setField(fileStorageService, "chatAvatarPath", invalidPath);
@@ -97,7 +97,7 @@ class FileStorageServiceTest {
     class FilenameGenerationTests {
 
         @Test
-        @DisplayName("✅ Сохранение оригинальных расширений")
+        @DisplayName("Сохранение оригинальных расширений")
         void saveChatAvatar_WithDifferentFileTypes_ShouldUseCorrectExtensions() throws IOException {
             MockMultipartFile pngFile = createTestImageFile("image.png", "image/png");
             String pngPath = fileStorageService.saveChatAvatar(pngFile, CHAT_ID);
@@ -109,7 +109,7 @@ class FileStorageServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Файл без расширения получает .jpg")
+        @DisplayName("Файл без расширения получает .jpg")
         void saveChatAvatar_WithFileWithoutExtension_ShouldUseDefaultJpg() throws IOException {
             MockMultipartFile file = createTestImageFile("noextension", "image/jpeg");
 
@@ -119,7 +119,7 @@ class FileStorageServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Файл с null именем получает .jpg")
+        @DisplayName("Файл с null именем получает .jpg")
         void saveChatAvatar_WithFileWithNullName_ShouldUseDefaultJpg() throws IOException {
             MockMultipartFile file = new MockMultipartFile(
                     "file", null, "image/jpeg", "test image content".getBytes()
@@ -131,7 +131,7 @@ class FileStorageServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Уникальные имена файлов")
+        @DisplayName("Уникальные имена файлов")
         void saveChatAvatar_MultipleCalls_ShouldGenerateUniqueFilenames() throws Exception {
             MockMultipartFile file1 = createTestImageFile("test1.png", "image/png");
             MockMultipartFile file2 = createTestImageFile("test2.png", "image/png");
@@ -148,7 +148,7 @@ class FileStorageServiceTest {
         }
 
         @Test
-        @DisplayName("✅ ID сущности в имени файла")
+        @DisplayName("ID сущности в имени файла")
         void saveChatAvatar_WithDifferentChatIds_ShouldIncludeIdInFilename() throws IOException {
             MockMultipartFile file = createTestImageFile("test.png", "image/png");
 

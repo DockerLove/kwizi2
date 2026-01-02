@@ -50,7 +50,7 @@ class JwtUtilsTest {
     class GenerateTokenTests {
 
         @Test
-        @DisplayName("✅ Возвращает валидный JWT при корректном имени пользователя и ID")
+        @DisplayName("Возвращает валидный JWT при корректном имени пользователя и ID")
         void generateToken_ShouldReturnToken_WhenUsernameAndIdAreValid() {
             String token = jwtUtils.generateToken(TEST_USERNAME, TEST_USER_ID);
             assertThat(token).isNotNull().isNotEmpty();
@@ -60,7 +60,7 @@ class JwtUtilsTest {
         @ParameterizedTest
         @NullAndEmptySource
         @ValueSource(strings = {" ", "\t", "\n"})
-        @DisplayName("❌ Выбрасывает исключение при пустом имени пользователя (новая сигнатура)")
+        @DisplayName("Выбрасывает исключение при пустом имени пользователя (новая сигнатура)")
         void generateToken_ShouldThrowException_WhenUsernameIsInvalid_NewSignature(String username) {
             IllegalArgumentException exception = assertThrows(
                     IllegalArgumentException.class,
@@ -70,7 +70,7 @@ class JwtUtilsTest {
         }
 
         @Test
-        @DisplayName("❌ Выбрасывает исключение при недопустимом ID пользователя (новая сигнатура)")
+        @DisplayName("Выбрасывает исключение при недопустимом ID пользователя (новая сигнатура)")
         void generateToken_ShouldThrowException_WhenUserIdIsInvalid() {
             assertAll(
                     () -> assertThatThrownBy(() -> jwtUtils.generateToken(TEST_USERNAME, null))
@@ -86,7 +86,7 @@ class JwtUtilsTest {
         }
 
         @Test
-        @DisplayName("✅ Генерирует разные токены для одного и того же пользователя и ID")
+        @DisplayName("Генерирует разные токены для одного и того же пользователя и ID")
         void generateToken_ShouldGenerateDifferentTokensForSameUserAndId() {
             String token1 = jwtUtils.generateToken(TEST_USERNAME, TEST_USER_ID);
             String token2 = jwtUtils.generateToken(TEST_USERNAME, TEST_USER_ID);
@@ -95,10 +95,8 @@ class JwtUtilsTest {
             assertThat(token1).isNotEqualTo(token2);
         }
 
-        // === Сохраняем старые тесты для обратной совместимости (если метод ещё существует) ===
-
         @Test
-        @DisplayName("✅ Возвращает валидный JWT при корректном имени пользователя (старая сигнатура)")
+        @DisplayName("Возвращает валидный JWT при корректном имени пользователя (старая сигнатура)")
         void generateToken_ShouldReturnToken_WhenUsernameIsValid_OldSignature() {
             String token = jwtUtils.generateToken(TEST_USERNAME,TEST_USER_ID);
             assertThat(token).isNotNull().isNotEmpty();
@@ -108,7 +106,7 @@ class JwtUtilsTest {
         @ParameterizedTest
         @NullAndEmptySource
         @ValueSource(strings = {" ", "\t", "\n"})
-        @DisplayName("❌ Выбрасывает исключение при пустом имени пользователя (старая сигнатура)")
+        @DisplayName("Выбрасывает исключение при пустом имени пользователя (старая сигнатура)")
         void generateToken_ShouldThrowException_WhenUsernameIsInvalid_OldSignature(String username) {
             IllegalArgumentException exception = assertThrows(
                     IllegalArgumentException.class,
@@ -125,7 +123,7 @@ class JwtUtilsTest {
         @ParameterizedTest
         @NullAndEmptySource
         @ValueSource(strings = {" ", "\t", "\n"})
-        @DisplayName("❌ Выбрасывает исключение при пустом токене")
+        @DisplayName("Выбрасывает исключение при пустом токене")
         void extractJti_ShouldThrowException_WhenTokenIsInvalid(String token) {
             IllegalArgumentException exception = assertThrows(
                     IllegalArgumentException.class,
@@ -135,7 +133,7 @@ class JwtUtilsTest {
         }
 
         @Test
-        @DisplayName("✅ Извлекает JTI из валидного токена с userId")
+        @DisplayName("Извлекает JTI из валидного токена с userId")
         void extractJti_ShouldReturnJti_WhenTokenIsValid() {
             String jti = jwtUtils.extractJti(validTokenWithUserId);
             assertThat(jti).isNotNull().isNotEmpty();
@@ -147,14 +145,14 @@ class JwtUtilsTest {
     class GetUserIdFromTokenTests {
 
         @Test
-        @DisplayName("✅ Возвращает userId из валидного токена")
+        @DisplayName("Возвращает userId из валидного токена")
         void getUserIdFromToken_ShouldReturnUserId_WhenTokenIsValid() {
             Long userId = jwtUtils.getUserIdFromToken(validTokenWithUserId);
             assertThat(userId).isEqualTo(TEST_USER_ID);
         }
 
         @Test
-        @DisplayName("❌ Выбрасывает исключение при невалидном токене")
+        @DisplayName("Выбрасывает исключение при невалидном токене")
         void getUserIdFromToken_ShouldThrowException_WhenTokenIsInvalid() {
             assertThatThrownBy(() -> jwtUtils.getUserIdFromToken("invalid.token.here"))
                     .isInstanceOf(JwtAuthenticationException.class);
@@ -166,7 +164,7 @@ class JwtUtilsTest {
     class ExtractExpirationTests {
 
         @Test
-        @DisplayName("❌ Выбрасывает исключение при невалидном токене")
+        @DisplayName("Выбрасывает исключение при невалидном токене")
         void extractExpiration_ShouldThrowException_WhenTokenIsInvalid() {
             String invalidToken = "invalid.token.here";
             assertThatThrownBy(() -> jwtUtils.extractExpiration(invalidToken))
@@ -180,21 +178,21 @@ class JwtUtilsTest {
     class ValidateTokenTests {
 
         @Test
-        @DisplayName("❌ Возвращает false при null-токене")
+        @DisplayName("Возвращает false при null-токене")
         void validateToken_ShouldReturnFalse_WhenTokenIsNull() {
             boolean result = jwtUtils.validateToken(null, userDetails);
             assertThat(result).isFalse();
         }
 
         @Test
-        @DisplayName("❌ Возвращает false при null-UserDetails")
+        @DisplayName("Возвращает false при null-UserDetails")
         void validateToken_ShouldReturnFalse_WhenUserDetailsIsNull() {
             boolean result = jwtUtils.validateToken(validTokenWithUserId, null);
             assertThat(result).isFalse();
         }
 
         @Test
-        @DisplayName("✅ Возвращает true при валидном токене и совпадающем пользователе")
+        @DisplayName("Возвращает true при валидном токене и совпадающем пользователе")
         void validateToken_ShouldReturnTrue_WhenTokenIsValidForUser() {
             UserDetails userDetails = mock(UserDetails.class);
             when(userDetails.getUsername()).thenReturn(TEST_USERNAME);
@@ -203,7 +201,7 @@ class JwtUtilsTest {
         }
 
         @Test
-        @DisplayName("❌ Возвращает false при несовпадающем пользователе")
+        @DisplayName("Возвращает false при несовпадающем пользователе")
         void validateToken_ShouldReturnFalse_WhenTokenIsForDifferentUser() {
             UserDetails userDetails = mock(UserDetails.class);
             when(userDetails.getUsername()).thenReturn("differentUser");
@@ -212,7 +210,7 @@ class JwtUtilsTest {
         }
 
         @Test
-        @DisplayName("❌ Выбрасывает исключение при невалидном формате токена")
+        @DisplayName("Выбрасывает исключение при невалидном формате токена")
         void validateToken_ShouldThrowException_WhenTokenIsInvalid() {
             UserDetails userDetails = mock(UserDetails.class);
             when(userDetails.getUsername()).thenReturn(TEST_USERNAME);
@@ -226,7 +224,7 @@ class JwtUtilsTest {
     class GetUsernameFromTokenTests {
 
         @Test
-        @DisplayName("✅ Возвращает имя пользователя из валидного токена с userId")
+        @DisplayName("Возвращает имя пользователя из валидного токена с userId")
         void getUsernameFromToken_ShouldReturnUsername_WhenTokenIsValid() {
             String username = jwtUtils.getUsernameFromToken(validTokenWithUserId);
             assertThat(username).isEqualTo(TEST_USERNAME);
@@ -238,14 +236,14 @@ class JwtUtilsTest {
     class IsTokenExpiredTests {
 
         @Test
-        @DisplayName("✅ Возвращает false для невышедшего токена")
+        @DisplayName("Возвращает false для невышедшего токена")
         void isTokenExpired_ShouldReturnFalse_WhenTokenIsNotExpired() {
             boolean result = jwtUtils.isTokenExpired(validTokenWithUserId);
             assertThat(result).isFalse();
         }
 
         @Test
-        @DisplayName("❌ Выбрасывает исключение при невалидном токене")
+        @DisplayName("Выбрасывает исключение при невалидном токене")
         void isTokenExpired_ShouldThrowException_WhenTokenIsInvalid() {
             assertThatThrownBy(() -> jwtUtils.isTokenExpired("invalid.token"))
                     .isInstanceOf(JwtAuthenticationException.class);
@@ -257,14 +255,14 @@ class JwtUtilsTest {
     class SetSecretTests {
 
         @Test
-        @DisplayName("✅ Инициализирует ключ при валидном секрете")
+        @DisplayName("Инициализирует ключ при валидном секрете")
         void setSecret_ShouldInitializeKey_WhenSecretIsValid() {
             String token = jwtUtils.generateToken(TEST_USERNAME, TEST_USER_ID);
             assertThat(token).isNotNull();
         }
 
         @Test
-        @DisplayName("❌ Выбрасывает исключение при невалидном Base64 секрете")
+        @DisplayName("Выбрасывает исключение при невалидном Base64 секрете")
         void setSecret_ShouldThrowException_WhenSecretIsInvalid() {
             JwtUtils jwtUtilsWithInvalidSecret = new JwtUtils(new JwtExceptionHandler(),revokedTokenRepository);
             ReflectionTestUtils.setField(jwtUtilsWithInvalidSecret, "secret", "invalid-base64");
@@ -274,7 +272,7 @@ class JwtUtilsTest {
         }
 
         @Test
-        @DisplayName("❌ Выбрасывает исключение при null-секрете")
+        @DisplayName("Выбрасывает исключение при null-секрете")
         void setSecret_ShouldThrowException_WhenSecretIsNull() {
             JwtUtils jwtUtilsWithNullSecret = new JwtUtils(new JwtExceptionHandler(),revokedTokenRepository);
             ReflectionTestUtils.setField(jwtUtilsWithNullSecret, "secret", null);
@@ -288,7 +286,7 @@ class JwtUtilsTest {
     class ExtractTokenTests {
 
         @Test
-        @DisplayName("✅ Возвращает токен при валидном заголовке Authorization")
+        @DisplayName("Возвращает токен при валидном заголовке Authorization")
         void extractToken_ShouldReturnToken_WhenAuthorizationHeaderIsValid() {
             MockHttpServletRequest request = new MockHttpServletRequest();
             String token = "valid.token.here";
@@ -298,7 +296,7 @@ class JwtUtilsTest {
         }
 
         @Test
-        @DisplayName("❌ Выбрасывает исключение при null-запросе")
+        @DisplayName("Выбрасывает исключение при null-запросе")
         void extractToken_ShouldThrowException_WhenRequestIsNull() {
             assertThatThrownBy(() -> jwtUtils.extractToken(null))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -306,7 +304,7 @@ class JwtUtilsTest {
         }
 
         @Test
-        @DisplayName("❌ Выбрасывает исключение при отсутствии заголовка Authorization")
+        @DisplayName("Выбрасывает исключение при отсутствии заголовка Authorization")
         void extractToken_ShouldThrowException_WhenAuthorizationHeaderIsNull() {
             MockHttpServletRequest request = new MockHttpServletRequest();
             assertThatThrownBy(() -> jwtUtils.extractToken(request))
@@ -315,7 +313,7 @@ class JwtUtilsTest {
         }
 
         @Test
-        @DisplayName("❌ Выбрасывает исключение при неверном префиксе заголовка")
+        @DisplayName("Выбрасывает исключение при неверном префиксе заголовка")
         void extractToken_ShouldThrowException_WhenAuthorizationHeaderDoesNotStartWithBearer() {
             MockHttpServletRequest request = new MockHttpServletRequest();
             request.addHeader("Authorization", "Basic someToken");
@@ -325,7 +323,7 @@ class JwtUtilsTest {
         }
 
         @Test
-        @DisplayName("❌ Выбрасывает исключение при пустом токене после Bearer")
+        @DisplayName("Выбрасывает исключение при пустом токене после Bearer")
         void extractToken_ShouldThrowException_WhenTokenIsEmptyAfterBearer() {
             MockHttpServletRequest request = new MockHttpServletRequest();
             request.addHeader("Authorization", "Bearer ");
@@ -335,7 +333,7 @@ class JwtUtilsTest {
         }
 
         @Test
-        @DisplayName("✅ Обрезает пробелы вокруг токена")
+        @DisplayName("Обрезает пробелы вокруг токена")
         void extractToken_ShouldTrimToken() {
             MockHttpServletRequest request = new MockHttpServletRequest();
             String token = "valid.token.here";
@@ -345,10 +343,4 @@ class JwtUtilsTest {
         }
     }
 
-    private JwtUtils createShortLivedJwtUtils() {
-        JwtUtils shortLivedJwtUtils = new JwtUtils(new JwtExceptionHandler(),revokedTokenRepository);
-        ReflectionTestUtils.setField(shortLivedJwtUtils, "secret", SECRET);
-        shortLivedJwtUtils.setSecret();
-        return shortLivedJwtUtils;
-    }
 }

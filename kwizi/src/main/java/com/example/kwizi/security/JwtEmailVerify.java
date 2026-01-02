@@ -51,7 +51,7 @@ public class JwtEmailVerify {
             return token;
         } catch (Exception e) {
             logger.error("Ошибка при генерации токена верификации email для пользователя с ID: {}", userId, e);
-            return null; // Или выбросить исключение
+            return null;
         }
     }
 
@@ -68,10 +68,9 @@ public class JwtEmailVerify {
             return userId;
         } catch (Exception e) {
             logger.warn("Ошибка при получении ID пользователя из токена верификации email: {}", e.getMessage());
-            return null; // Или выбросить исключение
+            return null;
         }
     }
-
 
     public boolean isTokenExpired(String token) {
         logger.debug("Проверка срока действия токена верификации email");

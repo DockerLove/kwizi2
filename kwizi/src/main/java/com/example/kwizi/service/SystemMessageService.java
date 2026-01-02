@@ -48,7 +48,6 @@ public class SystemMessageService {
         }
     }
 
-    // Public API methods - остаются для удобства использования
     public void createUserAddedMessage(Chat chat, String addedUsername, String addedByUsername) {
         createSystemMessage(chat, addedByUsername, MessageSystemType.USER_ADDED, addedUsername, addedByUsername);
     }
@@ -77,7 +76,6 @@ public class SystemMessageService {
         createSystemMessage(chat, changedByUsername, MessageSystemType.GROUP_PHOTO_CHANGED, changedByUsername);
     }
 
-    // Unified private method for creating system messages
     private void createSystemMessage(Chat chat, String senderUsername,
                                      MessageSystemType messageType, Object... templateArgs) {
         String template = messageTemplates.get(messageType);
@@ -100,7 +98,6 @@ public class SystemMessageService {
         messageRepository.save(systemMessage);
     }
 
-    // Optional: метод для получения шаблона (может пригодиться для тестов или UI)
     public String getTemplate(MessageSystemType messageType) {
         return messageTemplates.get(messageType);
     }

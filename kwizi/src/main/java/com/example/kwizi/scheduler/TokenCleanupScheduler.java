@@ -24,12 +24,12 @@ public class TokenCleanupScheduler {
     @Scheduled(cron = "0 0 5 * * ?", zone = "Europe/Moscow")
     @Transactional
     public void cleanExpiredTokens() {
-        logger.info("Запуск задачи очистки просроченных токенов..."); // Начало выполнения задачи
+        logger.info("Запуск задачи очистки просроченных токенов...");
         try {
             revokedTokenRepo.deleteExpiredTokens();
-            logger.info("Удалено {} просроченных токенов."); // Сообщение об успешном завершении и количестве удаленных токенов
+            logger.info("Удалено {} просроченных токенов.");
         } catch (Exception e) {
-            logger.error("Ошибка при очистке просроченных токенов: {}", e.getMessage(), e); // Логирование ошибки с stack trace
+            logger.error("Ошибка при очистке просроченных токенов: {}", e.getMessage(), e);
         }
     }
 }

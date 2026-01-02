@@ -5,7 +5,7 @@ import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
 import com.example.kwizi.DTO.request.UpdateGroupNameRequest;
 import com.example.kwizi.DTO.response.ApiResponse;
-import com.example.kwizi.DTO.response.ChatPreviewDto;
+import com.example.kwizi.DTO.response.ChatPreviewResponse;
 import com.example.kwizi.security.UserDetailsImpl;
 import com.example.kwizi.service.ChatService;
 import jakarta.validation.Valid;
@@ -24,7 +24,6 @@ public class ChatController {
 
     private final ChatService chatService;
     private static final Logger logger = LoggerFactory.getLogger(ChatController.class);
-
 
     @Autowired
     public ChatController(ChatService chatService) {
@@ -57,15 +56,13 @@ public class ChatController {
     public ResponseEntity<?> addChatMember(
             @PathVariable Long chatId,
             @Valid @RequestBody AddChatMemberRequestDto addChatMemberRequestDto,
-            @AuthenticationPrincipal UserDetailsImpl userDetails
-    ) {
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         String username = userDetails.getUsername();
         logger.info("Запрос на добавление участника в чат. ID чата: {}, ID пользователя для добавления: {}", chatId, addChatMemberRequestDto.getUserId());
         addChatMemberRequestDto.setChatId(chatId);
-        chatService.addChatMember(addChatMemberRequestDto,username);
+        chatService.addChatMember(addChatMemberRequestDto, username);
         logger.info("Пользователь добавлен в чат. ID чата: {}, ID добавленного пользователя: {}", chatId, addChatMemberRequestDto.getUserId());
-        return ResponseEntity.ok(
-                ApiResponse.success("Пользователь успешно добавлен в чат", null));
+        return ResponseEntity.ok(ApiResponse.success("Пользователь успешно добавлен в чат", null));
     }
 
     @PatchMapping("/{chatId}/members/{userId}/admin")
@@ -109,13 +106,9 @@ public class ChatController {
             @PathVariable Long userId,
             @AuthenticationPrincipal UserDetailsImpl currentUser) {
         Long currentUserId = currentUser.getId();
-        logger.info("Запрос на разжалование администратора. ID чата: {}, ID пользователя: {}, инициатор: {}",
-                chatId, userId, currentUserId);
-
+        logger.info("Запрос на разжалование администратора. ID чата: {}, ID пользователя: {}, инициатор: {}", chatId, userId, currentUserId);
         chatService.demoteAdminToMember(chatId, userId, currentUserId);
-
-        logger.info("Администратор разжалован. ID чата: {}, ID пользователя: {}, инициатор: {}",
-                chatId, userId, currentUserId);
+        logger.info("Администратор разжалован. ID чата: {}, ID пользователя: {}, инициатор: {}", chatId, userId, currentUserId);
         return ResponseEntity.ok(ApiResponse.success("Администратор разжалован до обычного участника", null));
     }
 
@@ -124,15 +117,9 @@ public class ChatController {
             @PathVariable Long chatId,
             @Valid @RequestBody UpdateGroupNameRequest request,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-
         Long userId = userDetails.getId();
-
         chatService.updateGroupName(chatId, request.getGroupName(), userId);
-
-        return ResponseEntity.ok(ApiResponse.success(
-                "Название группы успешно изменено",
-                request.getGroupName()
-        ));
+        return ResponseEntity.ok(ApiResponse.success("Название группы успешно изменено", request.getGroupName()));
     }
 
     @PatchMapping("/{chatId}/avatar")
@@ -140,23 +127,18 @@ public class ChatController {
             @PathVariable Long chatId,
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-
         logger.info("Запрос на изменение фото чата ID: {}", chatId);
-
         chatService.updateChatAvatar(chatId, file, userDetails.getId());
-
         logger.info("Запрос на изменение фото чата ID успешно изменено {}", chatId);
-
-        return ResponseEntity.ok(ApiResponse.success("Фото группы успешно изменено",null));
+        return ResponseEntity.ok(ApiResponse.success("Фото группы успешно изменено", null));
     }
 
     @GetMapping()
-    public ResponseEntity<ApiResponse<Page<ChatPreviewDto>>> getUserChats(
+    public ResponseEntity<ApiResponse<Page<ChatPreviewResponse>>> getUserChats(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "0") int page) {
-
-        Page<ChatPreviewDto> chats = chatService.getUserChatsPreview(userDetails.getId(), page, size);
-        return ResponseEntity.ok(ApiResponse.success("Самые новые чаты успешно загружены",chats));
+        Page<ChatPreviewResponse> chats = chatService.getUserChatsPreview(userDetails.getId(), page, size);
+        return ResponseEntity.ok(ApiResponse.success("Самые новые чаты успешно загружены", chats));
     }
 }

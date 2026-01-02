@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 public class EmailVerificationController {
     private static final Logger logger = LoggerFactory.getLogger(EmailVerificationController.class);
 
-
     private final AuthenticationService authenticationService;
 
     @Autowired
@@ -24,11 +23,11 @@ public class EmailVerificationController {
 
     @GetMapping("/verify-email")
     public ResponseEntity<String> verifyEmail(@RequestParam("token") String token) {
-        logger.info("Получен запрос на подтверждение email с токеном: {}", token); // Логируем получение запроса
+        logger.info("Получен запрос на подтверждение email с токеном: {}", token);
 
         try {
             authenticationService.verifyEmail(token);
-            logger.info("Email успешно подтвержден для токена: {}", token); // Логируем успешное подтверждение
+            logger.info("Email успешно подтвержден для токена: {}", token);
             return ResponseEntity.ok()
                     .contentType(MediaType.TEXT_HTML)
                     .body("Email успешно подтвержден! Можете закрыть эту страницу.");

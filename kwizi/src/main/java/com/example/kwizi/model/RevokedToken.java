@@ -11,7 +11,7 @@ import java.time.Instant;
 @Table(name = "revoked_access_tokens")
 public class RevokedToken {
     @Id
-    private String jti; // ID токена
+    private String jti;
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
@@ -25,10 +25,8 @@ public class RevokedToken {
     private Instant revokedAt = Instant.now();
 
     public RevokedToken() {
-        this.revokedAt = Instant.now(); // Инициализация даты отзыва
+        this.revokedAt = Instant.now();
     }
-
-    // Конструктор для удобного создания объектов
 
     public RevokedToken(String jti, Long userId, Instant expiresAt, String username) {
         this.jti = jti;
@@ -60,21 +58,5 @@ public class RevokedToken {
 
     public void setUsername(String username) {
         this.username = username;
-    }
-
-    public Instant getExpiresAt() {
-        return expiresAt;
-    }
-
-    public void setExpiresAt(Instant expiresAt) {
-        this.expiresAt = expiresAt;
-    }
-
-    public Instant getRevokedAt() {
-        return revokedAt;
-    }
-
-    public void setRevokedAt(Instant revokedAt) {
-        this.revokedAt = revokedAt;
     }
 }

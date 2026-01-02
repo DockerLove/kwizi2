@@ -8,34 +8,31 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
-
-// В конфигурационном классе
-
 @Configuration
 @EnableAsync
 public class AsyncConfig {
 
-    private static final Logger logger = LoggerFactory.getLogger(AsyncConfig.class); // Добавили логгер
+    private static final Logger logger = LoggerFactory.getLogger(AsyncConfig.class);
 
     @Bean(name = "taskExecutor")
     public Executor taskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
         executor.setCorePoolSize(5);
-        logger.debug("Setting core pool size to: {}", executor.getCorePoolSize()); // Логируем настройку
+        logger.debug("Setting core pool size to: {}", executor.getCorePoolSize());
 
         executor.setMaxPoolSize(10);
-        logger.debug("Setting max pool size to: {}", executor.getMaxPoolSize()); // Логируем настройку
+        logger.debug("Setting max pool size to: {}", executor.getMaxPoolSize());
 
         executor.setQueueCapacity(500);
-        logger.debug("Setting queue capacity to: {}", executor.getQueueCapacity()); // Логируем настройку
+        logger.debug("Setting queue capacity to: {}", executor.getQueueCapacity());
 
         executor.setThreadNamePrefix("EmailSender-");
-        logger.debug("Setting thread name prefix to: {}", executor.getThreadNamePrefix()); // Логируем настройку
+        logger.debug("Setting thread name prefix to: {}", executor.getThreadNamePrefix());
 
         executor.initialize();
         logger.info("Async task executor initialized with corePoolSize={}, maxPoolSize={}, queueCapacity={}, threadNamePrefix={}",
-                executor.getCorePoolSize(), executor.getMaxPoolSize(), executor.getQueueCapacity(), executor.getThreadNamePrefix()); // Логируем полную инициализацию
+                executor.getCorePoolSize(), executor.getMaxPoolSize(), executor.getQueueCapacity(), executor.getThreadNamePrefix());
 
         return executor;
     }

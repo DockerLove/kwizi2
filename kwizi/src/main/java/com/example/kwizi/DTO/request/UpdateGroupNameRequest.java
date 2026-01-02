@@ -8,7 +8,6 @@ public class UpdateGroupNameRequest {
     @Size(min = 1, max = 100, message = "Название группы должно быть от 1 до 100 символов")
     private String groupName;
 
-    // геттеры и сеттеры
     public String getGroupName() {
         return groupName;
     }

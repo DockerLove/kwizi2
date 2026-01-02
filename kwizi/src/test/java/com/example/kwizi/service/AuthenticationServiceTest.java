@@ -63,10 +63,7 @@ class AuthenticationServiceTest {
         changePasswordRequest.setOldPassword("oldPassword");
         changePasswordRequest.setNewPassword("newPassword123");
     }
-
-    // ==================================================
-    // Выход из системы (Logout)
-    // ==================================================
+    
     @Nested
     @DisplayName("Выход из системы (logout)")
     class Logout {
@@ -74,7 +71,7 @@ class AuthenticationServiceTest {
         @Test
         @DisplayName("✅ Успешная деактивация токена")
         void success() {
-            // given
+            
             String token = "valid.jwt.token";
             String jti = "token-jti-123";
             Date expiresAt = new Date(System.currentTimeMillis() + 3600_000);
@@ -85,10 +82,10 @@ class AuthenticationServiceTest {
             when(userService.findByUsername("testuser")).thenReturn(Optional.of(testUser));
             when(revokedTokenRepo.save(any(RevokedToken.class))).thenReturn(new RevokedToken());
 
-            // when
+            
             authenticationService.logout(token);
 
-            // then
+            
             verify(jwtUtils).extractJti(token);
             verify(jwtUtils).extractExpiration(token);
             verify(jwtUtils).getUsernameFromToken(token);
@@ -97,24 +94,20 @@ class AuthenticationServiceTest {
         }
 
         @Test
-        @DisplayName("❌ Пользователь не найден")
+        @DisplayName("Пользователь не найден")
         void userNotFound() {
-            // given
+            
             String token = "valid.jwt.token";
             when(jwtUtils.getUsernameFromToken(token)).thenReturn("nonexistent");
             when(userService.findByUsername("nonexistent")).thenReturn(Optional.empty());
 
-            // when & then
+             
             assertThatThrownBy(() -> authenticationService.logout(token))
                     .isInstanceOf(UserNotFoundException.class);
 
             verify(revokedTokenRepo, never()).save(any(RevokedToken.class));
         }
     }
-
-    // ==================================================
-    // Отправка email-подтверждения
-    // ==================================================
     @Nested
     @DisplayName("Отправка email-подтверждения")
     class SendVerificationEmail {
@@ -122,27 +115,27 @@ class AuthenticationServiceTest {
         @Test
         @DisplayName("✅ Успешная отправка, если email не подтверждён")
         void success() {
-            // given
+            
             when(authenticationRepository.findById(1L)).thenReturn(Optional.of(testUser));
             when(jwtEmailVerify.generateVerificationToken(1L)).thenReturn("verification-token");
             doNothing().when(emailService).sendVerificationEmailAsync(anyString(), anyString());
 
-            // when
+            
             authenticationService.sendVerificationEmail(1L);
 
-            // then
+            
             verify(authenticationRepository).findById(1L);
             verify(jwtEmailVerify).generateVerificationToken(1L);
             verify(emailService).sendVerificationEmailAsync("test@example.com", "verification-token");
         }
 
         @Test
-        @DisplayName("❌ Пользователь не найден")
+        @DisplayName("Пользователь не найден")
         void userNotFound() {
-            // given
+            
             when(authenticationRepository.findById(1L)).thenReturn(Optional.empty());
 
-            // when & then
+             
             assertThatThrownBy(() -> authenticationService.sendVerificationEmail(1L))
                     .isInstanceOf(UserNotFoundException.class);
 
@@ -151,13 +144,13 @@ class AuthenticationServiceTest {
         }
 
         @Test
-        @DisplayName("❌ Email уже подтверждён")
+        @DisplayName("Email уже подтверждён")
         void emailAlreadyVerified() {
-            // given
+            
             testUser.setEmail_verified(true);
             when(authenticationRepository.findById(1L)).thenReturn(Optional.of(testUser));
 
-            // when & then
+             
             assertThatThrownBy(() -> authenticationService.sendVerificationEmail(1L))
                     .isInstanceOf(EmailAlreadyVerifiedException.class);
 
@@ -165,10 +158,7 @@ class AuthenticationServiceTest {
             verify(emailService, never()).sendVerificationEmailAsync(anyString(), anyString());
         }
     }
-
-    // ==================================================
-    // Подтверждение email по токену
-    // ==================================================
+    
     @Nested
     @DisplayName("Подтверждение email")
     class VerifyEmail {
@@ -176,16 +166,16 @@ class AuthenticationServiceTest {
         @Test
         @DisplayName("✅ Успешное подтверждение email")
         void success() {
-            // given
+            
             String token = "valid-verification-token";
             when(jwtEmailVerify.isTokenExpired(token)).thenReturn(false);
             when(jwtEmailVerify.getUserIdFromToken(token)).thenReturn("1");
             when(authenticationRepository.findById(1L)).thenReturn(Optional.of(testUser));
 
-            // when
+            
             authenticationService.verifyEmail(token);
 
-            // then
+            
             assertThat(testUser.isEmail_verified()).isTrue();
             verify(jwtEmailVerify).isTokenExpired(token);
             verify(jwtEmailVerify).getUserIdFromToken(token);
@@ -193,13 +183,13 @@ class AuthenticationServiceTest {
         }
 
         @Test
-        @DisplayName("❌ Токен просрочен")
+        @DisplayName("Токен просрочен")
         void tokenExpired() {
-            // given
+            
             String token = "expired-token";
             when(jwtEmailVerify.isTokenExpired(token)).thenReturn(true);
 
-            // when & then
+             
             assertThatThrownBy(() -> authenticationService.verifyEmail(token))
                     .isInstanceOf(TokenExpiredException.class);
 
@@ -207,14 +197,14 @@ class AuthenticationServiceTest {
         }
 
         @Test
-        @DisplayName("❌ Неверный формат ID в токене")
+        @DisplayName("Неверный формат ID в токене")
         void invalidUserIdFormat() {
-            // given
+            
             String token = "invalid-token";
             when(jwtEmailVerify.isTokenExpired(token)).thenReturn(false);
             when(jwtEmailVerify.getUserIdFromToken(token)).thenReturn("invalid-number");
 
-            // when & then
+             
             assertThatThrownBy(() -> authenticationService.verifyEmail(token))
                     .isInstanceOf(InvalidTokenException.class);
 
@@ -222,23 +212,20 @@ class AuthenticationServiceTest {
         }
 
         @Test
-        @DisplayName("❌ Пользователь не найден по ID из токена")
+        @DisplayName("Пользователь не найден по ID из токена")
         void userNotFound() {
-            // given
+            
             String token = "valid-token";
             when(jwtEmailVerify.isTokenExpired(token)).thenReturn(false);
             when(jwtEmailVerify.getUserIdFromToken(token)).thenReturn("999");
             when(authenticationRepository.findById(999L)).thenReturn(Optional.empty());
 
-            // when & then
+             
             assertThatThrownBy(() -> authenticationService.verifyEmail(token))
                     .isInstanceOf(UserNotFoundException.class);
         }
     }
 
-    // ==================================================
-    // Смена пароля
-    // ==================================================
     @Nested
     @DisplayName("Смена пароля")
     class ChangePassword {
@@ -246,27 +233,27 @@ class AuthenticationServiceTest {
         @Test
         @DisplayName("✅ Успешная смена пароля")
         void success() {
-            // given
+            
             when(authenticationRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
             when(passwordEncoder.matches("oldPassword", "encodedOldPassword")).thenReturn(true);
             when(passwordEncoder.matches("newPassword123", "encodedOldPassword")).thenReturn(false);
             when(passwordEncoder.encode("newPassword123")).thenReturn("encodedNewPassword");
 
-            // when
+            
             authenticationService.changePassword("testuser", changePasswordRequest);
 
-            // then
+            
             assertThat(testUser.getPassword()).isEqualTo("encodedNewPassword");
             verify(passwordEncoder).encode("newPassword123");
         }
 
         @Test
-        @DisplayName("❌ Пользователь не найден")
+        @DisplayName("Пользователь не найден")
         void userNotFound() {
-            // given
+            
             when(authenticationRepository.findByUsername("unknown")).thenReturn(Optional.empty());
 
-            // when & then
+             
             assertThatThrownBy(() -> authenticationService.changePassword("unknown", changePasswordRequest))
                     .isInstanceOf(UsernameNotFoundException.class);
 
@@ -274,9 +261,9 @@ class AuthenticationServiceTest {
         }
 
         @Test
-        @DisplayName("❌ Неверный старый пароль")
+        @DisplayName("Неверный старый пароль")
         void invalidOldPassword() {
-            // given
+            
             ChangePasswordRequest req = new ChangePasswordRequest();
             req.setOldPassword("wrongOld");
             req.setNewPassword("newPassword123");
@@ -284,7 +271,7 @@ class AuthenticationServiceTest {
             when(authenticationRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
             when(passwordEncoder.matches("wrongOld", "encodedOldPassword")).thenReturn(false);
 
-            // when & then
+             
             assertThatThrownBy(() -> authenticationService.changePassword("testuser", req))
                     .isInstanceOf(InvalidPasswordException.class);
 
@@ -292,9 +279,9 @@ class AuthenticationServiceTest {
         }
 
         @Test
-        @DisplayName("❌ Новый пароль совпадает со старым")
+        @DisplayName("Новый пароль совпадает со старым")
         void newPasswordSameAsOld() {
-            // given
+            
             ChangePasswordRequest req = new ChangePasswordRequest();
             req.setOldPassword("oldPassword");
             req.setNewPassword("oldPassword");
@@ -303,7 +290,7 @@ class AuthenticationServiceTest {
             when(passwordEncoder.matches("oldPassword", "encodedOldPassword")).thenReturn(true);
             when(passwordEncoder.matches("oldPassword", "encodedOldPassword")).thenReturn(true);
 
-            // when & then
+             
             assertThatThrownBy(() -> authenticationService.changePassword("testuser", req))
                     .isInstanceOf(IllegalArgumentException.class);
 
@@ -311,24 +298,21 @@ class AuthenticationServiceTest {
         }
 
         @Test
-        @DisplayName("❌ Ошибка кодирования нового пароля")
+        @DisplayName("Ошибка кодирования нового пароля")
         void passwordEncodingFails() {
-            // given
+            
             when(authenticationRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
             when(passwordEncoder.matches("oldPassword", "encodedOldPassword")).thenReturn(true);
             when(passwordEncoder.matches("newPassword123", "encodedOldPassword")).thenReturn(false);
             when(passwordEncoder.encode("newPassword123"))
                     .thenThrow(new IllegalArgumentException("Password too weak"));
 
-            // when & then
+             
             assertThatThrownBy(() -> authenticationService.changePassword("testuser", changePasswordRequest))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
 
-    // ==================================================
-    // Регистрация пользователя
-    // ==================================================
     @Nested
     @DisplayName("Регистрация пользователя")
     class RegisterUser {
@@ -336,7 +320,7 @@ class AuthenticationServiceTest {
         @Test
         @DisplayName("✅ Успешная регистрация с кодированием пароля")
         void success() {
-            // given
+            
             User newUser = new User();
             newUser.setUsername("newuser");
             newUser.setPassword("plainPassword");
@@ -350,10 +334,10 @@ class AuthenticationServiceTest {
             when(passwordEncoder.encode("plainPassword")).thenReturn("encodedPassword");
             when(authenticationRepository.save(newUser)).thenReturn(savedUser);
 
-            // when
+            
             User result = authenticationService.registerUser(newUser);
 
-            // then
+            
             assertThat(result).isNotNull();
             assertThat(newUser.getPassword()).isEqualTo("encodedPassword");
             verify(passwordEncoder).encode("plainPassword");
@@ -361,9 +345,6 @@ class AuthenticationServiceTest {
         }
     }
 
-    // ==================================================
-    // Проверка существования пользователя
-    // ==================================================
     @Nested
     @DisplayName("Проверка существования пользователя")
     class ExistenceChecks {
@@ -371,27 +352,27 @@ class AuthenticationServiceTest {
         @Test
         @DisplayName("✅ Пользователь существует по имени")
         void existsByUsername_True() {
-            // given
+            
             when(authenticationRepository.existsByUsername("existinguser")).thenReturn(true);
 
-            // when
+            
             boolean result = authenticationService.existsByUsername("existinguser");
 
-            // then
+            
             assertThat(result).isTrue();
             verify(authenticationRepository).existsByUsername("existinguser");
         }
 
         @Test
-        @DisplayName("❌ Пользователь не существует по имени")
+        @DisplayName("Пользователь не существует по имени")
         void existsByUsername_False() {
-            // given
+            
             when(authenticationRepository.existsByUsername("nonexistent")).thenReturn(false);
 
-            // when
+            
             boolean result = authenticationService.existsByUsername("nonexistent");
 
-            // then
+            
             assertThat(result).isFalse();
             verify(authenticationRepository).existsByUsername("nonexistent");
         }
@@ -399,27 +380,27 @@ class AuthenticationServiceTest {
         @Test
         @DisplayName("✅ Пользователь найден по email")
         void findByEmail_Found() {
-            // given
+            
             when(authenticationRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
 
-            // when
+            
             Optional<User> result = authenticationService.findByEmail("test@example.com");
 
-            // then
+            
             assertThat(result).isPresent().contains(testUser);
             verify(authenticationRepository).findByEmail("test@example.com");
         }
 
         @Test
-        @DisplayName("❌ Пользователь не найден по email")
+        @DisplayName("Пользователь не найден по email")
         void findByEmail_NotFound() {
-            // given
+            
             when(authenticationRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
 
-            // when
+            
             Optional<User> result = authenticationService.findByEmail("unknown@example.com");
 
-            // then
+            
             assertThat(result).isEmpty();
             verify(authenticationRepository).findByEmail("unknown@example.com");
         }

@@ -48,6 +48,7 @@ class AuthenticationControllerTest {
 
     @Mock
     private Authentication authentication;
+
     @Mock
     private AuthenticationManager authenticationManager;
 
@@ -94,9 +95,8 @@ class AuthenticationControllerTest {
     class ChangePasswordTests {
 
         @Test
-        @DisplayName("✅ Успешная смена пароля")
+        @DisplayName("Успешная смена пароля")
         void changePassword_Success() {
-            // given
             ChangePasswordRequest request = new ChangePasswordRequest();
             request.setOldPassword(TEST_PASSWORD);
             request.setNewPassword(TEST_NEW_PASSWORD);
@@ -104,10 +104,8 @@ class AuthenticationControllerTest {
             doNothing().when(authenticationService)
                     .changePassword(eq(TEST_USERNAME), eq(request));
 
-            // when
             ResponseEntity<?> response = authenticationController.changePassword(request, userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
             ApiResponse<?> apiResponse = extractApiResponse(response);
@@ -119,9 +117,8 @@ class AuthenticationControllerTest {
         }
 
         @Test
-        @DisplayName("❌ Смена пароля с неверным старым паролем")
+        @DisplayName("Смена пароля с неверным старым паролем")
         void changePassword_WrongOldPassword_ThrowsException() {
-            // given
             ChangePasswordRequest request = new ChangePasswordRequest();
             request.setOldPassword("wrongPassword");
             request.setNewPassword(TEST_NEW_PASSWORD);
@@ -129,16 +126,14 @@ class AuthenticationControllerTest {
             doThrow(new IllegalArgumentException("Неверный старый пароль"))
                     .when(authenticationService).changePassword(eq(TEST_USERNAME), eq(request));
 
-            // when & then
             assertThatThrownBy(() -> authenticationController.changePassword(request, userDetails))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Неверный старый пароль");
         }
 
         @Test
-        @DisplayName("❌ Смена пароля на тот же самый")
+        @DisplayName("Смена пароля на тот же самый")
         void changePassword_SamePassword_ThrowsException() {
-            // given
             ChangePasswordRequest request = new ChangePasswordRequest();
             request.setOldPassword(TEST_PASSWORD);
             request.setNewPassword(TEST_PASSWORD);
@@ -146,16 +141,14 @@ class AuthenticationControllerTest {
             doThrow(new IllegalArgumentException("Новый пароль не должен совпадать со старым"))
                     .when(authenticationService).changePassword(eq(TEST_USERNAME), eq(request));
 
-            // when & then
             assertThatThrownBy(() -> authenticationController.changePassword(request, userDetails))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Новый пароль не должен совпадать со старым");
         }
 
         @Test
-        @DisplayName("❌ Смена пароля со слабым новым паролем")
+        @DisplayName("Смена пароля со слабым новым паролем")
         void changePassword_WeakNewPassword_ThrowsException() {
-            // given
             ChangePasswordRequest request = new ChangePasswordRequest();
             request.setOldPassword(TEST_PASSWORD);
             request.setNewPassword("123");
@@ -163,7 +156,6 @@ class AuthenticationControllerTest {
             doThrow(new IllegalArgumentException("Пароль слишком слабый"))
                     .when(authenticationService).changePassword(eq(TEST_USERNAME), eq(request));
 
-            // when & then
             assertThatThrownBy(() -> authenticationController.changePassword(request, userDetails))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Пароль слишком слабый");
@@ -175,9 +167,8 @@ class AuthenticationControllerTest {
     class RegistrationTests {
 
         @Test
-        @DisplayName("✅ Успешная регистрация пользователя")
+        @DisplayName("Успешная регистрация пользователя")
         void registerUser_Success() {
-            // given
             RegistrationRequest request = new RegistrationRequest();
             request.setUsername(TEST_USERNAME);
             request.setPassword(TEST_PASSWORD);
@@ -188,10 +179,8 @@ class AuthenticationControllerTest {
             doNothing().when(registrationService)
                     .registerUser(eq(request));
 
-            // when
             ResponseEntity<?> response = authenticationController.registerUser(request);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
             ApiResponse<?> apiResponse = extractApiResponse(response);
@@ -203,9 +192,8 @@ class AuthenticationControllerTest {
         }
 
         @Test
-        @DisplayName("❌ Регистрация с уже существующим username")
+        @DisplayName("Регистрация с уже существующим username")
         void registerUser_UsernameAlreadyExists_ThrowsException() {
-            // given
             RegistrationRequest request = new RegistrationRequest();
             request.setUsername(TEST_USERNAME);
             request.setPassword(TEST_PASSWORD);
@@ -214,16 +202,14 @@ class AuthenticationControllerTest {
             doThrow(new DuplicateKeyException("Пользователь с таким именем уже существует"))
                     .when(registrationService).registerUser(eq(request));
 
-            // when & then
             assertThatThrownBy(() -> authenticationController.registerUser(request))
                     .isInstanceOf(DuplicateKeyException.class)
                     .hasMessageContaining("Пользователь с таким именем уже существует");
         }
 
         @Test
-        @DisplayName("❌ Регистрация с уже существующим email")
+        @DisplayName("Регистрация с уже существующим email")
         void registerUser_EmailAlreadyExists_ThrowsException() {
-            // given
             RegistrationRequest request = new RegistrationRequest();
             request.setUsername("newUser");
             request.setPassword(TEST_PASSWORD);
@@ -232,16 +218,14 @@ class AuthenticationControllerTest {
             doThrow(new DuplicateKeyException("Пользователь с таким email уже существует"))
                     .when(registrationService).registerUser(eq(request));
 
-            // when & then
             assertThatThrownBy(() -> authenticationController.registerUser(request))
                     .isInstanceOf(DuplicateKeyException.class)
                     .hasMessageContaining("Пользователь с таким email уже существует");
         }
 
         @Test
-        @DisplayName("❌ Регистрация с невалидным email")
+        @DisplayName("Регистрация с невалидным email")
         void registerUser_InvalidEmail_ThrowsException() {
-            // given
             RegistrationRequest request = new RegistrationRequest();
             request.setUsername("newUser");
             request.setPassword(TEST_PASSWORD);
@@ -250,7 +234,6 @@ class AuthenticationControllerTest {
             doThrow(new IllegalArgumentException("Невалидный email"))
                     .when(registrationService).registerUser(eq(request));
 
-            // when & then
             assertThatThrownBy(() -> authenticationController.registerUser(request))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Невалидный email");
@@ -262,9 +245,8 @@ class AuthenticationControllerTest {
     class LoginTests {
 
         @Test
-        @DisplayName("✅ Успешная аутентификация")
+        @DisplayName("Успешная аутентификация")
         void login_Success() {
-            // given
             AuthenticationRequest request = new AuthenticationRequest();
             request.setUsername(TEST_USERNAME);
             request.setPassword(TEST_PASSWORD);
@@ -272,7 +254,6 @@ class AuthenticationControllerTest {
             UserDetails userDetails = mock(UserDetails.class);
             when(userDetails.getUsername()).thenReturn(TEST_USERNAME);
 
-            // 👇 Создаём мок User для userService
             User mockUser = new User();
             mockUser.setId(TEST_USER_ID);
             mockUser.setUsername(TEST_USERNAME);
@@ -283,17 +264,14 @@ class AuthenticationControllerTest {
             when(userDetailsService.loadUserByUsername(TEST_USERNAME))
                     .thenReturn(userDetails);
 
-            // 👇 МОКИРУЕМ userService
             when(userService.findByUsername(TEST_USERNAME))
-                    .thenReturn(Optional.of(mockUser)); // ← вот ключевая строка!
+                    .thenReturn(Optional.of(mockUser));
 
             when(jwtUtils.generateToken(TEST_USERNAME, TEST_USER_ID))
                     .thenReturn(TEST_JWT_TOKEN);
 
-            // when
             ResponseEntity<?> response = authenticationController.login(request);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
             AuthenticationResponse authResponse = (AuthenticationResponse) response.getBody();
@@ -303,14 +281,13 @@ class AuthenticationControllerTest {
             verify(authenticationManager, times(1))
                     .authenticate(new UsernamePasswordAuthenticationToken(TEST_USERNAME, TEST_PASSWORD));
             verify(userDetailsService, times(1)).loadUserByUsername(TEST_USERNAME);
-            verify(userService, times(1)).findByUsername(TEST_USERNAME); // ← не забудь проверить вызов
+            verify(userService, times(1)).findByUsername(TEST_USERNAME);
             verify(jwtUtils, times(1)).generateToken(TEST_USERNAME, TEST_USER_ID);
         }
 
         @Test
-        @DisplayName("❌ Аутентификация с неверными учетными данными")
+        @DisplayName("Аутентификация с неверными учетными данными")
         void login_InvalidCredentials_ThrowsException() {
-            // given
             AuthenticationRequest request = new AuthenticationRequest();
             request.setUsername(TEST_USERNAME);
             request.setPassword("wrongPassword");
@@ -318,16 +295,14 @@ class AuthenticationControllerTest {
             when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                     .thenThrow(new BadCredentialsException("Неверные учетные данные"));
 
-            // when & then
             assertThatThrownBy(() -> authenticationController.login(request))
                     .isInstanceOf(BadCredentialsException.class)
                     .hasMessageContaining("Неверные учетные данные");
         }
 
         @Test
-        @DisplayName("❌ Аутентификация несуществующего пользователя")
+        @DisplayName("Аутентификация несуществующего пользователя")
         void login_UserNotFound_ThrowsException() {
-            // given
             AuthenticationRequest request = new AuthenticationRequest();
             request.setUsername("nonExistentUser");
             request.setPassword(TEST_PASSWORD);
@@ -338,7 +313,6 @@ class AuthenticationControllerTest {
             when(userDetailsService.loadUserByUsername("nonExistentUser"))
                     .thenThrow(new UsernameNotFoundException("Пользователь не найден"));
 
-            // when & then
             assertThatThrownBy(() -> authenticationController.login(request))
                     .isInstanceOf(UsernameNotFoundException.class)
                     .hasMessageContaining("Пользователь не найден");
@@ -350,20 +324,17 @@ class AuthenticationControllerTest {
     class LogoutTests {
 
         @Test
-        @DisplayName("✅ Успешный выход из системы")
+        @DisplayName("Успешный выход из системы")
         void logout_Success() {
-            // given
             when(jwtUtils.extractToken(httpServletRequest))
                     .thenReturn(TEST_JWT_TOKEN);
 
             doNothing().when(authenticationService)
                     .logout(eq(TEST_JWT_TOKEN));
 
-            // when
             ResponseEntity<ApiResponse<Void>> response =
                     authenticationController.logout(httpServletRequest);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
             ApiResponse<Void> apiResponse = response.getBody();
@@ -375,17 +346,14 @@ class AuthenticationControllerTest {
         }
 
         @Test
-        @DisplayName("❌ Выход без токена")
+        @DisplayName("Выход без токена")
         void logout_NoToken_ReturnsBadRequest() {
-            // given
             when(jwtUtils.extractToken(httpServletRequest))
                     .thenReturn(null);
 
-            // when
             ResponseEntity<ApiResponse<Void>> response =
                     authenticationController.logout(httpServletRequest);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
             ApiResponse<Void> apiResponse = response.getBody();
@@ -396,39 +364,34 @@ class AuthenticationControllerTest {
         }
 
         @Test
-        @DisplayName("❌ Выход с истекшим токеном")
+        @DisplayName("Выход с истекшим токеном")
         void logout_ExpiredToken_Success() {
-            // given
             when(jwtUtils.extractToken(httpServletRequest))
                     .thenReturn(TEST_JWT_TOKEN);
 
             doThrow(new IllegalArgumentException("Токен истек"))
                     .when(authenticationService).logout(eq(TEST_JWT_TOKEN));
 
-            // when & then
             assertThatThrownBy(() -> authenticationController.logout(httpServletRequest))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Токен истек");
         }
 
         @Test
-        @DisplayName("✅ Выход с уже отозванным токеном")
+        @DisplayName("Выход с уже отозванным токеном")
         void logout_AlreadyRevokedToken_Success() {
-            // given
             when(jwtUtils.extractToken(httpServletRequest))
                     .thenReturn(TEST_JWT_TOKEN);
 
             doThrow(new IllegalStateException("Токен уже отозван"))
                     .when(authenticationService).logout(eq(TEST_JWT_TOKEN));
 
-            // when & then
             assertThatThrownBy(() -> authenticationController.logout(httpServletRequest))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("Токен уже отозван");
         }
     }
 
-    // Вспомогательный метод для извлечения ApiResponse
     @SuppressWarnings("unchecked")
     private <T> ApiResponse<T> extractApiResponse(ResponseEntity<?> responseEntity) {
         return (ApiResponse<T>) responseEntity.getBody();

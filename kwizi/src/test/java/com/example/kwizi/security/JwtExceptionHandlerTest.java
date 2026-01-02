@@ -31,7 +31,7 @@ class JwtExceptionHandlerTest {
     class SuccessScenarios {
 
         @Test
-        @DisplayName("✅ Возвращает значение при успешной операции")
+        @DisplayName("Возвращает значение при успешной операции")
         void handleJwtOperation_ShouldReturnValue_WhenOperationSucceeds() {
             String operationName = "извлечение данных из токена";
             String expectedValue = "success";
@@ -43,7 +43,7 @@ class JwtExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Поддерживает различные типы возвращаемых значений")
+        @DisplayName("Поддерживает различные типы возвращаемых значений")
         void handleJwtOperation_ShouldWorkWithDifferentReturnTypes() {
             String operationName = "операция с разными типами";
 
@@ -63,7 +63,7 @@ class JwtExceptionHandlerTest {
     class SpecificJwtExceptionHandling {
 
         @Test
-        @DisplayName("✅ Преобразует ExpiredJwtException в JwtAuthenticationException")
+        @DisplayName("Преобразует ExpiredJwtException в JwtAuthenticationException")
         void handleJwtOperation_ShouldThrowJwtAuthenticationException_WhenExpiredJwtExceptionOccurs() {
             String operationName = "проверка токена";
             String expectedMessage = "Срок действия JWT токена истек при " + operationName;
@@ -81,7 +81,7 @@ class JwtExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Преобразует MalformedJwtException в JwtAuthenticationException")
+        @DisplayName("Преобразует MalformedJwtException в JwtAuthenticationException")
         void handleJwtOperation_ShouldThrowJwtAuthenticationException_WhenMalformedJwtExceptionOccurs() {
             String operationName = "парсинг токена";
             String expectedMessage = "JWT токен имеет неверный формат при " + operationName;
@@ -99,7 +99,7 @@ class JwtExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Преобразует SignatureException в JwtAuthenticationException")
+        @DisplayName("Преобразует SignatureException в JwtAuthenticationException")
         void handleJwtOperation_ShouldThrowJwtAuthenticationException_WhenSignatureExceptionOccurs() {
             String operationName = "верификация подписи";
             String expectedMessage = "Неверная подпись JWT токена при " + operationName;
@@ -117,7 +117,7 @@ class JwtExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Преобразует UnsupportedJwtException в JwtAuthenticationException")
+        @DisplayName("Преобразует UnsupportedJwtException в JwtAuthenticationException")
         void handleJwtOperation_ShouldThrowJwtAuthenticationException_WhenUnsupportedJwtExceptionOccurs() {
             String operationName = "обработка токена";
             String expectedMessage = "Неподдерживаемый JWT токен при " + operationName;
@@ -135,7 +135,7 @@ class JwtExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Преобразует IllegalArgumentException в JwtAuthenticationException")
+        @DisplayName("Преобразует IllegalArgumentException в JwtAuthenticationException")
         void handleJwtOperation_ShouldThrowJwtAuthenticationException_WhenIllegalArgumentExceptionOccurs() {
             String operationName = "валидация токена";
             String expectedMessage = "JWT токен недействителен при " + operationName;
@@ -153,7 +153,7 @@ class JwtExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Преобразует общий JwtException в JwtAuthenticationException")
+        @DisplayName("Преобразует общий JwtException в JwtAuthenticationException")
         void handleJwtOperation_ShouldThrowJwtAuthenticationException_WhenGenericJwtExceptionOccurs() {
             String operationName = "извлечение claims";
             String expectedMessage = "Ошибка обработки JWT токена при " + operationName;
@@ -176,7 +176,7 @@ class JwtExceptionHandlerTest {
     class OtherScenarios {
 
         @Test
-        @DisplayName("✅ Пробрасывает исключения, не относящиеся к JWT")
+        @DisplayName("Пробрасывает исключения, не относящиеся к JWT")
         void handleJwtOperation_ShouldPropagateException_WhenNonJwtExceptionOccurs() {
             String operationName = "чтение токена";
             RuntimeException runtimeException = new RuntimeException("Some other error");
@@ -192,7 +192,7 @@ class JwtExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Включает имя операции в сообщение об ошибке")
+        @DisplayName("Включает имя операции в сообщение об ошибке")
         void handleJwtOperation_ShouldIncludeOperationNameInErrorMessage() {
             String operationName = "специальная операция проверки";
             String expectedMessage = "Срок действия JWT токена истек при " + operationName;
@@ -209,7 +209,7 @@ class JwtExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Сохраняет цепочку исключений")
+        @DisplayName("Сохраняет цепочку исключений")
         void handleJwtOperation_ShouldPreserveExceptionChain() {
             String operationName = "тест цепочки исключений";
             String causeMessage = "Оригинальная ошибка в JWT";

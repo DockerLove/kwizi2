@@ -31,7 +31,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ChatMemberRepository chatMemberRepository;
     private final MessageConverter messageConverter;
-    private final JwtUtils jwtUtils; // ← добавили зависимость
+    private final JwtUtils jwtUtils;
     private final Logger logger = LoggerFactory.getLogger(UniversalChatHandler.class);
 
     @Autowired
@@ -39,7 +39,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
                                 KafkaTemplate<String, String> kafkaTemplate,
                                 ChatMemberRepository chatMemberRepository,
                                 MessageConverter messageConverter,
-                                JwtUtils jwtUtils) { // ← внедряем
+                                JwtUtils jwtUtils) {
         this.objectMapper = objectMapper;
         this.kafkaTemplate = kafkaTemplate;
         this.chatMemberRepository = chatMemberRepository;
@@ -103,7 +103,6 @@ public class UniversalChatHandler extends TextWebSocketHandler {
             activeSessions.remove(userId);
             logger.info("Пользователь {} отключился. Причина: {}", userId, status);
         } catch (Exception e) {
-            // Игнорируем — сессия уже закрыта, и пользователь не был аутентифицирован
             logger.debug("Закрытие неаутентифицированной сессии");
         }
     }
@@ -118,8 +117,6 @@ public class UniversalChatHandler extends TextWebSocketHandler {
             logger.debug("Транспортная ошибка в неаутентифицированной сессии");
         }
     }
-
-    // --- Вспомогательные методы ---
 
     private Long extractUserIdFromToken(WebSocketSession session) {
         URI uri = session.getUri();
@@ -144,7 +141,6 @@ public class UniversalChatHandler extends TextWebSocketHandler {
             throw new IllegalArgumentException("Токен отозван");
         }
 
-        // Извлечение userId (подпись и срок уже проверяются внутри)
         return jwtUtils.getUserIdFromToken(token);
     }
 
@@ -173,8 +169,6 @@ public class UniversalChatHandler extends TextWebSocketHandler {
             logger.debug("Пользователь {} не имеет активной WebSocket-сессии", userId);
         }
     }
-
-    // --- Методы отправки (без изменений) ---
 
     public void sendToUser(Long userId, String payload) {
         WebSocketSession session = activeSessions.get(userId);

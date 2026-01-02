@@ -40,7 +40,7 @@ class JwtFilterExceptionHandlerTest {
     class SpecificJwtExceptionHandling {
 
         @Test
-        @DisplayName("✅ Отправляет 401 при ExpiredJwtException")
+        @DisplayName("Отправляет 401 при ExpiredJwtException")
         void handleJwtException_ShouldSendUnauthorized_WhenExpiredJwtException() throws IOException {
             ExpiredJwtException exception = mock(ExpiredJwtException.class);
             jwtFilterExceptionHandler.handleJwtException(exception, response);
@@ -48,7 +48,7 @@ class JwtFilterExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Отправляет 401 при UnsupportedJwtException")
+        @DisplayName("Отправляет 401 при UnsupportedJwtException")
         void handleJwtException_ShouldSendUnauthorized_WhenUnsupportedJwtException() throws IOException {
             UnsupportedJwtException exception = mock(UnsupportedJwtException.class);
             jwtFilterExceptionHandler.handleJwtException(exception, response);
@@ -56,7 +56,7 @@ class JwtFilterExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Отправляет 401 при MalformedJwtException")
+        @DisplayName("Отправляет 401 при MalformedJwtException")
         void handleJwtException_ShouldSendUnauthorized_WhenMalformedJwtException() throws IOException {
             MalformedJwtException exception = mock(MalformedJwtException.class);
             jwtFilterExceptionHandler.handleJwtException(exception, response);
@@ -64,7 +64,7 @@ class JwtFilterExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Отправляет 401 при SignatureException")
+        @DisplayName("Отправляет 401 при SignatureException")
         void handleJwtException_ShouldSendUnauthorized_WhenSignatureException() throws IOException {
             Exception signatureException = createSignatureException();
             jwtFilterExceptionHandler.handleJwtException(signatureException, response);
@@ -72,7 +72,7 @@ class JwtFilterExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Отправляет 401 с сообщением при JwtAuthenticationException")
+        @DisplayName("Отправляет 401 с сообщением при JwtAuthenticationException")
         void handleJwtException_ShouldSendUnauthorizedWithMessage_WhenJwtAuthenticationException() throws IOException {
             String errorMessage = "Токен был отозван";
             JwtAuthenticationException exception = new JwtAuthenticationException(errorMessage);
@@ -87,7 +87,7 @@ class JwtFilterExceptionHandlerTest {
 
         @ParameterizedTest
         @ValueSource(classes = {RuntimeException.class, IllegalArgumentException.class, JwtException.class})
-        @DisplayName("✅ Отправляет 401 с общим сообщением для неизвестных исключений")
+        @DisplayName("Отправляет 401 с общим сообщением для неизвестных исключений")
         void handleJwtException_ShouldSendGenericUnauthorized_WhenOtherException(Class<? extends Exception> exceptionClass) throws IOException {
             Exception exception = mock(exceptionClass);
             jwtFilterExceptionHandler.handleJwtException(exception, response);
@@ -95,7 +95,7 @@ class JwtFilterExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Отправляет 401 с общим сообщением при null-исключении")
+        @DisplayName("Отправляет 401 с общим сообщением при null-исключении")
         void handleJwtException_ShouldHandleNullException() throws IOException {
             jwtFilterExceptionHandler.handleJwtException(null, response);
             verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Ошибка аутентификации");
@@ -107,7 +107,7 @@ class JwtFilterExceptionHandlerTest {
     class EdgeCases {
 
         @Test
-        @DisplayName("✅ Пробрасывает IOException при ошибке отправки ответа")
+        @DisplayName("Пробрасывает IOException при ошибке отправки ответа")
         void handleJwtException_ShouldHandleIOException() throws IOException {
             ExpiredJwtException exception = mock(ExpiredJwtException.class);
             doThrow(new IOException("Failed to send error")).when(response)
@@ -122,7 +122,7 @@ class JwtFilterExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Выбрасывает NullPointerException при null-ответе")
+        @DisplayName("Выбрасывает NullPointerException при null-ответе")
         void handleJwtException_ShouldHandleNullResponse() {
             ExpiredJwtException exception = mock(ExpiredJwtException.class);
             assertThrows(NullPointerException.class, () -> {

@@ -65,7 +65,7 @@ public class JwtRequestFilterTest {
     class MainFilterScenarios {
 
         @Test
-        @DisplayName("✅ Аутентифицирует пользователя при валидном токене")
+        @DisplayName("Аутентифицирует пользователя при валидном токене")
         void doFilterInternal_ShouldAuthenticateUser_WhenValidTokenIsProvided() throws ServletException, IOException {
             String jwt = "validJwtToken";
             String username = "testUser";
@@ -100,7 +100,7 @@ public class JwtRequestFilterTest {
         }
 
         @Test
-        @DisplayName("✅ Продолжает цепочку фильтров, если заголовок Authorization отсутствует")
+        @DisplayName("Продолжает цепочку фильтров, если заголовок Authorization отсутствует")
         void doFilterInternal_ShouldContinueFilterChain_WhenAuthorizationHeaderIsMissing() throws ServletException, IOException {
             when(request.getHeader("Authorization")).thenReturn(null);
 
@@ -114,7 +114,7 @@ public class JwtRequestFilterTest {
         }
 
         @Test
-        @DisplayName("✅ Продолжает цепочку фильтров, если заголовок не начинается с Bearer")
+        @DisplayName("Продолжает цепочку фильтров, если заголовок не начинается с Bearer")
         void doFilterInternal_ShouldContinueFilterChain_WhenAuthorizationHeaderDoesNotStartWithBearer() throws ServletException, IOException {
             when(request.getHeader("Authorization")).thenReturn("Basic someToken");
 
@@ -128,7 +128,7 @@ public class JwtRequestFilterTest {
         }
 
         @Test
-        @DisplayName("✅ Продолжает цепочку фильтров, если пользователь уже аутентифицирован")
+        @DisplayName("Продолжает цепочку фильтров, если пользователь уже аутентифицирован")
         void doFilterInternal_ShouldContinueFilterChain_WhenUserAlreadyAuthenticated() throws ServletException, IOException {
             String jwt = "validJwtToken";
             String username = "testUser";
@@ -164,7 +164,7 @@ public class JwtRequestFilterTest {
         }
 
         @Test
-        @DisplayName("❌ Не устанавливает аутентификацию при невалидном токене")
+        @DisplayName("Не устанавливает аутентификацию при невалидном токене")
         void doFilterInternal_ShouldHandleException_WhenTokenValidationFails() throws ServletException, IOException {
             String jwt = "invalidJwtToken";
             String username = "testUser";
@@ -202,7 +202,7 @@ public class JwtRequestFilterTest {
     class ExceptionHandlingScenarios {
 
         @Test
-        @DisplayName("❌ Обрабатывает исключение при отозванном токене")
+        @DisplayName("Обрабатывает исключение при отозванном токене")
         void doFilterInternal_ShouldHandleException_WhenTokenIsRevoked() throws ServletException, IOException {
             String jwt = "revokedJwtToken";
             String authorizationHeader = "Bearer " + jwt;
@@ -225,7 +225,7 @@ public class JwtRequestFilterTest {
         }
 
         @Test
-        @DisplayName("❌ Обрабатывает исключение приJwtAuthenticationException")
+        @DisplayName("Обрабатывает исключение приJwtAuthenticationException")
         void doFilterInternal_ShouldHandleException_WhenJwtAuthenticationExceptionOccurs() throws ServletException, IOException {
             String jwt = "invalidJwtToken";
             String authorizationHeader = "Bearer " + jwt;
@@ -251,16 +251,16 @@ public class JwtRequestFilterTest {
     class ShouldNotFilterTests {
 
         @Test
-        @DisplayName("✅ Пропускает фильтрацию для /api/auth/login")
-        void shouldNotFilter_ShouldReturnTrue_WhenRequestPathIsLogin() throws ServletException {
+        @DisplayName("Пропускает фильтрацию для /api/auth/login")
+        void shouldNotFilter_ShouldReturnTrue_WhenRequestPathIsLogin() {
             when(request.getServletPath()).thenReturn("/api/auth/login");
             assertThat(jwtRequestFilter.shouldNotFilter(request)).isTrue();
             verify(request).getServletPath();
         }
 
         @Test
-        @DisplayName("❌ Применяет фильтрацию для других путей")
-        void shouldNotFilter_ShouldReturnFalse_WhenRequestPathIsNotLogin() throws ServletException {
+        @DisplayName("Применяет фильтрацию для других путей")
+        void shouldNotFilter_ShouldReturnFalse_WhenRequestPathIsNotLogin() {
             when(request.getServletPath()).thenReturn("/api/resource");
             assertThat(jwtRequestFilter.shouldNotFilter(request)).isFalse();
             verify(request).getServletPath();

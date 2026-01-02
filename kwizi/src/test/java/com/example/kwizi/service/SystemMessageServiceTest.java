@@ -47,18 +47,16 @@ class SystemMessageServiceTest {
     class MainMessageCreationScenarios {
 
         @Test
-        @DisplayName("✅ Создание сообщения о добавлении пользователя в чат")
+        @DisplayName("Создание сообщения о добавлении пользователя в чат")
         void createUserAddedMessage_WithValidData_ShouldCreateCorrectMessage() {
-            // given
+            
             Chat chat = createTestChat(CHAT_ID);
             User sender = createTestUser(ADMIN_ID, ADMIN_USERNAME);
 
             when(userRepository.findByUsername(ADMIN_USERNAME)).thenReturn(Optional.of(sender));
-
-            // when
+            
             systemMessageService.createUserAddedMessage(chat, USERNAME, ADMIN_USERNAME);
-
-            // then
+            
             verify(messageRepository).save(messageCaptor.capture());
             Message savedMessage = messageCaptor.getValue();
 
@@ -83,18 +81,18 @@ class SystemMessageServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Создание сообщения о удалении пользователя из чата")
+        @DisplayName("Создание сообщения о удалении пользователя из чата")
         void createUserRemovedMessage_WithValidData_ShouldCreateCorrectMessage() {
-            // given
+            
             Chat chat = createTestChat(CHAT_ID);
             User sender = createTestUser(ADMIN_ID, ADMIN_USERNAME);
 
             when(userRepository.findByUsername(ADMIN_USERNAME)).thenReturn(Optional.of(sender));
 
-            // when
+            
             systemMessageService.createUserRemovedMessage(chat, USERNAME, ADMIN_USERNAME);
 
-            // then
+            
             verify(messageRepository).save(messageCaptor.capture());
             Message savedMessage = messageCaptor.getValue();
 
@@ -111,18 +109,16 @@ class SystemMessageServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Создание сообщения о выходе пользователя из чата")
+        @DisplayName("Создание сообщения о выходе пользователя из чата")
         void createUserLeftMessage_WithValidData_ShouldCreateCorrectMessage() {
-            // given
+            
             Chat chat = createTestChat(CHAT_ID);
             User sender = createTestUser(USER_ID, USERNAME);
 
             when(userRepository.findByUsername(USERNAME)).thenReturn(Optional.of(sender));
-
-            // when
+            
             systemMessageService.createUserLeftMessage(chat, USERNAME);
-
-            // then
+            
             verify(messageRepository).save(messageCaptor.capture());
             Message savedMessage = messageCaptor.getValue();
 
@@ -141,18 +137,16 @@ class SystemMessageServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Создание сообщения о назначении администратора")
+        @DisplayName("Создание сообщения о назначении администратора")
         void createUserPromotedMessage_WithValidData_ShouldCreateCorrectMessage() {
-            // given
+            
             Chat chat = createTestChat(CHAT_ID);
             User sender = createTestUser(ADMIN_ID, ADMIN_USERNAME);
 
             when(userRepository.findByUsername(ADMIN_USERNAME)).thenReturn(Optional.of(sender));
-
-            // when
+            
             systemMessageService.createUserPromotedMessage(chat, USERNAME, ADMIN_USERNAME);
-
-            // then
+            
             verify(messageRepository).save(messageCaptor.capture());
             Message savedMessage = messageCaptor.getValue();
 
@@ -169,18 +163,16 @@ class SystemMessageServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Создание сообщения о снятии прав администратора")
+        @DisplayName("Создание сообщения о снятии прав администратора")
         void createUserDemotedMessage_WithValidData_ShouldCreateCorrectMessage() {
-            // given
+            
             Chat chat = createTestChat(CHAT_ID);
             User sender = createTestUser(ADMIN_ID, ADMIN_USERNAME);
 
             when(userRepository.findByUsername(ADMIN_USERNAME)).thenReturn(Optional.of(sender));
-
-            // when
+            
             systemMessageService.createUserDemotedMessage(chat, USERNAME, ADMIN_USERNAME);
-
-            // then
+            
             verify(messageRepository).save(messageCaptor.capture());
             Message savedMessage = messageCaptor.getValue();
 
@@ -197,20 +189,18 @@ class SystemMessageServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Создание сообщения об изменении названия группы")
+        @DisplayName("Создание сообщения об изменении названия группы")
         void createGroupNameChangedMessage_WithValidData_ShouldCreateCorrectMessage() {
-            // given
+            
             Chat chat = createTestChat(CHAT_ID);
             User sender = createTestUser(ADMIN_ID, ADMIN_USERNAME);
             String oldName = "Old Title";
             String newName = "New Title";
 
             when(userRepository.findByUsername(ADMIN_USERNAME)).thenReturn(Optional.of(sender));
-
-            // when
+            
             systemMessageService.createGroupNameChangedMessage(chat, oldName, newName, ADMIN_USERNAME);
-
-            // then
+            
             verify(messageRepository).save(messageCaptor.capture());
             Message savedMessage = messageCaptor.getValue();
 
@@ -227,18 +217,16 @@ class SystemMessageServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Создание сообщения об изменении фотографии группы")
+        @DisplayName("Создание сообщения об изменении фотографии группы")
         void createGroupPhotoChangedMessage_WithValidData_ShouldCreateCorrectMessage() {
-            // given
+            
             Chat chat = createTestChat(CHAT_ID);
             User sender = createTestUser(ADMIN_ID, ADMIN_USERNAME);
 
             when(userRepository.findByUsername(ADMIN_USERNAME)).thenReturn(Optional.of(sender));
-
-            // when
+            
             systemMessageService.createGroupPhotoChangedMessage(chat, ADMIN_USERNAME);
-
-            // then
+            
             verify(messageRepository).save(messageCaptor.capture());
             Message savedMessage = messageCaptor.getValue();
 
@@ -260,14 +248,13 @@ class SystemMessageServiceTest {
     class ErrorScenarios {
 
         @Test
-        @DisplayName("❌ Создание сообщения при отсутствии отправителя")
+        @DisplayName("Создание сообщения при отсутствии отправителя")
         void createSystemMessage_WhenSenderNotFound_ShouldThrowException() {
-            // given
+            
             Chat chat = createTestChat(CHAT_ID);
 
             when(userRepository.findByUsername(ADMIN_USERNAME)).thenReturn(Optional.empty());
 
-            // when & then
             assertThatThrownBy(() -> systemMessageService.createUserAddedMessage(chat, USERNAME, ADMIN_USERNAME))
                     .as("Должно выбросить исключение если отправитель не найден")
                     .isInstanceOf(IllegalArgumentException.class)
@@ -282,24 +269,22 @@ class SystemMessageServiceTest {
     class MessageTemplatesTests {
 
         @Test
-        @DisplayName("✅ Получение шаблона для существующего типа сообщения")
+        @DisplayName("Получение шаблона для существующего типа сообщения")
         void getTemplate_WithExistingType_ShouldReturnTemplate() {
-            // when
+            
             String template = systemMessageService.getTemplate(MessageSystemType.USER_ADDED);
-
-            // then
+            
             assertThat(template)
                     .as("Должен вернуть шаблон для USER_ADDED")
                     .isEqualTo("Пользователь %s добавлен в чат пользователем %s");
         }
 
         @Test
-        @DisplayName("✅ Получение шаблона для несистемного типа возвращает null")
+        @DisplayName("Получение шаблона для несистемного типа возвращает null")
         void getTemplate_WithRegularType_ShouldReturnNull() {
-            // when
+            
             String template = systemMessageService.getTemplate(MessageSystemType.REGULAR);
 
-            // then
             assertThat(template)
                     .as("Для REGULAR типа должен возвращать null")
                     .isNull();
@@ -311,12 +296,11 @@ class SystemMessageServiceTest {
                 names = {"USER_ADDED", "USER_REMOVED", "USER_LEFT", "USER_PROMOTED",
                         "USER_DEMOTED", "GROUP_TITLE_CHANGED", "GROUP_PHOTO_CHANGED"}
         )
-        @DisplayName("✅ Все системные типы сообщений имеют шаблоны")
+        @DisplayName("Все системные типы сообщений имеют шаблоны")
         void allSystemMessageTypes_ShouldHaveTemplates(MessageSystemType type) {
-            // when
+            
             String template = systemMessageService.getTemplate(type);
-
-            // then
+            
             assertThat(template)
                     .as("Шаблон для типа " + type + " не должен быть null")
                     .isNotNull()
@@ -332,18 +316,16 @@ class SystemMessageServiceTest {
     class TextFormattingTests {
 
         @Test
-        @DisplayName("✅ Форматирование с специальными символами в username")
+        @DisplayName("Форматирование с специальными символами в username")
         void createSystemMessage_WithSpecialCharactersInUsername_ShouldFormatCorrectly() {
-            // given
+            
             Chat chat = createTestChat(CHAT_ID);
             User sender = createTestUser(USER_ID, "user-name");
 
             when(userRepository.findByUsername("user-name")).thenReturn(Optional.of(sender));
 
-            // when
             systemMessageService.createUserAddedMessage(chat, "test.user", "user-name");
-
-            // then
+            
             verify(messageRepository).save(messageCaptor.capture());
             Message savedMessage = messageCaptor.getValue();
 
@@ -359,20 +341,18 @@ class SystemMessageServiceTest {
                 "Группа-проекта",
                 "Отдел (Разработка)"
         })
-        @DisplayName("✅ Форматирование с реальными названиями групп")
+        @DisplayName("Форматирование с реальными названиями групп")
         void createGroupNameChangedMessage_WithRealisticNames_ShouldFormatCorrectly(String groupName) {
-            // given
+            
             Chat chat = createTestChat(CHAT_ID);
             User sender = createTestUser(ADMIN_ID, ADMIN_USERNAME);
 
             when(userRepository.findByUsername(ADMIN_USERNAME)).thenReturn(Optional.of(sender));
-
-            // when
+            
             systemMessageService.createGroupNameChangedMessage(
                     chat, "Старое название", groupName, ADMIN_USERNAME
             );
 
-            // then
             verify(messageRepository).save(messageCaptor.capture());
             Message savedMessage = messageCaptor.getValue();
 
@@ -392,18 +372,18 @@ class SystemMessageServiceTest {
     class ValidationAndInitializationTests {
 
         @Test
-        @DisplayName("✅ Сервис успешно создается и проходит валидацию шаблонов")
+        @DisplayName("Сервис успешно создается и проходит валидацию шаблонов")
         void validateTemplates_OnServiceCreation_ShouldNotThrowException() {
-            // when & then
+             
             assertThat(systemMessageService)
                     .as("Сервис должен успешно создаваться")
                     .isNotNull();
         }
 
         @Test
-        @DisplayName("✅ Проверка что все не-REGULAR типы имеют шаблоны")
+        @DisplayName("Проверка что все не-REGULAR типы имеют шаблоны")
         void allNonRegularMessageTypes_ShouldHaveTemplates() {
-            // when & then
+             
             for (MessageSystemType type : MessageSystemType.values()) {
                 if (type != MessageSystemType.REGULAR) {
                     String template = systemMessageService.getTemplate(type);

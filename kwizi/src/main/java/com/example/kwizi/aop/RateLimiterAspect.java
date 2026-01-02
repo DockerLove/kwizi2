@@ -13,12 +13,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
 @Aspect
-@Component // Обязательно, чтобы Spring распознал этот класс как аспект
+@Component
 public class RateLimiterAspect {
 
     private static final Logger logger = LoggerFactory.getLogger(RateLimiterAspect.class);

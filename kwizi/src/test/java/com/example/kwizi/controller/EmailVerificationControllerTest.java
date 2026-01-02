@@ -15,12 +15,11 @@ import org.springframework.http.ResponseEntity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
-//todo вот пример хорошего unit теста для класса надо будет переписать все остальные классы также +
-// для контроллеров только надо написать интеграционные тесты это тоже отдельный клас но под инт тесты +
-// также надо уточнить то нужно использовать AssertJ для тестов
+
 @DisplayName("EmailVerificationController тесты")
 @ExtendWith(MockitoExtension.class)
 class EmailVerificationControllerTest {
+
     @Mock
     private AuthenticationService authService;
 
@@ -34,13 +33,10 @@ class EmailVerificationControllerTest {
         @Test
         @DisplayName("✅ Успешное подтверждение email")
         void success() {
-            // given
             String token = "valid-token";
 
-            // when
             var response = controller.verifyEmail(token);
 
-            // then
             assertThat(response)
                     .extracting(r -> r.getStatusCode().value(), ResponseEntity::getBody)
                     .containsExactly(200, "Email успешно подтвержден! Можете закрыть эту страницу.");

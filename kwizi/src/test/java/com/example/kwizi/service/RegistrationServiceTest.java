@@ -44,18 +44,16 @@ class RegistrationServiceTest {
     class SuccessfulRegistrationTests {
 
         @Test
-        @DisplayName("✅ Регистрация с полными данными")
+        @DisplayName("Регистрация с полными данными")
         void registerUser_WithFullData_ShouldRegisterSuccessfully() {
-            // given
+            
             RegistrationRequest request = createFullRegistrationRequest();
 
             when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
             when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
-
-            // when
+            
             registrationService.registerUser(request);
-
-            // then
+            
             verify(authenticationService).registerUser(userCaptor.capture());
             User savedUser = userCaptor.getValue();
 
@@ -83,18 +81,16 @@ class RegistrationServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Регистрация с минимальными данными")
+        @DisplayName("Регистрация с минимальными данными")
         void registerUser_WithMinimalData_ShouldRegisterSuccessfully() {
-            // given
+            
             RegistrationRequest request = createMinimalRegistrationRequest();
 
             when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
             when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
-
-            // when
+            
             registrationService.registerUser(request);
-
-            // then
+            
             verify(authenticationService).registerUser(userCaptor.capture());
             User savedUser = userCaptor.getValue();
 
@@ -124,14 +120,13 @@ class RegistrationServiceTest {
     class ValidationTests {
 
         @Test
-        @DisplayName("❌ Существующий username выбрасывает исключение")
+        @DisplayName("Существующий username выбрасывает исключение")
         void registerUser_WhenUsernameAlreadyExists_ShouldThrowUsernameAlreadyExistsException() {
-            // given
+            
             RegistrationRequest request = createFullRegistrationRequest();
 
             when(authenticationService.existsByUsername(USERNAME)).thenReturn(true);
 
-            // when & then
             assertThatThrownBy(() -> registrationService.registerUser(request))
                     .as("Должно выбросить исключение для существующего username")
                     .isInstanceOf(UsernameAlreadyExistsException.class)
@@ -142,16 +137,15 @@ class RegistrationServiceTest {
         }
 
         @Test
-        @DisplayName("❌ Существующий email выбрасывает исключение")
+        @DisplayName("Существующий email выбрасывает исключение")
         void registerUser_WhenEmailAlreadyExists_ShouldThrowEmailAlreadyExistsException() {
-            // given
+            
             RegistrationRequest request = createFullRegistrationRequest();
             User existingUser = createTestUser();
 
             when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
             when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.of(existingUser));
 
-            // when & then
             assertThatThrownBy(() -> registrationService.registerUser(request))
                     .as("Должно выбросить исключение для существующего email")
                     .isInstanceOf(EmailAlreadyExistsException.class)
@@ -161,19 +155,17 @@ class RegistrationServiceTest {
         }
 
         @Test
-        @DisplayName("❌ Проверка username выполняется перед проверкой email")
+        @DisplayName("Проверка username выполняется перед проверкой email")
         void registerUser_WhenBothExist_ShouldCheckUsernameFirst() {
-            // given
+            
             RegistrationRequest request = createFullRegistrationRequest();
 
             when(authenticationService.existsByUsername(USERNAME)).thenReturn(true);
-
-            // when & then
+             
             assertThatThrownBy(() -> registrationService.registerUser(request))
                     .as("Должно проверить username первым")
                     .isInstanceOf(UsernameAlreadyExistsException.class);
 
-            // findByEmail не должен вызываться если username уже существует
             verify(authenticationService, never()).findByEmail(any());
             verify(authenticationService, never()).registerUser(any());
         }
@@ -184,18 +176,16 @@ class RegistrationServiceTest {
     class DataMappingTests {
 
         @Test
-        @DisplayName("✅ Корректный маппинг всех полей из запроса")
+        @DisplayName("Корректный маппинг всех полей из запроса")
         void createUserFromRequest_ShouldMapAllFieldsCorrectly() {
-            // given
+            
             RegistrationRequest request = createFullRegistrationRequest();
 
             when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
             when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
 
-            // when
             registrationService.registerUser(request);
 
-            // then
             verify(authenticationService).registerUser(userCaptor.capture());
             User savedUser = userCaptor.getValue();
 
@@ -215,9 +205,9 @@ class RegistrationServiceTest {
 
         @ParameterizedTest
         @NullAndEmptySource
-        @DisplayName("✅ Обработка null и пустых опциональных полей")
+        @DisplayName("Обработка null и пустых опциональных полей")
         void createUserFromRequest_WithNullOrEmptyOptionalFields_ShouldHandleCorrectly(String value) {
-            // given
+            
             RegistrationRequest request = createFullRegistrationRequest();
             request.setFirstName(value);
             request.setLastName(value);
@@ -226,10 +216,10 @@ class RegistrationServiceTest {
             when(authenticationService.existsByUsername(USERNAME)).thenReturn(false);
             when(authenticationService.findByEmail(EMAIL)).thenReturn(Optional.empty());
 
-            // when
+            
             registrationService.registerUser(request);
 
-            // then
+            
             verify(authenticationService).registerUser(userCaptor.capture());
             User savedUser = userCaptor.getValue();
 

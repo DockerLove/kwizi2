@@ -23,11 +23,14 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Map;
 
-
-import static org.junit.jupiter.api.Assertions.*;
-
-
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -47,7 +50,6 @@ class MessageConverterTest {
     void setUp() {
         messageConverter = new MessageConverter(objectMapper);
 
-        // Setup test data
         testSender = new User();
         testSender.setId(1L);
         testSender.setUsername("testuser");
@@ -71,181 +73,171 @@ class MessageConverterTest {
     }
 
     @Nested
-    @DisplayName("Конвертация JSON в MessageEventDto (convertToEvent)")
+    @DisplayName("Конвертация JSON в MessageEventDto")
     class ConvertToEventTests {
 
         @Test
-        void convertToEvent_ShouldReturnEvent_WhenValidJson() throws Exception {
-            // Arrange
+        @DisplayName("Должен корректно конвертировать валидный JSON")
+        void shouldReturnEvent_WhenValidJson() throws Exception {
             String validJson = "{\"type\":\"PRIVATE\",\"senderId\":1,\"recipientId\":2,\"text\":\"Hello\"}";
             when(objectMapper.readValue(validJson, MessageEventDto.class)).thenReturn(testEvent);
 
-            // Act
             MessageEventDto result = messageConverter.convertToEvent(validJson);
 
-            // Assert
-            assertNotNull(result);
-            assertEquals(testEvent, result);
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result).isEqualTo(testEvent)
+            );
             verify(objectMapper).readValue(validJson, MessageEventDto.class);
         }
 
         @Test
-        void convertToEvent_ShouldThrowRuntimeException_WhenInvalidJson() throws Exception {
-            // Arrange
+        @DisplayName("Должен бросать RuntimeException при невалидном JSON")
+        void shouldThrowRuntimeException_WhenInvalidJson() throws Exception {
             String invalidJson = "invalid json";
             when(objectMapper.readValue(invalidJson, MessageEventDto.class))
                     .thenThrow(new JsonProcessingException("Invalid JSON") {});
 
-            // Act & Assert
-            RuntimeException exception = assertThrows(RuntimeException.class,
-                    () -> messageConverter.convertToEvent(invalidJson));
-
-            assertEquals("Неверный формат сообщения", exception.getMessage());
-            assertNotNull(exception.getCause());
+            assertThatThrownBy(() -> messageConverter.convertToEvent(invalidJson))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("Неверный формат сообщения")
+                    .hasCauseInstanceOf(JsonProcessingException.class);
         }
 
         @Test
-        void convertToEvent_ShouldHandleEmptyJson() throws Exception {
-            // Arrange
+        @DisplayName("Должен обрабатывать пустой JSON объект")
+        void shouldHandleEmptyJson() throws Exception {
             String emptyJson = "{}";
             MessageEventDto emptyEvent = new MessageEventDto();
             when(objectMapper.readValue(emptyJson, MessageEventDto.class)).thenReturn(emptyEvent);
 
-            // Act
             MessageEventDto result = messageConverter.convertToEvent(emptyJson);
 
-            // Assert
-            assertNotNull(result);
+            assertThat(result).isNotNull();
             verify(objectMapper).readValue(emptyJson, MessageEventDto.class);
         }
     }
 
     @Nested
-    @DisplayName("Сериализация MessageEventDto в JSON (convertToJson)")
+    @DisplayName("Сериализация MessageEventDto в JSON")
     class ConvertToJsonTests {
 
         @Test
-        void convertToJson_ShouldReturnJson_WhenValidEvent() throws Exception {
-            // Arrange
+        @DisplayName("Должен возвращать JSON при валидном событии")
+        void shouldReturnJson_WhenValidEvent() throws Exception {
             String expectedJson = "{\"type\":\"PRIVATE\",\"text\":\"Hello\"}";
             when(objectMapper.writeValueAsString(testEvent)).thenReturn(expectedJson);
 
-            // Act
             String result = messageConverter.convertToJson(testEvent);
 
-            // Assert
-            assertEquals(expectedJson, result);
+            assertThat(result).isEqualTo(expectedJson);
             verify(objectMapper).writeValueAsString(testEvent);
         }
 
         @Test
-        void convertToJson_ShouldThrowRuntimeException_WhenSerializationFails() throws Exception {
-            // Arrange
+        @DisplayName("Должен бросать RuntimeException при ошибке сериализации")
+        void shouldThrowRuntimeException_WhenSerializationFails() throws Exception {
             when(objectMapper.writeValueAsString(testEvent))
                     .thenThrow(new JsonProcessingException("Serialization failed") {});
 
-            // Act & Assert
-            RuntimeException exception = assertThrows(RuntimeException.class,
-                    () -> messageConverter.convertToJson(testEvent));
-
-            assertEquals("Ошибка сериализации сообщения", exception.getMessage());
-            assertNotNull(exception.getCause());
+            assertThatThrownBy(() -> messageConverter.convertToJson(testEvent))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("Ошибка сериализации сообщения")
+                    .hasCauseInstanceOf(JsonProcessingException.class);
         }
 
         @Test
-        void convertToJson_ShouldHandleNullEvent() throws Exception {
-            // Arrange
+        @DisplayName("Должен обрабатывать null событие")
+        void shouldHandleNullEvent() throws Exception {
             when(objectMapper.writeValueAsString(isNull())).thenReturn("null");
 
-            // Act
             String result = messageConverter.convertToJson(null);
 
-            // Assert
-            assertEquals("null", result);
+            assertThat(result).isEqualTo("null");
             verify(objectMapper).writeValueAsString(null);
         }
     }
 
     @Nested
-    @DisplayName("Конвертация Message в MessageDto (convertToDto)")
+    @DisplayName("Конвертация Message в MessageDto")
     class ConvertToDtoTests {
 
         @Test
-        void convertToDto_ShouldConvertMessageToDto_WhenValidMessage() {
-            // Act
+        @DisplayName("Должен корректно конвертировать Message в DTO")
+        void shouldConvertMessageToDto_WhenValidMessage() {
             MessageDto result = messageConverter.convertToDto(testMessage);
 
-            // Assert
-            assertNotNull(result);
-            assertEquals(testMessage.getId(), result.getId());
-            assertEquals(testMessage.getText(), result.getText());
-            assertEquals(testMessage.getCreatedAt().toLocalDateTime(), result.getCreatedAt());
-            assertEquals(testMessage.getSender().getId(), result.getSenderId());
-            assertEquals(testMessage.getChat().getId(), result.getChatId());
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.getId()).isEqualTo(testMessage.getId()),
+                    () -> assertThat(result.getText()).isEqualTo(testMessage.getText()),
+                    () -> assertThat(result.getCreatedAt()).isEqualTo(testMessage.getCreatedAt().toLocalDateTime()),
+                    () -> assertThat(result.getSenderId()).isEqualTo(testMessage.getSender().getId()),
+                    () -> assertThat(result.getChatId()).isEqualTo(testMessage.getChat().getId())
+            );
         }
 
         @Test
-        void convertToDto_ShouldHandleNullChat() {
-            // Arrange
+        @DisplayName("Должен обрабатывать null чат")
+        void shouldHandleNullChat() {
             testMessage.setChat(null);
 
-            // Act
             MessageDto result = messageConverter.convertToDto(testMessage);
 
-            // Assert
-            assertNotNull(result);
-            assertNull(result.getChatId());
-            assertEquals(testMessage.getSender().getId(), result.getSenderId());
-            assertEquals(testMessage.getText(), result.getText());
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.getChatId()).isNull(),
+                    () -> assertThat(result.getSenderId()).isEqualTo(testMessage.getSender().getId()),
+                    () -> assertThat(result.getText()).isEqualTo(testMessage.getText())
+            );
         }
 
         @Test
-        void convertToDto_ShouldHandleMinimumMessageData() {
-            // Arrange
+        @DisplayName("Должен обрабатывать минимальные данные сообщения")
+        void shouldHandleMinimumMessageData() {
             Message minimalMessage = new Message();
             minimalMessage.setId(1L);
             minimalMessage.setText("Minimal");
             minimalMessage.setCreatedAt(OffsetDateTime.now());
             minimalMessage.setSender(testSender);
-            // chat is null
 
-            // Act
             MessageDto result = messageConverter.convertToDto(minimalMessage);
 
-            // Assert
-            assertNotNull(result);
-            assertEquals(1L, result.getId());
-            assertEquals("Minimal", result.getText());
-            assertNull(result.getChatId());
-            assertEquals(1L, result.getSenderId());
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.getId()).isEqualTo(1L),
+                    () -> assertThat(result.getText()).isEqualTo("Minimal"),
+                    () -> assertThat(result.getChatId()).isNull(),
+                    () -> assertThat(result.getSenderId()).isEqualTo(1L)
+            );
         }
 
         @Test
-        void convertToDto_ShouldHandleNullSender() {
-            // Arrange
+        @DisplayName("Должен бросать NullPointerException при null отправителе")
+        void shouldThrowNullPointerException_WhenNullSender() {
             testMessage.setSender(null);
 
-            // Act & Assert
-            assertThrows(NullPointerException.class, () -> messageConverter.convertToDto(testMessage));
+            assertThatThrownBy(() -> messageConverter.convertToDto(testMessage))
+                    .isInstanceOf(NullPointerException.class);
         }
 
         @Test
-        void convertToDto_ShouldHandleNullCreatedAt() {
-            // Arrange
+        @DisplayName("Должен бросать NullPointerException при null дате создания")
+        void shouldThrowNullPointerException_WhenNullCreatedAt() {
             testMessage.setCreatedAt(null);
 
-            // Act & Assert
-            assertThrows(NullPointerException.class, () -> messageConverter.convertToDto(testMessage));
+            assertThatThrownBy(() -> messageConverter.convertToDto(testMessage))
+                    .isInstanceOf(NullPointerException.class);
         }
     }
 
     @Nested
-    @DisplayName("Создание события из JSON и senderId (createMessageEvent)")
+    @DisplayName("Создание события из JSON и senderId")
     class CreateMessageEventTests {
 
         @Test
-        void createMessageEvent_ShouldCreateEventWithSenderId_WhenValidJson() throws Exception {
-            // Arrange
+        @DisplayName("Должен создавать событие с senderId при валидном JSON")
+        void shouldCreateEventWithSenderId_WhenValidJson() throws Exception {
             String rawJson = "{\"type\":\"PRIVATE\",\"recipientId\":2,\"text\":\"Hello\"}";
             Long senderId = 123L;
 
@@ -256,38 +248,36 @@ class MessageConverterTest {
 
             when(objectMapper.readValue(rawJson, MessageEventDto.class)).thenReturn(baseEvent);
 
-            // Act
             MessageEventDto result = messageConverter.createMessageEvent(rawJson, senderId);
 
-            // Assert
-            assertNotNull(result);
-            assertEquals(senderId, result.getSenderId());
-            assertEquals(MessageType.PRIVATE, result.getType());
-            assertEquals(2L, result.getRecipientId());
-            assertEquals("Hello", result.getText());
-            assertNotNull(result.getTimestamp());
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.getSenderId()).isEqualTo(senderId),
+                    () -> assertThat(result.getType()).isEqualTo(MessageType.PRIVATE),
+                    () -> assertThat(result.getRecipientId()).isEqualTo(2L),
+                    () -> assertThat(result.getText()).isEqualTo("Hello"),
+                    () -> assertThat(result.getTimestamp()).isNotNull()
+            );
             verify(objectMapper).readValue(rawJson, MessageEventDto.class);
         }
 
         @Test
-        void createMessageEvent_ShouldThrowRuntimeException_WhenInvalidJson() throws Exception {
-            // Arrange
+        @DisplayName("Должен бросать RuntimeException при невалидном JSON")
+        void shouldThrowRuntimeException_WhenInvalidJson() throws Exception {
             String invalidJson = "invalid";
             Long senderId = 123L;
 
             when(objectMapper.readValue(invalidJson, MessageEventDto.class))
                     .thenThrow(new JsonProcessingException("Invalid JSON") {});
 
-            // Act & Assert
-            RuntimeException exception = assertThrows(RuntimeException.class,
-                    () -> messageConverter.createMessageEvent(invalidJson, senderId));
-
-            assertEquals("Неверный формат сообщения", exception.getMessage());
+            assertThatThrownBy(() -> messageConverter.createMessageEvent(invalidJson, senderId))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("Неверный формат сообщения");
         }
 
         @Test
-        void createMessageEvent_ShouldCallValidate_WhenEventCreated() throws Exception {
-            // Arrange
+        @DisplayName("Должен вызывать validate при создании события")
+        void shouldCallValidate_WhenEventCreated() throws Exception {
             String rawJson = "{\"type\":\"PRIVATE\",\"recipientId\":2,\"text\":\"Hello\"}";
             Long senderId = 123L;
 
@@ -299,82 +289,74 @@ class MessageConverterTest {
             when(objectMapper.readValue(rawJson, MessageEventDto.class)).thenReturn(mockEvent);
             doNothing().when(mockEvent).validate();
 
-            // Act
             messageConverter.createMessageEvent(rawJson, senderId);
 
-            // Assert
             verify(mockEvent).setSenderId(senderId);
             verify(mockEvent).setTimestamp(any(Instant.class));
             verify(mockEvent).validate();
         }
 
         @Test
-        void createMessageEvent_ShouldOverrideSenderId_WhenJsonContainsSenderId() throws Exception {
-            // Arrange
+        @DisplayName("Должен переопределять senderId из JSON")
+        void shouldOverrideSenderId_WhenJsonContainsSenderId() throws Exception {
             String jsonWithSender = "{\"type\":\"PRIVATE\",\"senderId\":999,\"recipientId\":2,\"text\":\"Test message\"}";
             Long actualSenderId = 123L;
 
             MessageEventDto eventFromJson = new MessageEventDto();
             eventFromJson.setType(MessageType.PRIVATE);
-            eventFromJson.setSenderId(999L); // будет перезаписано
+            eventFromJson.setSenderId(999L);
             eventFromJson.setRecipientId(2L);
             eventFromJson.setText("Test message");
 
             when(objectMapper.readValue(jsonWithSender, MessageEventDto.class)).thenReturn(eventFromJson);
 
-            // Act
             MessageEventDto result = messageConverter.createMessageEvent(jsonWithSender, actualSenderId);
 
-            // Assert
-            assertEquals(actualSenderId, result.getSenderId()); // Должен быть перезаписан
-            assertEquals("Test message", result.getText()); // Текст должен быть установлен
+            assertAll(
+                    () -> assertThat(result.getSenderId()).isEqualTo(actualSenderId),
+                    () -> assertThat(result.getText()).isEqualTo("Test message")
+            );
         }
     }
 
     @Nested
-    @DisplayName("Формирование JSON-ответов (createSuccessResponse / createErrorResponse)")
+    @DisplayName("Формирование JSON-ответов")
     class JsonResponseTests {
 
         @Test
-        void createSuccessResponse_ShouldReturnSuccessJson_WhenSerializationSucceeds() throws Exception {
-            // Arrange
+        @DisplayName("Должен возвращать успешный JSON при успешной сериализации")
+        void shouldReturnSuccessJson_WhenSerializationSucceeds() throws Exception {
             String expectedJson = "{\"status\":\"SENT\",\"timestamp\":\"2023-01-01T10:00:00\"}";
             when(objectMapper.writeValueAsString(any(Map.class))).thenReturn(expectedJson);
 
-            // Act
             String result = messageConverter.createSuccessResponse();
 
-            // Assert
-            assertNotNull(result);
-            assertEquals(expectedJson, result);
-            // Упрощенная проверка без argThat для Map
+            assertThat(result).isEqualTo(expectedJson);
             verify(objectMapper).writeValueAsString(any(Map.class));
         }
 
         @Test
-        void createSuccessResponse_ShouldReturnFallbackJson_WhenSerializationFails() throws Exception {
-            // Arrange
+        @DisplayName("Должен возвращать fallback JSON при ошибке сериализации")
+        void shouldReturnFallbackJson_WhenSerializationFails() throws Exception {
             when(objectMapper.writeValueAsString(any(Map.class)))
                     .thenThrow(new JsonProcessingException("Failed") {});
 
-            // Act
             String result = messageConverter.createSuccessResponse();
 
-            // Assert
-            assertNotNull(result);
-            assertTrue(result.contains("ERROR"));
-            assertTrue(result.contains("Ошибка формирования ответа"));
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result).contains("ERROR"),
+                    () -> assertThat(result).contains("Ошибка формирования ответа")
+            );
         }
 
         @Test
-        void createSuccessResponse_ShouldContainCorrectFields() throws Exception {
-            // Arrange
+        @DisplayName("Должен содержать корректные поля успешного ответа")
+        void shouldContainCorrectFields_ForSuccessResponse() throws Exception {
             when(objectMapper.writeValueAsString(any(Map.class))).thenReturn("success");
 
-            // Act
             messageConverter.createSuccessResponse();
 
-            // Assert
             verify(objectMapper).writeValueAsString(argThat((Map<String, Object> map) ->
                     map.containsKey("status") &&
                             map.containsKey("timestamp") &&
@@ -383,59 +365,51 @@ class MessageConverterTest {
         }
 
         @Test
-        void createErrorResponse_ShouldReturnErrorJson_WhenValidParameters() throws Exception {
-            // Arrange
+        @DisplayName("Должен возвращать JSON ошибки при валидных параметрах")
+        void shouldReturnErrorJson_WhenValidParameters() throws Exception {
             String expectedJson = "{\"type\":\"ERROR\",\"code\":\"VALIDATION_ERROR\",\"message\":\"Invalid input\"}";
             when(objectMapper.writeValueAsString(any(Map.class))).thenReturn(expectedJson);
 
-            // Act
             String result = messageConverter.createErrorResponse("VALIDATION_ERROR", "Invalid input");
 
-            // Assert
-            assertNotNull(result);
-            assertEquals(expectedJson, result);
+            assertThat(result).isEqualTo(expectedJson);
             verify(objectMapper).writeValueAsString(any(Map.class));
         }
 
         @Test
-        void createErrorResponse_ShouldReturnFallbackJson_WhenSerializationFails() throws Exception {
-            // Arrange
+        @DisplayName("Должен возвращать fallback JSON при ошибке сериализации ошибки")
+        void shouldReturnFallbackJson_WhenErrorSerializationFails() throws Exception {
             when(objectMapper.writeValueAsString(any(Map.class)))
                     .thenThrow(new JsonProcessingException("Failed") {});
 
-            // Act
             String result = messageConverter.createErrorResponse("VALIDATION_ERROR", "Invalid input");
 
-            // Assert
-            assertNotNull(result);
-            assertTrue(result.contains("ERROR"));
-            assertTrue(result.contains("SERVER_ERROR"));
-            assertTrue(result.contains("Внутренняя ошибка сервера"));
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result).contains("ERROR"),
+                    () -> assertThat(result).contains("SERVER_ERROR"),
+                    () -> assertThat(result).contains("Внутренняя ошибка сервера")
+            );
         }
 
         @Test
-        void createErrorResponse_ShouldHandleNullParameters() throws Exception {
-            // Arrange
+        @DisplayName("Должен обрабатывать null параметры для ошибки")
+        void shouldHandleNullParameters_ForErrorResponse() throws Exception {
             String expectedJson = "{\"type\":\"ERROR\",\"code\":\"SERVER_ERROR\",\"message\":\"Внутренняя ошибка сервера\"}";
             when(objectMapper.writeValueAsString(any(Map.class))).thenReturn(expectedJson);
 
-            // Act
             String result = messageConverter.createErrorResponse(null, null);
 
-            // Assert
-            assertNotNull(result);
-            assertEquals(expectedJson, result);
+            assertThat(result).isEqualTo(expectedJson);
         }
 
         @Test
-        void createErrorResponse_ShouldContainCorrectFields() throws Exception {
-            // Arrange
+        @DisplayName("Должен содержать корректные поля ответа ошибки")
+        void shouldContainCorrectFields_ForErrorResponse() throws Exception {
             when(objectMapper.writeValueAsString(any(Map.class))).thenReturn("error");
 
-            // Act
             messageConverter.createErrorResponse("TEST_CODE", "Test message");
 
-            // Assert
             verify(objectMapper).writeValueAsString(argThat((Map<String, Object> map) ->
                     map.containsKey("type") &&
                             map.containsKey("code") &&

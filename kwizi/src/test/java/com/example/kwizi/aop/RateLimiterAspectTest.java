@@ -78,8 +78,6 @@ class RateLimiterAspectTest {
                     .withFailMessage("Превышен лимит запросов. Пожалуйста, попробуйте позже.");
         }
     }
-
-    // Вспомогательный метод для аннотирования тестами
     @RateLimited(value = 2, duration = 1, timeUnit = TimeUnit.SECONDS)
     private void testMethod() {}
 

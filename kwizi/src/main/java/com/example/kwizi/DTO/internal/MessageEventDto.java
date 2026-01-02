@@ -3,9 +3,7 @@ package com.example.kwizi.DTO.internal;
 import com.example.kwizi.enums.MessageType;
 import com.example.kwizi.exception.MessageValidationException;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import java.time.Instant;
-
 
 public class MessageEventDto {
     private MessageType type;
@@ -72,20 +70,6 @@ public class MessageEventDto {
         } else {
             return String.format("Групповое сообщение: %d -> чат %d", senderId, chatId);
         }
-    }
-
-    @JsonIgnore
-    public MessageDto toMessageDto() {
-        MessageDto dto = new MessageDto();
-        dto.setSenderId(this.senderId);
-        dto.setText(this.text);
-
-        if (this.isGroup()) {
-            dto.setChatId(this.chatId);
-        }
-        // recipientId в вашем MessageDto нет - это нормально
-
-        return dto;
     }
 
     public MessageEventDto() {

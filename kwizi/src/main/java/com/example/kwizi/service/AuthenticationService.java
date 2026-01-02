@@ -41,7 +41,6 @@ public class AuthenticationService {
     private final RevokedTokenRepository revokedTokenRepo;
     private final UniversalChatHandler universalChatHandler;
 
-
     @Autowired
     public AuthenticationService(AuthenticationRepository authenticationRepository,
                                  PasswordEncoder passwordEncoder,
@@ -83,7 +82,6 @@ public class AuthenticationService {
 
         logger.info("Токен отозван для пользователя: {}", username);
     }
-
 
     @Transactional
     public void sendVerificationEmail(Long userId) {

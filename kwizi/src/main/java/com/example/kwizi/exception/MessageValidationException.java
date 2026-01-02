@@ -5,7 +5,4 @@ public class MessageValidationException extends RuntimeException {
         super(message);
     }
 
-    public MessageValidationException(String message, Throwable cause) {
-        super(message, cause);
-    }
 }
