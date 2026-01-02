@@ -8,7 +8,6 @@ import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
-
 @Entity
 @Table(name = "chats")
 public class Chat {
@@ -37,7 +36,8 @@ public class Chat {
     @OneToMany(mappedBy = "chat", fetch = FetchType.LAZY)
     private Set<ChatMember> chatMembers = new HashSet<>();
 
-    public Chat() {}
+    public Chat() {
+    }
 
     public Chat(ChatType chatType) {
         this.chatType = chatType;
@@ -57,6 +57,7 @@ public class Chat {
                 .findFirst()
                 .orElse(null);
     }
+
     public Set<ChatMember> getChatMembers() {
         return chatMembers;
     }
@@ -93,16 +94,8 @@ public class Chat {
         this.chatType = chatType;
     }
 
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
-    }
-
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
-    }
-
-    public OffsetDateTime getUpdatedAt() {
-        return updatedAt;
     }
 
     public void setUpdatedAt(OffsetDateTime updatedAt) {
@@ -112,5 +105,4 @@ public class Chat {
     public void setGroupChat(GroupChat groupChat) {
         this.groupChat = groupChat;
     }
-    // toString(), equals() и hashCode() при необходимости
 }

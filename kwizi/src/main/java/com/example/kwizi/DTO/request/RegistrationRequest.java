@@ -12,6 +12,7 @@ public class RegistrationRequest {
     @NotBlank(message = "Это поле не должен быть пустым")
     @Size(min = 8, message = "Введите пароль от 8 символов")
     private String password;
+
     @NotBlank(message = "Это поле не должен быть пустым")
     @Email(message = "Email должен удовлетроворять требованиям")
     private String email;

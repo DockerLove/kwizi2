@@ -37,7 +37,7 @@ public class JwtEmailVerifyTest {
     class GenerateVerificationTokenTests {
 
         @Test
-        @DisplayName("✅ Генерирует непустой токен при валидном ID пользователя")
+        @DisplayName("Генерирует непустой токен при валидном ID пользователя")
         void generateVerificationToken_ShouldGenerateValidToken() {
             Long userId = 123L;
             String token = jwtEmailVerify.generateVerificationToken(userId);
@@ -50,7 +50,7 @@ public class JwtEmailVerifyTest {
     class GetUserIdFromTokenTests {
 
         @Test
-        @DisplayName("✅ Возвращает корректный ID пользователя из валидного токена")
+        @DisplayName("Возвращает корректный ID пользователя из валидного токена")
         void getUserIdFromToken_ShouldReturnUserId_WhenTokenIsValid() {
             Long userId = 123L;
             String token = jwtEmailVerify.generateVerificationToken(userId);
@@ -59,7 +59,7 @@ public class JwtEmailVerifyTest {
         }
 
         @Test
-        @DisplayName("❌ Возвращает null при невалидном токене")
+        @DisplayName("Возвращает null при невалидном токене")
         void getUserIdFromToken_ShouldReturnNull_WhenTokenIsInvalid() {
             String invalidToken = "invalidToken";
             String extractedUserId = jwtEmailVerify.getUserIdFromToken(invalidToken);
@@ -72,7 +72,7 @@ public class JwtEmailVerifyTest {
     class IsTokenExpiredTests {
 
         @Test
-        @DisplayName("✅ Возвращает false для невышедшего токена")
+        @DisplayName("Возвращает false для невышедшего токена")
         void isTokenExpired_ShouldReturnFalse_WhenTokenIsNotExpired() {
             Long userId = 123L;
             String token = jwtEmailVerify.generateVerificationToken(userId);
@@ -81,7 +81,7 @@ public class JwtEmailVerifyTest {
         }
 
         @Test
-        @DisplayName("✅ Возвращает true для просроченного токена")
+        @DisplayName("Возвращает true для просроченного токена")
         void isTokenExpired_ShouldReturnTrue_WhenTokenIsExpired() throws InterruptedException {
             JwtEmailVerify jwtEmailVerifyExpired = new JwtEmailVerify();
             ReflectionTestUtils.setField(jwtEmailVerifyExpired, "secret", validSecret);
@@ -96,7 +96,7 @@ public class JwtEmailVerifyTest {
         }
 
         @Test
-        @DisplayName("✅ Возвращает true при невалидном токене")
+        @DisplayName("Возвращает true при невалидном токене")
         void isTokenExpired_ShouldReturnTrue_WhenTokenIsInvalid() {
             String invalidToken = "invalidToken";
             boolean isExpired = jwtEmailVerify.isTokenExpired(invalidToken);
@@ -109,11 +109,9 @@ public class JwtEmailVerifyTest {
     class SetSecretTests {
 
         @Test
-        @DisplayName("✅ Не выбрасывает исключение при валидном секрете")
+        @DisplayName("Не выбрасывает исключение при валидном секрете")
         void setSecret_ShouldNotThrowException_WhenSecretIsValid() {
-            // Уже проинициализировано в setUp(), проверяем только отсутствие исключений
             assertThatNoException().isThrownBy(() -> {
-                // nothing to do — setup already succeeded
             });
         }
     }

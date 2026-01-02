@@ -33,7 +33,7 @@ public class JwtUtils {
     private final RevokedTokenRepository revokedTokenRepository;
 
     @Autowired
-    public JwtUtils(JwtExceptionHandler jwtExceptionHandler,RevokedTokenRepository revokedTokenRepository) {
+    public JwtUtils(JwtExceptionHandler jwtExceptionHandler, RevokedTokenRepository revokedTokenRepository) {
         this.jwtExceptionHandler = jwtExceptionHandler;
         this.revokedTokenRepository = revokedTokenRepository;
     }
@@ -46,11 +46,10 @@ public class JwtUtils {
             logger.info("Секретный ключ JWT успешно инициализирован.");
         } catch (Exception e) {
             logger.error("Ошибка при инициализации секретного ключа JWT: {}", e.getMessage(), e);
-            throw new IllegalStateException("Не удалось инициализировать секретный ключ JWT", e); // Re-throw as IllegalStateException
+            throw new IllegalStateException("Не удалось инициализировать секретный ключ JWT", e);
         }
     }
 
-    // НОВЫЙ метод — рекомендуемый для WebSocket и future-proof
     public String generateToken(String username, Long userId) {
         logger.info("Генерация JWT для пользователя: {}, ID: {}", username, userId);
 
@@ -64,10 +63,10 @@ public class JwtUtils {
         String jti = UUID.randomUUID().toString();
         String token = Jwts.builder()
                 .setId(jti)
-                .setSubject(username)               // username остаётся в subject (для Spring Security)
-                .claim("userId", userId)            // ← ДОБАВЛЯЕМ userId как кастомный claim
+                .setSubject(username)
+                .claim("userId", userId)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10)) // 10 часов
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
@@ -134,7 +133,6 @@ public class JwtUtils {
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {
-
         if (token == null || userDetails == null) {
             logger.debug("Токен или UserDetails не могут быть null");
             return false;
@@ -176,8 +174,6 @@ public class JwtUtils {
             throw new JwtAuthenticationException("Токен невалиден при проверке срока действия: " + e.getMessage());
         }
     }
-
-
 
     private Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
@@ -222,10 +218,8 @@ public class JwtUtils {
         return jwtExceptionHandler.handleJwtOperation(() -> {
             logger.debug("Проверка отзыва токена.");
 
-            // Извлекаем JTI из токена
             String jti = extractJti(token);
 
-            // Проверяем наличие в чёрном списке
             boolean revoked = revokedTokenRepository.existsById(jti);
 
             logger.debug("Токен (JTI: {}) отозван: {}", jti, revoked);

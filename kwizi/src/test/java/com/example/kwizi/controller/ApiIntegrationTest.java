@@ -27,22 +27,19 @@ class ApiIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
     @MockitoBean
     private AuthenticationService authenticationService;
 
-    // Моки для AuthenticationController
     @MockitoBean
     private RegistrationService registrationService;
-
 
     @Test
     @DisplayName("✅ 1. Успешное подтверждение email")
     void verifyEmail_Success() throws Exception {
-        // given
         String token = "valid-verification-token-123";
         doNothing().when(authenticationService).verifyEmail(token);
 
-        // when & then
         mockMvc.perform(get("/api/email-verification/verify-email")
                         .param("token", token)
                         .accept(MediaType.TEXT_HTML))
@@ -54,13 +51,11 @@ class ApiIntegrationTest {
     @Test
     @DisplayName("❌ 1. Подтверждение email с невалидным токеном")
     void verifyEmail_InvalidToken_ReturnsBadRequest() throws Exception {
-        // given
         String token = "invalid-token";
         String errorMessage = "Невалидный или просроченный токен";
         doThrow(new IllegalArgumentException(errorMessage))
                 .when(authenticationService).verifyEmail(token);
 
-        // when & then
         mockMvc.perform(get("/api/email-verification/verify-email")
                         .param("token", token)
                         .accept(MediaType.TEXT_HTML))
@@ -72,7 +67,6 @@ class ApiIntegrationTest {
     @Test
     @DisplayName("✅ 2. Успешная регистрация пользователя")
     void registerUser_Success() throws Exception {
-        // given
         String requestJson = """
             {
                 "username": "testuser",
@@ -85,7 +79,6 @@ class ApiIntegrationTest {
 
         doNothing().when(registrationService).registerUser(any());
 
-        // when & then
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestJson))
@@ -97,7 +90,6 @@ class ApiIntegrationTest {
     @Test
     @DisplayName("❌ 2. Регистрация с уже существующим username")
     void registerUser_DuplicateUsername_ReturnsError() throws Exception {
-        // given
         String requestJson = """
             {
                 "username": "existinguser",
@@ -111,11 +103,9 @@ class ApiIntegrationTest {
         doThrow(new RuntimeException("Пользователь с таким именем уже существует"))
                 .when(registrationService).registerUser(any());
 
-        // when & then - ожидаем 500, так как RuntimeException не обрабатывается
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestJson))
-                .andExpect(status().isInternalServerError()); // 500
+                .andExpect(status().isInternalServerError());
     }
-
 }

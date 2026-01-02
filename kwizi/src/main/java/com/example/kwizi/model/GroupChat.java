@@ -22,7 +22,6 @@ public class GroupChat {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
-    // Конструкторы
     public GroupChat() {}
 
     public GroupChat(Chat chat, String groupName) {
@@ -32,13 +31,12 @@ public class GroupChat {
 
     @PreUpdate
     public void updateChatTimestamp() {
-        // Этот метод ВСЕГДА вызывается при сохранении/обновлении GroupChat
+
         if (this.chat != null) {
             this.chat.setUpdatedAt(OffsetDateTime.now());
         }
     }
 
-    // Геттеры и сеттеры
     public Long getChatId() { return chatId; }
     public void setChatId(Long chatId) { this.chatId = chatId; }
 

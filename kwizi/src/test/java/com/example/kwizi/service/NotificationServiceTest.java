@@ -48,16 +48,13 @@ class NotificationServiceTest {
     class MessageNotificationsTests {
 
         @Test
-        @DisplayName("✅ Уведомление об изменении сообщения")
+        @DisplayName("Уведомление об изменении сообщения")
         void notifyMessageEdited_WithValidData_ShouldSendCorrectPayload() {
-            // given
+            
             String newText = "Updated message text";
-            String editedBy = USERNAME;
 
-            // when
-            notificationService.notifyMessageEdited(CHAT_ID, MESSAGE_ID, newText, editedBy);
+            notificationService.notifyMessageEdited(CHAT_ID, MESSAGE_ID, newText, USERNAME);
 
-            // then
             verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
 
             assertThat(chatIdCaptor.getValue())
@@ -72,15 +69,11 @@ class NotificationServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Уведомление об удалении сообщения")
+        @DisplayName("Уведомление об удалении сообщения")
         void notifyMessageDeleted_WithValidData_ShouldSendCorrectPayload() {
-            // given
-            String deletedBy = ADMIN_USERNAME;
 
-            // when
-            notificationService.notifyMessageDeleted(CHAT_ID, MESSAGE_ID, deletedBy);
-
-            // then
+            notificationService.notifyMessageDeleted(CHAT_ID, MESSAGE_ID, ADMIN_USERNAME);
+            
             verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
 
             String payload = payloadCaptor.getValue();
@@ -108,12 +101,12 @@ class NotificationServiceTest {
     class UserNotificationsTests {
 
         @Test
-        @DisplayName("✅ Уведомление о добавлении пользователя")
+        @DisplayName("Уведомление о добавлении пользователя")
         void notifyUserAdded_WithValidData_ShouldSendCorrectPayload() {
-            // when
+            
             notificationService.notifyUserAdded(CHAT_ID, USERNAME, ADMIN_USERNAME);
 
-            // then
+            
             verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
 
             String payload = payloadCaptor.getValue();
@@ -127,12 +120,12 @@ class NotificationServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Уведомление об удалении пользователя")
+        @DisplayName("Уведомление об удалении пользователя")
         void notifyUserRemoved_WithValidData_ShouldSendCorrectPayload() {
-            // when
+            
             notificationService.notifyUserRemoved(CHAT_ID, USERNAME, ADMIN_USERNAME);
 
-            // then
+            
             verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
 
             String payload = payloadCaptor.getValue();
@@ -146,12 +139,12 @@ class NotificationServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Уведомление о выходе пользователя")
+        @DisplayName("Уведомление о выходе пользователя")
         void notifyUserLeft_WithValidData_ShouldSendCorrectPayload() {
-            // when
+            
             notificationService.notifyUserLeft(CHAT_ID, USERNAME);
 
-            // then
+            
             verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
 
             String payload = payloadCaptor.getValue();
@@ -164,12 +157,12 @@ class NotificationServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Уведомление о назначении администратора")
+        @DisplayName("Уведомление о назначении администратора")
         void notifyUserPromoted_WithValidData_ShouldSendCorrectPayload() {
-            // when
+            
             notificationService.notifyUserPromoted(CHAT_ID, USERNAME, ADMIN_USERNAME);
 
-            // then
+            
             verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
 
             String payload = payloadCaptor.getValue();
@@ -183,12 +176,12 @@ class NotificationServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Уведомление о снятии прав администратора")
+        @DisplayName("Уведомление о снятии прав администратора")
         void notifyUserDemoted_WithValidData_ShouldSendCorrectPayload() {
-            // when
+            
             notificationService.notifyUserDemoted(CHAT_ID, USERNAME, ADMIN_USERNAME);
 
-            // then
+            
             verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
 
             String payload = payloadCaptor.getValue();
@@ -207,17 +200,14 @@ class NotificationServiceTest {
     class GroupNotificationsTests {
 
         @Test
-        @DisplayName("✅ Уведомление об изменении названия группы")
+        @DisplayName("Уведомление об изменении названия группы")
         void notifyGroupNameChanged_WithValidData_ShouldSendCorrectPayload() {
-            // given
+            
             String oldName = "Old Group Name";
             String newName = "New Group Name";
-            String changedBy = ADMIN_USERNAME;
+            
+            notificationService.notifyGroupNameChanged(CHAT_ID, oldName, newName, ADMIN_USERNAME);
 
-            // when
-            notificationService.notifyGroupNameChanged(CHAT_ID, oldName, newName, changedBy);
-
-            // then
             verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
 
             String payload = payloadCaptor.getValue();
@@ -232,12 +222,12 @@ class NotificationServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Уведомление об изменении фотографии группы")
+        @DisplayName("Уведомление об изменении фотографии группы")
         void notifyGroupPhotoChanged_WithValidData_ShouldSendCorrectPayload() {
-            // when
+            
             notificationService.notifyGroupPhotoChanged(CHAT_ID, ADMIN_USERNAME);
 
-            // then
+            
             verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
 
             String payload = payloadCaptor.getValue();
@@ -255,16 +245,14 @@ class NotificationServiceTest {
     class SpecialCharactersHandlingTests {
 
         @Test
-        @DisplayName("✅ Текст с кавычками корректно форматируется")
+        @DisplayName("Текст с кавычками корректно форматируется")
         void notifyMessageEdited_WithQuotesInText_ShouldEscapeCorrectly() {
-            // given
+            
             String newText = "Message with \"quotes\" inside";
-            String editedBy = USERNAME;
+            
+            notificationService.notifyMessageEdited(CHAT_ID, MESSAGE_ID, newText, USERNAME);
 
-            // when
-            notificationService.notifyMessageEdited(CHAT_ID, MESSAGE_ID, newText, editedBy);
-
-            // then
+            
             verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
 
             assertThat(payloadCaptor.getValue())
@@ -273,15 +261,15 @@ class NotificationServiceTest {
         }
 
         @Test
-        @DisplayName("✅ Username со спецсимволами корректно форматируется")
+        @DisplayName("Username со спецсимволами корректно форматируется")
         void notifyUserAdded_WithSpecialCharactersInUsername_ShouldHandleCorrectly() {
-            // given
+            
             String specialUsername = "user-name.test";
 
-            // when
+            
             notificationService.notifyUserAdded(CHAT_ID, specialUsername, ADMIN_USERNAME);
 
-            // then
+            
             verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
 
             String payload = payloadCaptor.getValue();
@@ -293,15 +281,11 @@ class NotificationServiceTest {
 
         @ParameterizedTest
         @NullAndEmptySource
-        @DisplayName("✅ Пустой текст сообщения корректно обрабатывается")
+        @DisplayName("Пустой текст сообщения корректно обрабатывается")
         void notifyMessageEdited_WithEmptyText_ShouldHandleCorrectly(String newText) {
-            // given
-            String editedBy = USERNAME;
 
-            // when
-            notificationService.notifyMessageEdited(CHAT_ID, MESSAGE_ID, newText, editedBy);
-
-            // then
+            notificationService.notifyMessageEdited(CHAT_ID, MESSAGE_ID, newText, USERNAME);
+            
             verify(chatHandler).broadcastToChat(chatIdCaptor.capture(), payloadCaptor.capture());
 
             String payload = payloadCaptor.getValue();

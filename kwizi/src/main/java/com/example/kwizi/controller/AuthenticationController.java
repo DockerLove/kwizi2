@@ -1,12 +1,10 @@
-package com.example.kwizi.controller; // Замените на ваш пакет
-
+package com.example.kwizi.controller;
 
 import com.example.kwizi.DTO.request.AuthenticationRequest;
 import com.example.kwizi.DTO.request.ChangePasswordRequest;
 import com.example.kwizi.DTO.request.RegistrationRequest;
 import com.example.kwizi.DTO.response.ApiResponse;
 import com.example.kwizi.DTO.response.AuthenticationResponse;
-import com.example.kwizi.repository.RevokedTokenRepository;
 import com.example.kwizi.security.JwtUtils;
 import com.example.kwizi.security.UserDetailsImpl;
 import com.example.kwizi.service.AuthenticationService;
@@ -33,25 +31,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthenticationController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthenticationController.class);
-    private AuthenticationManager authenticationManager;
-    private AuthenticationService authenticationService;
-    private UserDetailsService userDetailsService;
-
-    private RegistrationService registrationService;
-    private UserService userService;
-    private JwtUtils jwtUtils;
-    private final RevokedTokenRepository revokedTokenRepo;
-
+    private final AuthenticationManager authenticationManager;
+    private final AuthenticationService authenticationService;
+    private final UserDetailsService userDetailsService;
+    private final RegistrationService registrationService;
+    private final UserService userService;
+    private final JwtUtils jwtUtils;
 
     @Autowired
     public AuthenticationController(AuthenticationManager authenticationManager, UserDetailsService userDetailsService,
                                     JwtUtils jwtUtils, RegistrationService registrationService,
-                                    RevokedTokenRepository revokedTokenRepo,AuthenticationService authenticationService,UserService userService) {
+                                    AuthenticationService authenticationService, UserService userService) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtUtils = jwtUtils;
         this.registrationService = registrationService;
-        this.revokedTokenRepo = revokedTokenRepo;
         this.authenticationService = authenticationService;
         this.userService = userService;
     }
@@ -63,20 +57,17 @@ public class AuthenticationController {
         authenticationService.changePassword(userDetails.getUsername(), request);
 
         logger.info("Пароль успешно изменен для пользователя: {}", userDetails.getUsername());
-        return ResponseEntity.ok(ApiResponse.success("Пароль успешно изменен",null));
-
+        return ResponseEntity.ok(ApiResponse.success("Пароль успешно изменен", null));
     }
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody RegistrationRequest registrationRequest) {
-
         logger.info("Запрос регистрации пользователя: {}", registrationRequest.getUsername());
 
         registrationService.registerUser(registrationRequest);
 
         logger.info("Пользователь успешно зарегистрирован: {}", registrationRequest.getUsername());
-        return ResponseEntity.ok(ApiResponse.success("Пользователь успешно зарегистрирован",null));
-
+        return ResponseEntity.ok(ApiResponse.success("Пользователь успешно зарегистрирован", null));
     }
 
     @PostMapping("/login")
@@ -88,17 +79,16 @@ public class AuthenticationController {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(username, authenticationRequest.getPassword()));
 
-
         logger.debug("Загрузка UserDetails для пользователя: {}", username);
         final UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
         logger.debug("Генерация JWT токена для пользователя: {}", username);
-        final String jwt = jwtUtils.generateToken(userDetails.getUsername(),(userService.findByUsername(userDetails.getUsername()).get().getId()));
+        final String jwt = jwtUtils.generateToken(userDetails.getUsername(), (userService.findByUsername(userDetails.getUsername()).get().getId()));
 
         logger.info("Успешная аутентификация пользователя: {}", username);
         return ResponseEntity.ok((new AuthenticationResponse(jwt)));
-
     }
+
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request) {
         logger.info("Запрос выхода из системы");
@@ -107,15 +97,11 @@ public class AuthenticationController {
         if (token == null) {
             logger.warn("Попытка выхода без токена");
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Токен отсутствует",null));
+                    .body(ApiResponse.error("Токен отсутствует", null));
         }
         authenticationService.logout(token);
 
         logger.info("Успешный выход пользователя");
         return ResponseEntity.ok(ApiResponse.success("Выход выполнен успешно", null));
     }
-
 }
-
-
-

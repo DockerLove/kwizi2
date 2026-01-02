@@ -28,6 +28,4 @@ public abstract class ChatMessageRequest {
     public void setText(String text) {
         this.text = text;
     }
-
-    // Геттеры и сеттеры
 }

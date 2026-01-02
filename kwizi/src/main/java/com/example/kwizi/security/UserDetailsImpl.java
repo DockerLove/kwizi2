@@ -18,10 +18,7 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        //у нас нет ролей, поэтому возвращаем пустую коллекцию.
         return List.of();
-
-
     }
 
     @Override
@@ -49,7 +46,6 @@ public class UserDetailsImpl implements UserDetails {
         return true;
     }
 
-    // Дополнительные геттеры
     public Long getId() {
         return user.getId();
     }

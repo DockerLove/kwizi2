@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.TopicBuilder;
 
 import java.util.Map;
-
 @Configuration
 public class KafkaTopicsConfig {
 
@@ -18,11 +17,11 @@ public class KafkaTopicsConfig {
     public NewTopic privateMessagesTopic() {
         logger.info("Создание топика для приватных сообщений");
         return TopicBuilder.name("private-messages")
-                .partitions(3)  // ✅ Упростили до 3 партиций для пет-проекта
+                .partitions(3)
                 .replicas(1)
                 .configs(Map.of(
-                        "retention.ms", "604800000", // 7 дней
-                        "max.message.bytes", "1048576" // 1MB
+                        "retention.ms", "604800000",
+                        "max.message.bytes", "1048576"
                 ))
                 .build();
     }
@@ -34,7 +33,7 @@ public class KafkaTopicsConfig {
                 .partitions(3)
                 .replicas(1)
                 .configs(Map.of(
-                        "retention.ms", "2592000000", // 30 дней для DLQ
+                        "retention.ms", "2592000000",
                         "cleanup.policy", "delete"
                 ))
                 .build();
@@ -44,11 +43,11 @@ public class KafkaTopicsConfig {
     public NewTopic groupMessagesTopic() {
         logger.info("Создание топика для групповых сообщений");
         return TopicBuilder.name("group-messages")
-                .partitions(3)  // ✅ Упростили до 3 партиций
+                .partitions(3)
                 .replicas(1)
                 .configs(Map.of(
-                        "retention.ms", "604800000", // 7 дней
-                        "compression.type", "snappy" // Сжатие
+                        "retention.ms", "604800000",
+                        "compression.type", "snappy"
                 ))
                 .build();
     }
@@ -60,7 +59,7 @@ public class KafkaTopicsConfig {
                 .partitions(3)
                 .replicas(1)
                 .configs(Map.of(
-                        "retention.ms", "2592000000", // 30 дней
+                        "retention.ms", "2592000000",
                         "cleanup.policy", "delete"
                 ))
                 .build();

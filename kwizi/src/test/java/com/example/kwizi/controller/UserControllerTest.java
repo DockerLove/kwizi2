@@ -28,7 +28,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
-
 @DisplayName("UserController тесты")
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -71,16 +70,16 @@ class UserControllerTest {
     class GetUserInfoTests {
 
         @Test
-        @DisplayName("✅ Успешное получение пользователя по username")
+        @DisplayName("Успешное получение пользователя по username")
         void getUserByUsername_Success() {
-            // given
+            
             String username = "otherUser";
             when(userService.findUsername(username, 1L)).thenReturn(userProfileResponse);
 
-            // when
+            
             var response = controller.getUserByUsername(username, userDetails);
 
-            // then
+            
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
@@ -92,15 +91,15 @@ class UserControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Успешное получение профиля пользователя")
+        @DisplayName("Успешное получение профиля пользователя")
         void getUserProfile_Success() {
-            // given
+            
             when(userService.getUserProfile(1L)).thenReturn(userProfileResponse);
 
-            // when
+            
             var response = controller.getUserProfile(userDetails);
 
-            // then
+            
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
@@ -111,15 +110,15 @@ class UserControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Получение статуса верификации email")
+        @DisplayName("Получение статуса верификации email")
         void getEmailVerified_Success() {
-            // given
+            
             when(userService.getEmailVerified(1L)).thenReturn(true);
 
-            // when
+            
             var response = controller.getEmailVerified(userDetails);
 
-            // then
+            
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
@@ -135,15 +134,15 @@ class UserControllerTest {
     class EmailVerificationTests {
 
         @Test
-        @DisplayName("✅ Успешная верификация email пользователя")
+        @DisplayName("Успешная верификация email пользователя")
         void verifyUserEmail_Success() {
-            // given
+            
             doNothing().when(userService).verifyUserEmail(1L);
 
-            // when
+            
             var response = controller.verifyUserEmail(userDetails);
 
-            // then
+            
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
@@ -153,15 +152,15 @@ class UserControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Успешная отправка письма для верификации")
+        @DisplayName("Успешная отправка письма для верификации")
         void sendVerificationEmail_Success() {
-            // given
+            
             doNothing().when(authService).sendVerificationEmail(1L);
 
-            // when
+            
             var response = controller.sendVerificationEmail(userDetails);
 
-            // then
+            
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
@@ -176,17 +175,17 @@ class UserControllerTest {
     class UpdateProfileTests {
 
         @Test
-        @DisplayName("✅ Успешное обновление bio")
+        @DisplayName("Успешное обновление bio")
         void updateBio_Success() {
-            // given
+            
             UpdateBioRequest request = new UpdateBioRequest();
             request.setBio("New bio text");
             doNothing().when(userService).updateBio(1L, "New bio text");
 
-            // when
+            
             var response = controller.updateBio(request, userDetails);
 
-            // then
+            
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
@@ -196,17 +195,17 @@ class UserControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Успешное обновление имени")
+        @DisplayName("Успешное обновление имени")
         void updateFirstName_Success() {
-            // given
+            
             UpdateFirstNameRequest request = new UpdateFirstNameRequest();
             request.setFirstName("NewFirstName");
             doNothing().when(userService).updateFirstName(1L, "NewFirstName");
 
-            // when
+            
             var response = controller.updateFirstName(request, userDetails);
 
-            // then
+            
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
@@ -216,17 +215,17 @@ class UserControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Успешное обновление фамилии")
+        @DisplayName("Успешное обновление фамилии")
         void updateLastName_Success() {
-            // given
+            
             UpdateLastNameRequest request = new UpdateLastNameRequest();
             request.setLastName("NewLastName");
             doNothing().when(userService).updateLastName(1L, "NewLastName");
 
-            // when
+            
             var response = controller.updateLastName(request, userDetails);
 
-            // then
+            
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
@@ -236,17 +235,17 @@ class UserControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Успешное обновление username")
+        @DisplayName("Успешное обновление username")
         void updateUsername_Success() {
-            // given
+            
             UpdateUsernameRequest request = new UpdateUsernameRequest();
             request.setUsername("newUsername");
             when(userService.updateUsername(1L, "newUsername")).thenReturn("new-jwt-token");
 
-            // when
+            
             var response = controller.updateUsername(request, userDetails);
 
-            // then
+            
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
@@ -261,17 +260,17 @@ class UserControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Успешное обновление email")
+        @DisplayName("Успешное обновление email")
         void updateEmail_Success() {
-            // given
+            
             UpdateEmailRequest request = new UpdateEmailRequest();
             request.setEmail("new@example.com");
             doNothing().when(userService).updateEmail(1L, "new@example.com");
 
-            // when
+            
             var response = controller.updateEmail(request, userDetails);
 
-            // then
+            
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
@@ -281,16 +280,16 @@ class UserControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Успешное обновление аватара")
+        @DisplayName("Успешное обновление аватара")
         void updateAvatar_Success() throws IOException {
-            // given
+            
             MultipartFile file = mock(MultipartFile.class);
             doNothing().when(userService).updateUserAvatar(file, 1L);
 
-            // when
+            
             var response = controller.updateAvatar(file, userDetails);
 
-            // then
+            
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             Object body = response.getBody();
             assertThat(body).isInstanceOf(ApiResponse.class);
@@ -302,44 +301,44 @@ class UserControllerTest {
     class ExceptionHandlingTests {
 
         @Test
-        @DisplayName("❌ Пользователь не найден")
+        @DisplayName("Пользователь не найден")
         void userNotFound() {
-            // given
+            
             String username = "nonExistentUser";
             when(userService.findUsername(username, 1L))
                     .thenThrow(new UserNotFoundException("Пользователь не найден"));
 
-            // when & then
+             
             assertThatThrownBy(() -> controller.getUserByUsername(username, userDetails))
                     .isInstanceOf(UserNotFoundException.class)
                     .hasMessageContaining("Пользователь не найден");
         }
 
         @Test
-        @DisplayName("❌ Невалидный email при обновлении")
+        @DisplayName("Невалидный email при обновлении")
         void invalidEmail() {
-            // given
+            
             UpdateEmailRequest request = new UpdateEmailRequest();
             request.setEmail("invalid-email");
             doThrow(new IllegalArgumentException("Invalid email format"))
                     .when(userService).updateEmail(1L, "invalid-email");
 
-            // when & then
+             
             assertThatThrownBy(() -> controller.updateEmail(request, userDetails))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Invalid email format");
         }
 
         @Test
-        @DisplayName("❌ Username уже занят")
+        @DisplayName("Username уже занят")
         void usernameAlreadyTaken() {
-            // given
+            
             UpdateUsernameRequest request = new UpdateUsernameRequest();
             request.setUsername("takenUsername");
             when(userService.updateUsername(1L, "takenUsername"))
                     .thenThrow(new DuplicateKeyException("Username уже занят"));
 
-            // when & then
+             
             assertThatThrownBy(() -> controller.updateUsername(request, userDetails))
                     .isInstanceOf(DuplicateKeyException.class)
                     .hasMessageContaining("Username уже занят");

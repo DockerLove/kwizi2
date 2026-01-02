@@ -10,12 +10,11 @@ import java.util.Optional;
 @Repository
 public interface AuthenticationRepository extends JpaRepository<User, Long> {
 
-    Optional<User> findByUsername(String username); // Поиск пользователя по имени пользователя
+    Optional<User> findByUsername(String username);
 
     Optional<User> findById(Long id);
 
-    boolean existsByUsername(String username); // Проверка существования пользователя с таким именем пользователя
+    boolean existsByUsername(String username);
 
     Optional<User> findByEmail(String email);
-
 }

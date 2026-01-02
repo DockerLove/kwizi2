@@ -23,15 +23,14 @@ class UserDetailsImplTest {
     private UserDetailsImpl userDetails;
 
     @Test
-    @DisplayName("✅ Создание экземпляра с пользователем")
+    @DisplayName("Создание экземпляра с пользователем")
     void constructor_ShouldCreateInstanceWithUser() {
-        // Ничего не мокаем — просто создаём
         userDetails = new UserDetailsImpl(mockUser);
         assertThat(userDetails).isNotNull();
     }
 
     @Test
-    @DisplayName("✅ Получение пустых полномочий")
+    @DisplayName("Получение пустых полномочий")
     void getAuthorities_ShouldReturnEmptyCollection() {
         userDetails = new UserDetailsImpl(mockUser);
         Collection<? extends GrantedAuthority> authorities = userDetails.getAuthorities();
@@ -39,7 +38,7 @@ class UserDetailsImplTest {
     }
 
     @Test
-    @DisplayName("✅ Получение пароля")
+    @DisplayName("Получение пароля")
     void getPassword_ShouldReturnUserPassword() {
         when(mockUser.getPassword()).thenReturn("password123");
         userDetails = new UserDetailsImpl(mockUser);
@@ -49,7 +48,7 @@ class UserDetailsImplTest {
     }
 
     @Test
-    @DisplayName("✅ Получение имени пользователя")
+    @DisplayName("Получение имени пользователя")
     void getUsername_ShouldReturnUsername() {
         when(mockUser.getUsername()).thenReturn("testuser");
         userDetails = new UserDetailsImpl(mockUser);
@@ -59,35 +58,35 @@ class UserDetailsImplTest {
     }
 
     @Test
-    @DisplayName("✅ Аккаунт не истёк")
+    @DisplayName("Аккаунт не истёк")
     void isAccountNonExpired_ShouldAlwaysReturnTrue() {
         userDetails = new UserDetailsImpl(mockUser);
         assertThat(userDetails.isAccountNonExpired()).isTrue();
     }
 
     @Test
-    @DisplayName("✅ Аккаунт не заблокирован")
+    @DisplayName("Аккаунт не заблокирован")
     void isAccountNonLocked_ShouldAlwaysReturnTrue() {
         userDetails = new UserDetailsImpl(mockUser);
         assertThat(userDetails.isAccountNonLocked()).isTrue();
     }
 
     @Test
-    @DisplayName("✅ Учётные данные не истекли")
+    @DisplayName("Учётные данные не истекли")
     void isCredentialsNonExpired_ShouldAlwaysReturnTrue() {
         userDetails = new UserDetailsImpl(mockUser);
         assertThat(userDetails.isCredentialsNonExpired()).isTrue();
     }
 
     @Test
-    @DisplayName("✅ Аккаунт включён")
+    @DisplayName("Аккаунт включён")
     void isEnabled_ShouldAlwaysReturnTrue() {
         userDetails = new UserDetailsImpl(mockUser);
         assertThat(userDetails.isEnabled()).isTrue();
     }
 
     @Test
-    @DisplayName("✅ Получение ID пользователя")
+    @DisplayName("Получение ID пользователя")
     void getId_ShouldReturnUserId() {
         when(mockUser.getId()).thenReturn(1L);
         userDetails = new UserDetailsImpl(mockUser);
@@ -97,7 +96,7 @@ class UserDetailsImplTest {
     }
 
     @Test
-    @DisplayName("✅ Получение email пользователя")
+    @DisplayName("Получение email пользователя")
     void getEmail_ShouldReturnUserEmail() {
         when(mockUser.getEmail()).thenReturn("test@example.com");
         userDetails = new UserDetailsImpl(mockUser);
@@ -107,7 +106,7 @@ class UserDetailsImplTest {
     }
 
     @Test
-    @DisplayName("✅ Повторный вызов getAuthorities возвращает пустую коллекцию")
+    @DisplayName("Повторный вызов getAuthorities возвращает пустую коллекцию")
     void getAuthorities_ShouldReturnSameInstanceMultipleTimes() {
         userDetails = new UserDetailsImpl(mockUser);
         Collection<? extends GrantedAuthority> authorities1 = userDetails.getAuthorities();
@@ -117,7 +116,7 @@ class UserDetailsImplTest {
     }
 
     @Test
-    @DisplayName("✅ Внутренний пользователь совпадает с переданным")
+    @DisplayName("Внутренний пользователь совпадает с переданным")
     void getUser_ShouldReturnCorrectUser() throws Exception {
         userDetails = new UserDetailsImpl(mockUser);
         Field userField = UserDetailsImpl.class.getDeclaredField("user");
@@ -127,12 +126,11 @@ class UserDetailsImplTest {
     }
 
     @Test
-    @DisplayName("✅ Объект неизменяем")
+    @DisplayName("Объект неизменяем")
     void shouldBeImmutable() {
         when(mockUser.getUsername()).thenReturn("testuser");
         userDetails = new UserDetailsImpl(mockUser);
 
-        // Просто проверяем, что результат не меняется и не зависит от других объектов
         String username1 = userDetails.getUsername();
         String username2 = userDetails.getUsername();
 

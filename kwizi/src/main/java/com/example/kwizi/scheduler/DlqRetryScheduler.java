@@ -18,7 +18,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-
 @Component
 public class DlqRetryScheduler {
 
@@ -42,24 +41,19 @@ public class DlqRetryScheduler {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    // ==================== KAFKA LISTENER ДЛЯ НОВЫХ СООБЩЕНИЙ ====================
-
     @KafkaListener(topics = "private-messages-dlq", groupId = "dlq-retry-group")
     public void retryPrivateMessages(String dlqMessage) {
-        logger.info("📨 Получено сообщение из DLQ");
+        logger.info("Получено сообщение из DLQ");
 
         try {
-            // ✅ ОБРАБАТЫВАЕМ ОБА ФОРМАТА: оригинальный MessageEventDto и наш обернутый DLQ формат
             MessageEventDto event;
             Long messageId;
             Long recipientId;
 
             try {
-                // Пытаемся распарсить как наш DLQ формат
                 JsonNode dlqNode = objectMapper.readTree(dlqMessage);
 
                 if (dlqNode.has("originalEvent") && dlqNode.has("messageId")) {
-                    // Это наш обернутый DLQ формат
                     JsonNode originalEventNode = dlqNode.get("originalEvent");
                     messageId = dlqNode.get("messageId").asLong();
                     recipientId = dlqNode.get("recipientId").asLong();
@@ -68,9 +62,8 @@ public class DlqRetryScheduler {
                     logger.info("Обработка DLQ сообщения {}: {} -> {}",
                             messageId, event.getSenderId(), recipientId);
                 } else {
-                    // Это оригинальный MessageEventDto (пришло напрямую из Kafka error handler)
                     event = messageConverter.convertToEvent(dlqMessage);
-                    messageId = null; // ID сообщения неизвестен
+                    messageId = null;
                     recipientId = event.getRecipientId();
 
                     logger.info("Обработка оригинального DLQ сообщения: {} -> {}",
@@ -78,7 +71,6 @@ public class DlqRetryScheduler {
                 }
 
             } catch (Exception e) {
-                // Если не удалось распарсить как наш формат, пробуем как оригинальный MessageEventDto
                 event = messageConverter.convertToEvent(dlqMessage);
                 messageId = null;
                 recipientId = event.getRecipientId();
@@ -86,30 +78,28 @@ public class DlqRetryScheduler {
                         event.getSenderId(), recipientId);
             }
 
-            // Мгновенная доставка для новых сообщений
             if (chatHandler.isUserOnline(recipientId)) {
                 boolean delivered = sendPrivateMessageToUser(event, messageId);
                 if (delivered) {
-                    logger.info("✅ Сообщение доставлено мгновенно пользователю {}", recipientId);
+                    logger.info("Сообщение доставлено мгновенно пользователю {}", recipientId);
                 }
             } else {
-                logger.debug("👤 Пользователь {} оффлайн, сообщение остается в DLQ", recipientId);
+                logger.debug("Пользователь {} оффлайн, сообщение остается в DLQ", recipientId);
             }
 
         } catch (Exception e) {
-            logger.error("💥 Ошибка обработки сообщения из DLQ: {}", e.getMessage());
+            logger.error("Ошибка обработки сообщения из DLQ: {}", e.getMessage());
             logger.debug("Содержимое сообщения: {}", dlqMessage);
         }
     }
 
     @KafkaListener(topics = "group-messages-dlq", groupId = "dlq-retry-group")
     public void retryGroupMessages(String dlqMessage) {
-        logger.info("📨 Получено сообщение из group-messages-dlq");
+        logger.info("Получено сообщение из group-messages-dlq");
 
         try {
             JsonNode dlqNode = objectMapper.readTree(dlqMessage);
 
-            // Проверяем что это групповое сообщение
             if (!dlqNode.has("messageType") || !"GROUP".equals(dlqNode.get("messageType").asText())) {
                 logger.debug("Не групповое сообщение, пропускаем");
                 return;
@@ -125,27 +115,24 @@ public class DlqRetryScheduler {
             logger.info("Обработка группового DLQ сообщения {}: чат {}, получатель {}",
                     messageId, chatId, recipientId);
 
-            // Доставляем если пользователь онлайн
             if (chatHandler.isUserOnline(recipientId)) {
                 boolean delivered = sendGroupMessageToUser(event, messageId, chatId, recipientId);
                 if (delivered) {
-                    logger.info("✅ Групповое сообщение {} доставлено пользователю {}", messageId, recipientId);
+                    logger.info("Групповое сообщение {} доставлено пользователю {}", messageId, recipientId);
                 }
             } else {
-                logger.debug("👤 Участник {} оффлайн, сообщение {} остается в DLQ", recipientId, messageId);
+                logger.debug("Участник {} оффлайн, сообщение {} остается в DLQ", recipientId, messageId);
             }
 
         } catch (Exception e) {
-            logger.error("💥 Ошибка обработки группового сообщения из DLQ: {}", e.getMessage(), e);
+            logger.error("Ошибка обработки группового сообщения из DLQ: {}", e.getMessage(), e);
         }
     }
 
-    // ✅ НОВЫЙ МЕТОД: Отправка группового сообщения пользователю
     private boolean sendGroupMessageToUser(MessageEventDto event, Long messageId, Long chatId, Long recipientId) {
         try {
-            // ✅ ФИКС: используем recipientId из параметра
             if (recipientId == null) {
-                logger.error("❌ recipientId parameter is NULL");
+                logger.error("recipientId равен null");
                 return false;
             }
 
@@ -171,23 +158,21 @@ public class DlqRetryScheduler {
             return true;
 
         } catch (Exception e) {
-            logger.error("❌ Ошибка отправки: {}", e.getMessage(), e);
+            logger.error("Ошибка отправки: {}", e.getMessage(), e);
             return false;
         }
     }
 
-    // ==================== АКТИВНАЯ ПРОВЕРКА DLQ ====================
-
     @Scheduled(fixedDelay = 10000)
     public void scheduledDlqRetry() {
-        logger.info("🔄 Запуск активной проверки DLQ...");
+        logger.info("Запуск активной проверки DLQ...");
 
-        // Проверяем оба DLQ топика
         checkDlqTopic("private-messages-dlq");
         checkDlqTopic("group-messages-dlq");
 
-        logger.info("✅ Активная проверка всех DLQ завершена");
+        logger.info("Активная проверка всех DLQ завершена");
     }
+
     private void checkDlqTopic(String topicName) {
         logger.debug("🔍 Проверка DLQ топика: {}", topicName);
 
@@ -214,7 +199,6 @@ public class DlqRetryScheduler {
 
                 for (var record : records) {
                     try {
-                        // ✅ ИЗВЛЕКАЕМ messageId безопасно
                         Long messageId = extractMessageIdSafe(record.value());
                         if (messageId == null) {
                             logger.warn("Не удалось извлечь messageId из сообщения в {}, пропускаем", topicName);
@@ -243,7 +227,7 @@ public class DlqRetryScheduler {
 
                 if (!offsetsToCommit.isEmpty()) {
                     consumer.commitSync(offsetsToCommit);
-                    logger.info("✅ Удалено {} сообщений из DLQ {}", offsetsToCommit.size(), topicName);
+                    logger.info("Удалено {} сообщений из DLQ {}", offsetsToCommit.size(), topicName);
                 }
 
                 logger.info("Проверка {} завершена. Доставлено: {}, В процессе: {}, Пропущено: {}, Всего: {}",
@@ -254,7 +238,7 @@ public class DlqRetryScheduler {
             }
 
         } catch (Exception e) {
-            logger.error("💥 Ошибка при проверке DLQ {}: {}", topicName, e.getMessage(), e);
+            logger.error("Ошибка при проверке DLQ {}: {}", topicName, e.getMessage(), e);
         }
     }
 
@@ -266,26 +250,22 @@ public class DlqRetryScheduler {
         Long messageId = null;
 
         try {
-            // ✅ БЕЗОПАСНО ИЗВЛЕКАЕМ ДАННЫЕ ИЗ DLQ СООБЩЕНИЯ
             JsonNode dlqNode = objectMapper.readTree(record.value());
             MessageEventDto event;
             Long recipientId;
 
             if (dlqNode.has("originalEvent") && dlqNode.has("recipientId")) {
-                // Наш обернутый формат
                 JsonNode originalEventNode = dlqNode.get("originalEvent");
                 messageId = dlqNode.has("messageId") ? dlqNode.get("messageId").asLong() : null;
                 recipientId = dlqNode.get("recipientId").asLong();
                 event = objectMapper.convertValue(originalEventNode, MessageEventDto.class);
 
-                // Проверяем тип сообщения для групповых
                 if ("group-messages-dlq".equals(topicName)) {
                     return processGroupDlqMessage(event, messageId, recipientId, dlqNode, record, offsetsToCommit);
                 } else {
                     return processPrivateDlqMessage(event, messageId, recipientId, record, offsetsToCommit);
                 }
             } else {
-                // Оригинальный MessageEventDto
                 event = messageConverter.convertToEvent(record.value());
                 messageId = null;
                 recipientId = event.getRecipientId();
@@ -298,7 +278,7 @@ public class DlqRetryScheduler {
             }
 
         } catch (Exception e) {
-            logger.error("❌ Ошибка обработки сообщения из {}: {}", topicName, e.getMessage());
+            logger.error("Ошибка обработки сообщения из {}: {}", topicName, e.getMessage());
             return false;
         } finally {
             if (messageId != null) {
@@ -317,9 +297,8 @@ public class DlqRetryScheduler {
         if (chatHandler.isUserOnline(recipientId)) {
             boolean delivered = sendPrivateMessageToUser(event, messageId);
             if (delivered) {
-                logger.info("✅ Приватное сообщение ДОСТАВЛЕНО пользователю {}", recipientId);
+                logger.info("Приватное сообщение ДОСТАВЛЕНО пользователю {}", recipientId);
 
-                // Удаляем из DLQ
                 var topicPartition = new org.apache.kafka.common.TopicPartition(record.topic(), record.partition());
                 var offsetAndMetadata = new org.apache.kafka.clients.consumer.OffsetAndMetadata(record.offset() + 1);
                 offsetsToCommit.put(topicPartition, offsetAndMetadata);
@@ -345,7 +324,7 @@ public class DlqRetryScheduler {
                 (event != null ? event.getRecipientId() : null);
 
         if (targetRecipientId == null) {
-            logger.error("❌ targetRecipientId is NULL. DLQ message: {}", record.value());
+            logger.error("targetRecipientId is NULL. DLQ message: {}", record.value());
             return false;
         }
 
@@ -354,12 +333,11 @@ public class DlqRetryScheduler {
             if (delivered) {
                 logger.info("✅ Групповое сообщение ДОСТАВЛЕНО пользователю {} (чат: {})", targetRecipientId, chatId);
 
-                // ✅ ФИКС: Убедимся что добавляем в offsetsToCommit
                 var topicPartition = new org.apache.kafka.common.TopicPartition(record.topic(), record.partition());
                 var offsetAndMetadata = new org.apache.kafka.clients.consumer.OffsetAndMetadata(record.offset() + 1);
                 offsetsToCommit.put(topicPartition, offsetAndMetadata);
 
-                logger.debug("📝 Добавлен оффсет для коммита: topic={}, partition={}, offset={}",
+                logger.debug("Добавлен оффсет для коммита: topic={}, partition={}, offset={}",
                         record.topic(), record.partition(), record.offset());
 
                 return true;
@@ -368,8 +346,6 @@ public class DlqRetryScheduler {
 
         return false;
     }
-
-    // ==================== ОТПРАВКА СООБЩЕНИЙ ====================
 
     private boolean sendPrivateMessageToUser(MessageEventDto event, Long messageId) {
         try {
@@ -390,27 +366,22 @@ public class DlqRetryScheduler {
             return true;
 
         } catch (Exception e) {
-            logger.error("❌ Ошибка отправки сообщения: {}", e.getMessage());
+            logger.error("Ошибка отправки сообщения: {}", e.getMessage());
             return false;
         }
     }
-
-    // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
 
     private Long extractMessageIdSafe(String dlqMessage) {
         try {
             JsonNode dlqNode = objectMapper.readTree(dlqMessage);
 
-            // ✅ 1. Новый формат: {"messageId": 123, ...}
             if (dlqNode.has("messageId") && !dlqNode.get("messageId").isNull()) {
                 return dlqNode.get("messageId").asLong();
             }
 
-            // ✅ 2. Если нет messageId - генерируем из хеша
             return (long) Math.abs(dlqMessage.hashCode());
 
         } catch (Exception e) {
-            // ✅ 3. Если вообще не парсится - генерируем ID
             return (long) Math.abs(dlqMessage.hashCode());
         }
     }
@@ -434,14 +405,14 @@ public class DlqRetryScheduler {
     public void cleanupInProgress() {
         int initialSize = messagesInProgress.size();
         if (initialSize > 0) {
-            logger.debug("🧹 Очистка зависших сообщений в процессе доставки: {}", initialSize);
+            logger.debug("Очистка зависших сообщений в процессе доставки: {}", initialSize);
             messagesInProgress.clear();
         }
     }
 
     @Scheduled(fixedRate = 60000)
     public void healthCheck() {
-        logger.debug("❤️ DLQ Scheduler активен. Сообщений в процессе доставки: {}",
+        logger.debug("DLQ Scheduler активен. Сообщений в процессе доставки: {}",
                 messagesInProgress.size());
     }
 }

@@ -41,20 +41,18 @@ class UserDetailsServiceImplTest {
     class MainScenarios {
 
         @Test
-        @DisplayName("✅ Успешная загрузка пользователя по username")
+        @DisplayName("Успешная загрузка пользователя по username")
         void loadUserByUsername_WithValidUsername_ShouldReturnUserDetails() {
-            // given
+            
             User user = createTestUser(USER_ID, EXISTING_USERNAME);
             user.setPassword("encodedPassword123");
             user.setEmail_verified(true);
 
             when(authenticationRepository.findByUsername(EXISTING_USERNAME))
                     .thenReturn(Optional.of(user));
-
-            // when
+            
             UserDetails userDetails = userDetailsService.loadUserByUsername(EXISTING_USERNAME);
-
-            // then
+            
             assertThat(userDetails)
                     .as("Должен вернуться UserDetails")
                     .isNotNull()
@@ -76,19 +74,17 @@ class UserDetailsServiceImplTest {
         }
 
         @Test
-        @DisplayName("✅ Username с пробелами должен быть обрезан")
+        @DisplayName("Username с пробелами должен быть обрезан")
         void loadUserByUsername_WithUsernameWithSpaces_ShouldTrimUsername() {
-            // given
+            
             String usernameWithSpaces = "  testuser  ";
             User user = createTestUser(USER_ID, EXISTING_USERNAME);
 
             when(authenticationRepository.findByUsername(EXISTING_USERNAME))
                     .thenReturn(Optional.of(user));
-
-            // when
+            
             UserDetails userDetails = userDetailsService.loadUserByUsername(usernameWithSpaces);
-
-            // then
+            
             assertThat(userDetails)
                     .as("Должен найти пользователя после trim")
                     .extracting(UserDetails::getUsername)
@@ -103,13 +99,12 @@ class UserDetailsServiceImplTest {
     class ErrorScenarios {
 
         @Test
-        @DisplayName("❌ Пользователь не найден - выбрасывает UsernameNotFoundException")
+        @DisplayName("Пользователь не найден - выбрасывает UsernameNotFoundException")
         void loadUserByUsername_WhenUserNotFound_ShouldThrowUsernameNotFoundException() {
-            // given
+            
             when(authenticationRepository.findByUsername(NON_EXISTING_USERNAME))
                     .thenReturn(Optional.empty());
 
-            // when & then
             assertThatThrownBy(() -> userDetailsService.loadUserByUsername(NON_EXISTING_USERNAME))
                     .as("Должно выбросить исключение для несуществующего пользователя")
                     .isInstanceOf(UsernameNotFoundException.class)
@@ -126,9 +121,9 @@ class UserDetailsServiceImplTest {
         @ParameterizedTest
         @NullAndEmptySource
         @ValueSource(strings = {" ", "  ", "\t", "\n"})
-        @DisplayName("❌ Пустые и null username выбрасывают исключение")
+        @DisplayName("Пустые и null username выбрасывают исключение")
         void loadUserByUsername_WithInvalidUsernames_ShouldThrowIllegalArgumentException(String invalidUsername) {
-            // when & then
+             
             assertThatThrownBy(() -> userDetailsService.loadUserByUsername(invalidUsername))
                     .as("Должно выбросить исключение для некорректного username: '%s'", invalidUsername)
                     .isInstanceOf(IllegalArgumentException.class)
@@ -141,16 +136,14 @@ class UserDetailsServiceImplTest {
         @ValueSource(strings = {"  user  ", "user ", " user", "\tuser\t"})
         @DisplayName("Username с пробелами должен корректно обрезаться")
         void loadUserByUsername_WithTrimmedUsernames_ShouldFindUser(String trimmedUsername) {
-            // given
+            
             User user = createTestUser(USER_ID, "user");
 
             when(authenticationRepository.findByUsername("user"))
                     .thenReturn(Optional.of(user));
-
-            // when
+            
             UserDetails userDetails = userDetailsService.loadUserByUsername(trimmedUsername);
 
-            // then
             assertThat(userDetails)
                     .as("Должен найти пользователя после trim")
                     .isNotNull();
@@ -164,9 +157,9 @@ class UserDetailsServiceImplTest {
     class ReturnTypeAndStructureTests {
 
         @Test
-        @DisplayName("✅ Возвращает UserDetailsImpl с правильными полями")
+        @DisplayName("Возвращает UserDetailsImpl с правильными полями")
         void loadUserByUsername_ShouldReturnUserDetailsImpl() {
-            // given
+            
             User user = createTestUser(USER_ID, EXISTING_USERNAME);
             user.setPassword("$2a$10$encodedPasswordHash");
             user.setEmail_verified(true);
@@ -174,10 +167,10 @@ class UserDetailsServiceImplTest {
             when(authenticationRepository.findByUsername(EXISTING_USERNAME))
                     .thenReturn(Optional.of(user));
 
-            // when
+            
             UserDetails userDetails = userDetailsService.loadUserByUsername(EXISTING_USERNAME);
 
-            // then
+            
             assertThat(userDetails)
                     .as("Должен вернуть экземпляр UserDetailsImpl")
                     .isInstanceOf(UserDetailsImpl.class);
@@ -199,19 +192,17 @@ class UserDetailsServiceImplTest {
         }
 
         @Test
-        @DisplayName("✅ Проверка authorities пользователя")
+        @DisplayName("Проверка authorities пользователя")
         void loadUserByUsername_ShouldReturnUserWithAuthorities() {
-            // given
+            
             User user = createTestUser(USER_ID, EXISTING_USERNAME);
             user.setEmail_verified(true);
 
             when(authenticationRepository.findByUsername(EXISTING_USERNAME))
                     .thenReturn(Optional.of(user));
-
-            // when
+            
             UserDetails userDetails = userDetailsService.loadUserByUsername(EXISTING_USERNAME);
-
-            // then
+            
             assertThat(userDetails.getAuthorities())
                     .as("Должен иметь непустые authorities")
                     .isNotNull();

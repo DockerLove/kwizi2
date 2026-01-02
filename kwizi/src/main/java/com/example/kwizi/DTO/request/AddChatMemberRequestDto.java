@@ -5,10 +5,10 @@ import jakarta.validation.constraints.NotNull;
 public class AddChatMemberRequestDto {
 
     private Long chatId;
+
     @NotNull(message = "Поле userId не должно быть пустое")
     private Long userId;
 
-    // Getters and setters
     public Long getChatId() {
         return chatId;
     }

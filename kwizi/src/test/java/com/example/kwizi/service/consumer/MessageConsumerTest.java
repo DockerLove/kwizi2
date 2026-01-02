@@ -74,7 +74,7 @@ class MessageConsumerTest {
     class PrivateMessage {
 
         @Test
-        @DisplayName("✅ Успешная обработка: получатель онлайн")
+        @DisplayName("Успешная обработка: получатель онлайн")
         void processesWhenRecipientOnline(){
             String kafkaMessage = "private-message-json";
             String topic = "private-messages";
@@ -98,7 +98,7 @@ class MessageConsumerTest {
         }
 
         @Test
-        @DisplayName("✅ Отправка в DLQ: получатель оффлайн")
+        @DisplayName("Отправка в DLQ: получатель оффлайн")
         void sendsToDlqWhenRecipientOffline() throws Exception {
             String kafkaMessage = "private-message-json";
             String topic = "private-messages";
@@ -118,7 +118,7 @@ class MessageConsumerTest {
         }
 
         @Test
-        @DisplayName("✅ Подтверждение доставки отправителю")
+        @DisplayName("Подтверждение доставки отправителю")
         void sendsDeliveryConfirmationToSender(){
             String kafkaMessage = "private-message-json";
             String topic = "private-messages";
@@ -149,7 +149,7 @@ class MessageConsumerTest {
     class GroupMessage {
 
         @Test
-        @DisplayName("✅ Рассылка онлайн-участникам")
+        @DisplayName("Рассылка онлайн-участникам")
         void deliversToOnlineMembers() {
             String kafkaMessage = "group-message-json";
             List<Long> chatMembers = List.of(1L, 2L, 3L);
@@ -169,7 +169,7 @@ class MessageConsumerTest {
         }
 
         @Test
-        @DisplayName("✅ Отправка в DLQ для оффлайн-участников")
+        @DisplayName("Отправка в DLQ для оффлайн-участников")
         void sendsDlqForOfflineMembers() throws Exception {
             String kafkaMessage = "group-message-json";
             List<Long> chatMembers = List.of(1L, 2L, 3L, 4L);
@@ -205,7 +205,7 @@ class MessageConsumerTest {
     class ErrorHandling {
 
         @Test
-        @DisplayName("❌ Ошибка при конвертации сообщения")
+        @DisplayName("Ошибка при конвертации сообщения")
         void throwsExceptionOnProcessingFailure() {
             String kafkaMessage = "invalid-message-json";
             String topic = "private-messages";

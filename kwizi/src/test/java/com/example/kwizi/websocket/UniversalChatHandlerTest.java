@@ -79,7 +79,7 @@ class UniversalChatHandlerTest {
     class HandleTextMessageTests {
 
         @Test
-        @DisplayName("✅ Обрабатывает личное сообщение и отправляет в Kafka")
+        @DisplayName("Обрабатывает личное сообщение и отправляет в Kafka")
         void handleTextMessage_ShouldProcessPrivateMessageSuccessfully() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
@@ -109,7 +109,7 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Обрабатывает групповое сообщение и отправляет в Kafka")
+        @DisplayName("Обрабатывает групповое сообщение и отправляет в Kafka")
         void handleTextMessage_ShouldProcessGroupMessageSuccessfully() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
@@ -137,7 +137,7 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("❌ Отправляет ошибку валидации при невалидном сообщении")
+        @DisplayName("Отправляет ошибку валидации при невалидном сообщении")
         void handleTextMessage_ShouldSendValidationError_WhenMessageValidationFails() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
@@ -161,7 +161,7 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("❌ Отправляет ошибку сервера при непредвиденном исключении")
+        @DisplayName("Отправляет ошибку сервера при непредвиденном исключении")
         void handleTextMessage_ShouldSendServerError_WhenUnexpectedExceptionOccurs() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
@@ -190,7 +190,7 @@ class UniversalChatHandlerTest {
     class ConnectionManagementTests {
 
         @Test
-        @DisplayName("✅ Добавляет сессию и устанавливает лимиты при валидном подключении")
+        @DisplayName("Добавляет сессию и устанавливает лимиты при валидном подключении")
         void afterConnectionEstablished_ShouldAddSessionAndSetLimits_WhenValidConnection() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
@@ -203,7 +203,7 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Безопасно обрабатывает подключение без токена")
+        @DisplayName("Безопасно обрабатывает подключение без токена")
         void afterConnectionEstablished_ShouldHandleException_WhenNoToken() throws Exception {
             WebSocketSession session = mock(WebSocketSession.class);
             URI invalidUri = new URI("ws://localhost:8080/ws");
@@ -217,7 +217,7 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Удаляет сессию при закрытии соединения")
+        @DisplayName("Удаляет сессию при закрытии соединения")
         void afterConnectionClosed_ShouldRemoveSession_WhenConnectionCloses() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
@@ -230,7 +230,7 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Безопасно обрабатывает закрытие сессии без токена")
+        @DisplayName("Безопасно обрабатывает закрытие сессии без токена")
         void afterConnectionClosed_ShouldNotFail_WhenNoToken() throws Exception {
             WebSocketSession session = mock(WebSocketSession.class);
             URI invalidUri = new URI("ws://localhost:8080/ws");
@@ -241,7 +241,7 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Закрывает сессию пользователя при транспортной ошибке")
+        @DisplayName("Закрывает сессию пользователя при транспортной ошибке")
         void handleTransportError_ShouldCloseUserSession_WhenTransportErrorOccurs() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
@@ -259,7 +259,7 @@ class UniversalChatHandlerTest {
     class SendMessageTests {
 
         @Test
-        @DisplayName("✅ Отправляет сообщение онлайн-пользователю")
+        @DisplayName("Отправляет сообщение онлайн-пользователю")
         void sendToUser_ShouldSendMessage_WhenUserIsOnline() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
@@ -273,14 +273,13 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("❌ Не отправляет сообщение оффлайн-пользователю")
+        @DisplayName("Не отправляет сообщение оффлайн-пользователю")
         void sendToUser_ShouldNotSendMessage_WhenUserIsOffline() {
             chatHandler.sendToUser(999L, "test message");
-            // Нет активной сессии — ничего не отправляется
         }
 
         @Test
-        @DisplayName("✅ Удаляет сессию при ошибке отправки")
+        @DisplayName("Удаляет сессию при ошибке отправки")
         void sendToUser_ShouldRemoveSession_WhenSendFails() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
@@ -294,7 +293,7 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Сериализует и отправляет объект онлайн-пользователю")
+        @DisplayName("Сериализует и отправляет объект онлайн-пользователю")
         void sendToUserWithObject_ShouldSerializeAndSend() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
@@ -311,7 +310,7 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Безопасно обрабатывает ошибку сериализации")
+        @DisplayName("Безопасно обрабатывает ошибку сериализации")
         void sendToUserWithObject_ShouldHandleSerializationError() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
@@ -330,7 +329,7 @@ class UniversalChatHandlerTest {
     class BroadcastTests {
 
         @Test
-        @DisplayName("✅ Отправляет сообщение всем онлайн-участникам чата")
+        @DisplayName("Отправляет сообщение всем онлайн-участникам чата")
         void broadcastToChat_ShouldSendToAllOnlineMembers() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(123L);
@@ -354,7 +353,7 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Безопасно обрабатывает рассылку в пустой чат")
+        @DisplayName("Безопасно обрабатывает рассылку в пустой чат")
         void broadcastToChat_ShouldHandleEmptyChat() {
             Long chatId = 1L;
             String payload = "broadcast message";
@@ -368,7 +367,7 @@ class UniversalChatHandlerTest {
     class IsUserOnlineTests {
 
         @Test
-        @DisplayName("✅ Возвращает true, если у пользователя есть активная сессия")
+        @DisplayName("Возвращает true, если у пользователя есть активная сессия")
         void isUserOnline_ShouldReturnTrue_WhenUserHasActiveSession() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
@@ -379,13 +378,13 @@ class UniversalChatHandlerTest {
         }
 
         @Test
-        @DisplayName("✅ Возвращает false, если пользователь не подключен")
+        @DisplayName("Возвращает false, если пользователь не подключен")
         void isUserOnline_ShouldReturnFalse_WhenUserNotInSessions() {
             assertThat(chatHandler.isUserOnline(999L)).isFalse();
         }
 
         @Test
-        @DisplayName("✅ Возвращает false, если сессия закрыта")
+        @DisplayName("Возвращает false, если сессия закрыта")
         void isUserOnline_ShouldReturnFalse_WhenSessionIsClosed() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
@@ -397,7 +396,6 @@ class UniversalChatHandlerTest {
         }
     }
 
-    // Вспомогательный класс для сериализации
     private static class TestMessage {
         private String field1;
         private String field2;
@@ -406,8 +404,5 @@ class UniversalChatHandlerTest {
             this.field1 = field1;
             this.field2 = field2;
         }
-
-        public String getField1() { return field1; }
-        public String getField2() { return field2; }
     }
 }

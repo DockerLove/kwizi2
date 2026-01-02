@@ -11,8 +11,6 @@ import java.util.Optional;
 @Repository
 public interface ChatMemberRepository extends JpaRepository<ChatMember, Long> {
 
-    // Существующие методы
-    List<ChatMember> findByChatId(Long chatId);
     Optional<ChatMember> findById(ChatMember.ChatMemberId id);
 
     @Query("SELECT DISTINCT c.id FROM Chat c " +
@@ -25,9 +23,6 @@ public interface ChatMemberRepository extends JpaRepository<ChatMember, Long> {
 
     @Query("SELECT cm.user.id FROM ChatMember cm WHERE cm.chat.id = :chatId")
     List<Long> findUserIdsByChatId(@Param("chatId") Long chatId);
-    boolean existsById(ChatMember.ChatMemberId id);
-
-    void deleteById(ChatMember.ChatMemberId id);
 
     @Query("SELECT cm FROM ChatMember cm " +
             "WHERE cm.chat.id = :chatId AND cm.user.id = :userId")
@@ -37,4 +32,3 @@ public interface ChatMemberRepository extends JpaRepository<ChatMember, Long> {
     @Query("SELECT COUNT(cm) > 0 FROM ChatMember cm WHERE cm.chat.id = :chatId AND cm.user.username = :username")
     boolean existsByChatIdAndUsername(@Param("chatId") Long chatId, @Param("username") String username);
 }
-//Управление участниками чатов (добавление, удаление, проверка принадлежности).

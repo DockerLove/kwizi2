@@ -39,7 +39,7 @@ class DlqRetrySchedulerTest {
     class RetryPrivateMessagesTests {
 
         @Test
-        @DisplayName("✅ Отправляет сообщение, если пользователь онлайн и формат DLQ корректен")
+        @DisplayName("Отправляет сообщение, если пользователь онлайн и формат DLQ корректен")
         void retryPrivateMessages_DLQFormat_UserOnline_ShouldSendMessage() throws Exception {
             String dlqMessage = "{\"originalEvent\":{\"senderId\":1,\"text\":\"Hello\"},\"messageId\":123,\"recipientId\":2}";
 
@@ -71,7 +71,7 @@ class DlqRetrySchedulerTest {
         }
 
         @Test
-        @DisplayName("❌ Не отправляет сообщение, если пользователь оффлайн и сообщение в прямом формате")
+        @DisplayName("Не отправляет сообщение, если пользователь оффлайн и сообщение в прямом формате")
         void retryPrivateMessages_DirectFormat_UserOffline_ShouldNotSend() throws Exception {
             String directMessage = "{\"senderId\":1,\"recipientId\":2,\"text\":\"Direct\"}";
 
@@ -97,7 +97,7 @@ class DlqRetrySchedulerTest {
     class RetryGroupMessagesTests {
 
         @Test
-        @DisplayName("✅ Отправляет сообщение, если пользователь онлайн и тип сообщения — GROUP")
+        @DisplayName("Отправляет сообщение, если пользователь онлайн и тип сообщения — GROUP")
         void retryGroupMessages_ValidGroup_UserOnline_ShouldSend() throws Exception {
             String groupMessage = "{\"originalEvent\":{\"senderId\":1,\"text\":\"Group\"},\"messageId\":456,\"recipientId\":2,\"chatId\":100,\"messageType\":\"GROUP\"}";
 
@@ -139,7 +139,7 @@ class DlqRetrySchedulerTest {
         }
 
         @Test
-        @DisplayName("❌ Пропускает обработку, если тип сообщения не GROUP")
+        @DisplayName("Пропускает обработку, если тип сообщения не GROUP")
         void retryGroupMessages_NotGroup_ShouldSkip() throws Exception {
             String privateMessage = "{\"messageType\":\"PRIVATE\"}";
 
@@ -162,7 +162,7 @@ class DlqRetrySchedulerTest {
     class ScheduledMethodsTests {
 
         @Test
-        @DisplayName("✅ Запланированные методы не выбрасывают исключений")
+        @DisplayName("Запланированные методы не выбрасывают исключений")
         void scheduledMethods_ShouldNotThrowExceptions() {
             assertThatNoException().isThrownBy(() -> scheduler.scheduledDlqRetry());
             assertThatNoException().isThrownBy(() -> scheduler.cleanupInProgress());

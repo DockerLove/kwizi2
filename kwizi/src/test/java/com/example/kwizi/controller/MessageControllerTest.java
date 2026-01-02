@@ -74,21 +74,18 @@ class MessageControllerTest {
     class GetChatHistoryTests {
 
         @Test
-        @DisplayName("✅ Успешное получение истории чата с параметрами по умолчанию")
+        @DisplayName("Успешное получение истории чата с параметрами по умолчанию")
         void getChatHistory_WithDefaultParameters_Success() {
-            // given
             Page<ChatHistoryResponse> mockPage = createChatHistoryPage(0, 50, 1);
 
             when(chatMessageService.getChatHistory(
                     eq(TEST_CHAT_ID), eq(0), eq(50), eq("createdAt,desc"), eq(TEST_USERNAME)
             )).thenReturn(mockPage);
 
-            // when
             var response = messageController.getChatHistory(
                     TEST_CHAT_ID, 0, 50, "createdAt,desc", authentication
             );
 
-            // then
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
@@ -103,9 +100,8 @@ class MessageControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Успешное получение истории с кастомными параметрами пагинации")
+        @DisplayName("Успешное получение истории с кастомными параметрами пагинации")
         void getChatHistory_WithCustomParameters_Success() {
-            // given
             int page = 2;
             int size = 25;
             String sort = "createdAt,asc";
@@ -115,12 +111,10 @@ class MessageControllerTest {
                     eq(TEST_CHAT_ID), eq(page), eq(size), eq(sort), eq(TEST_USERNAME)
             )).thenReturn(mockPage);
 
-            // when
             var response = messageController.getChatHistory(
                     TEST_CHAT_ID, page, size, sort, authentication
             );
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().getData().getNumber()).isEqualTo(page);
             assertThat(response.getBody().getData().getSize()).isEqualTo(size);
@@ -130,29 +124,25 @@ class MessageControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Получение пустой истории чата")
+        @DisplayName("Получение пустой истории чата")
         void getChatHistory_EmptyHistory_Success() {
-            // given
             Page<ChatHistoryResponse> emptyPage = Page.empty(PageRequest.of(0, 50));
 
             when(chatMessageService.getChatHistory(
                     anyLong(), anyInt(), anyInt(), anyString(), anyString()
             )).thenReturn(emptyPage);
 
-            // when
             var response = messageController.getChatHistory(
                     TEST_CHAT_ID, 0, 50, "createdAt,desc", authentication
             );
 
-            // then
             assertThat(response.getBody().getData().isEmpty()).isTrue();
             assertThat(response.getBody().getData().getTotalElements()).isEqualTo(0);
         }
 
         @Test
-        @DisplayName("✅ Получение истории с сортировкой по разным полям")
+        @DisplayName("Получение истории с сортировкой по разным полям")
         void getChatHistory_WithDifferentSorting_Success() {
-            // given
             String[] sortParams = {"createdAt,asc", "senderUsername,desc", "id,asc"};
 
             for (String sort : sortParams) {
@@ -161,12 +151,10 @@ class MessageControllerTest {
                         eq(TEST_CHAT_ID), eq(0), eq(50), eq(sort), eq(TEST_USERNAME)
                 )).thenReturn(mockPage);
 
-                // when
                 var response = messageController.getChatHistory(
                         TEST_CHAT_ID, 0, 50, sort, authentication
                 );
 
-                // then
                 assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
                 reset(chatMessageService);
             }
@@ -178,19 +166,16 @@ class MessageControllerTest {
     class EditMessageTests {
 
         @Test
-        @DisplayName("✅ Успешное редактирование сообщения")
+        @DisplayName("Успешное редактирование сообщения")
         void editMessage_Success() {
-            // given
             EditMessageRequest request = new EditMessageRequest();
             request.setText(TEST_MESSAGE_TEXT);
 
             doNothing().when(chatMessageService)
                     .editMessage(eq(TEST_MESSAGE_ID), eq(TEST_MESSAGE_TEXT), eq(TEST_USERNAME));
 
-            // when
             var response = messageController.editMessage(TEST_MESSAGE_ID, request, authentication);
 
-            // then
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
@@ -204,26 +189,22 @@ class MessageControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Редактирование с минимальным текстом")
+        @DisplayName("Редактирование с минимальным текстом")
         void editMessage_MinimalText_Success() {
-            // given
             EditMessageRequest request = new EditMessageRequest();
             request.setText("a");
 
             doNothing().when(chatMessageService)
                     .editMessage(eq(TEST_MESSAGE_ID), eq("a"), eq(TEST_USERNAME));
 
-            // when
             var response = messageController.editMessage(TEST_MESSAGE_ID, request, authentication);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         }
 
         @Test
-        @DisplayName("✅ Редактирование с максимальным текстом")
+        @DisplayName("Редактирование с максимальным текстом")
         void editMessage_LongText_Success() {
-            // given
             String longText = "A".repeat(2000);
             EditMessageRequest request = new EditMessageRequest();
             request.setText(longText);
@@ -231,10 +212,8 @@ class MessageControllerTest {
             doNothing().when(chatMessageService)
                     .editMessage(eq(TEST_MESSAGE_ID), eq(longText), eq(TEST_USERNAME));
 
-            // when
             var response = messageController.editMessage(TEST_MESSAGE_ID, request, authentication);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         }
     }
@@ -244,16 +223,13 @@ class MessageControllerTest {
     class DeleteMessageTests {
 
         @Test
-        @DisplayName("✅ Успешное удаление сообщения")
+        @DisplayName("Успешное удаление сообщения")
         void deleteMessage_Success() {
-            // given
             doNothing().when(chatMessageService)
                     .deleteMessage(eq(TEST_MESSAGE_ID), eq(TEST_USERNAME));
 
-            // when
             var response = messageController.deleteMessage(TEST_MESSAGE_ID, authentication);
 
-            // then
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
@@ -267,17 +243,14 @@ class MessageControllerTest {
         }
 
         @Test
-        @DisplayName("✅ Удаление несуществующего сообщения (обработка сервисом)")
+        @DisplayName("Удаление несуществующего сообщения (обработка сервисом)")
         void deleteMessage_NonExistentMessage_Success() {
-            // given
             Long nonExistentMessageId = 999L;
             doNothing().when(chatMessageService)
                     .deleteMessage(eq(nonExistentMessageId), eq(TEST_USERNAME));
 
-            // when
             var response = messageController.deleteMessage(nonExistentMessageId, authentication);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         }
     }
@@ -287,9 +260,8 @@ class MessageControllerTest {
     class ExceptionHandlingTests {
 
         @Test
-        @DisplayName("❌ Сообщение не найдено при редактировании")
+        @DisplayName("Сообщение не найдено при редактировании")
         void editMessage_NotFound() {
-            // given
             EditMessageRequest request = new EditMessageRequest();
             request.setText(TEST_MESSAGE_TEXT);
 
@@ -297,7 +269,6 @@ class MessageControllerTest {
                     .when(chatMessageService)
                     .editMessage(eq(TEST_MESSAGE_ID), eq(TEST_MESSAGE_TEXT), eq(TEST_USERNAME));
 
-            // when & then
             assertThatThrownBy(() ->
                     messageController.editMessage(TEST_MESSAGE_ID, request, authentication)
             )
@@ -306,9 +277,8 @@ class MessageControllerTest {
         }
 
         @Test
-        @DisplayName("❌ Нет прав для редактирования сообщения")
+        @DisplayName("Нет прав для редактирования сообщения")
         void editMessage_Forbidden() {
-            // given
             EditMessageRequest request = new EditMessageRequest();
             request.setText(TEST_MESSAGE_TEXT);
 
@@ -316,7 +286,6 @@ class MessageControllerTest {
                     .when(chatMessageService)
                     .editMessage(eq(TEST_MESSAGE_ID), eq(TEST_MESSAGE_TEXT), eq(TEST_USERNAME));
 
-            // when & then
             assertThatThrownBy(() ->
                     messageController.editMessage(TEST_MESSAGE_ID, request, authentication)
             )
@@ -325,14 +294,12 @@ class MessageControllerTest {
         }
 
         @Test
-        @DisplayName("❌ Нет доступа к истории чата")
+        @DisplayName("Нет доступа к истории чата")
         void getChatHistory_AccessDenied() {
-            // given
             when(chatMessageService.getChatHistory(
                     eq(TEST_CHAT_ID), anyInt(), anyInt(), anyString(), eq(TEST_USERNAME)
             )).thenThrow(new AccessDeniedException("Нет доступа к этому чату"));
 
-            // when & then
             assertThatThrownBy(() ->
                     messageController.getChatHistory(TEST_CHAT_ID, 0, 50, "createdAt,desc", authentication)
             )
@@ -341,14 +308,12 @@ class MessageControllerTest {
         }
 
         @Test
-        @DisplayName("❌ Сообщение уже удалено")
+        @DisplayName("Сообщение уже удалено")
         void deleteMessage_AlreadyDeleted() {
-            // given
             doThrow(new MessageNotFoundException("Сообщение уже удалено"))
                     .when(chatMessageService)
                     .deleteMessage(eq(TEST_MESSAGE_ID), eq(TEST_USERNAME));
 
-            // when & then
             assertThatThrownBy(() ->
                     messageController.deleteMessage(TEST_MESSAGE_ID, authentication)
             )
@@ -357,9 +322,8 @@ class MessageControllerTest {
         }
 
         @Test
-        @DisplayName("❌ Пустой текст при редактировании")
+        @DisplayName("Пустой текст при редактировании")
         void editMessage_EmptyText() {
-            // given
             EditMessageRequest request = new EditMessageRequest();
             request.setText("");
 
@@ -367,7 +331,6 @@ class MessageControllerTest {
                     .when(chatMessageService)
                     .editMessage(eq(TEST_MESSAGE_ID), eq(""), eq(TEST_USERNAME));
 
-            // when & then
             assertThatThrownBy(() ->
                     messageController.editMessage(TEST_MESSAGE_ID, request, authentication)
             )
@@ -376,9 +339,8 @@ class MessageControllerTest {
         }
 
         @Test
-        @DisplayName("❌ Слишком длинный текст при редактировании")
+        @DisplayName("Слишком длинный текст при редактировании")
         void editMessage_TextTooLong() {
-            // given
             String tooLongText = "A".repeat(5001);
             EditMessageRequest request = new EditMessageRequest();
             request.setText(tooLongText);
@@ -387,7 +349,6 @@ class MessageControllerTest {
                     .when(chatMessageService)
                     .editMessage(eq(TEST_MESSAGE_ID), eq(tooLongText), eq(TEST_USERNAME));
 
-            // when & then
             assertThatThrownBy(() ->
                     messageController.editMessage(TEST_MESSAGE_ID, request, authentication)
             )

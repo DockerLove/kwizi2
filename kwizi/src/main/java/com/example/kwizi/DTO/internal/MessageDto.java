@@ -48,7 +48,4 @@ public class MessageDto {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
-
-    // геттеры и сеттеры
 }
-

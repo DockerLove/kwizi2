@@ -31,8 +31,7 @@ public class MessageController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "createdAt,desc") String sort,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         logger.info("Запрос истории чата. ID чата: {}, страница: {}, размер: {}, пользователь: {}",
                 chatId, page, size, authentication.getName());
 
@@ -48,8 +47,7 @@ public class MessageController {
     public ResponseEntity<?> editMessage(
             @PathVariable Long messageId,
             @RequestBody @Valid EditMessageRequest request,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         String username = authentication.getName();
 
         logger.info("Запрос на редактирование сообщения. Message ID: {}, User: {}",
@@ -60,30 +58,23 @@ public class MessageController {
         logger.info("Сообщение успешно отредактировано. Message ID: {}, User: {}",
                 messageId, username);
 
-        return ResponseEntity.ok(ApiResponse.success("Сообщение изменено",null));
+        return ResponseEntity.ok(ApiResponse.success("Сообщение изменено", null));
     }
 
     @DeleteMapping("/delete/{messageId}")
     public ResponseEntity<ApiResponse<Void>> deleteMessage(
             @PathVariable Long messageId,
             Authentication authentication) {
-
         String username = authentication.getName();
 
         logger.info("Запрос на удаление сообщения. Message ID: {}, User: {}",
                 messageId, username);
 
-        chatMessageService.deleteMessage(messageId,username);
+        chatMessageService.deleteMessage(messageId, username);
 
         logger.info("Сообщение успешно удалено. Message ID: {}, User: {}",
                 messageId, username);
 
-        return ResponseEntity.ok(ApiResponse.success(
-                "Сообщение успешно удалено",
-                null
-        ));
+        return ResponseEntity.ok(ApiResponse.success("Сообщение успешно удалено", null));
     }
 }
-
-
-

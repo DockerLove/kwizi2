@@ -32,7 +32,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.util.List;
 
-
 @Lazy
 @Service
 @Transactional(readOnly = true)
@@ -62,7 +61,7 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         this.chatMemberRepository = chatMemberRepository;
         this.notificationService = notificationService;
         this.systemMessageService = systemMessageService;
-        this.chatService=chatService;
+        this.chatService = chatService;
     }
 
     @Transactional
@@ -98,7 +97,7 @@ public class ChatMessageService implements ChatMessageServiceInterface {
 
         Chat chat = findOrCreatePrivateChat(senderId, recipientId, sender, recipient);
 
-        Message message= createAndSaveMessage(chat, sender, messageDto.getText());
+        Message message = createAndSaveMessage(chat, sender, messageDto.getText());
 
         chatService.updateChatActivity(chat.getId());
 
@@ -109,17 +108,14 @@ public class ChatMessageService implements ChatMessageServiceInterface {
     public Page<ChatHistoryResponse> getChatHistory(Long chatId, int page, int size, String sort, String username) {
         logger.debug("Получение истории чата. ID чата: {}, пользователь: {}", chatId, username);
 
-        // Проверка доступа
         if (!chatMemberRepository.existsByChatIdAndUsername(chatId, username)) {
             logger.warn("Попытка доступа к чужому чату. ID чата: {}, пользователь: {}", chatId, username);
             throw new AccessDeniedException("Нет доступа к чату");
         }
 
-        // Создание pageable
         Sort sorting = Sort.by(Sort.Order.desc("createdAt"));
         Pageable pageable = PageRequest.of(page, size, sorting);
 
-        // Получение данных
         Page<Message> messages = messageRepository.findByChatId(chatId, pageable);
 
         logger.debug("Найдено сообщений в чате {}: {} из {}",
@@ -128,25 +124,20 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         return messages.map(this::convertToChatHistoryResponse);
     }
 
-
-
     @Transactional
     public void editMessage(Long messageId, String newText, String username) {
         Message message = messageRepository.findById(messageId)
                 .orElseThrow(() -> new MessageNotFoundException("Сообщение не найдено"));
 
-        // Проверка прав
         if (!message.getSender().getUsername().equals(username)) {
             throw new AccessDeniedException("Вы можете редактировать только свои сообщения");
         }
 
-        // Проверка времени (24 часа)
         OffsetDateTime twentyFourHoursAgo = OffsetDateTime.now().minusHours(24);
         if (message.getCreatedAt().isBefore(twentyFourHoursAgo)) {
             throw new MessageEditTimeExpiredException("Редактирование доступно только в течение 24 часов");
         }
 
-        // Обновление
         message.edit(newText);
         messageRepository.save(message);
 
@@ -156,7 +147,6 @@ public class ChatMessageService implements ChatMessageServiceInterface {
                 newText,
                 username
         );
-
 
         logger.debug("Сообщение обновлено в БД. ID: {}, Новый текст: {} символов",
                 messageId, newText.length());
@@ -176,14 +166,13 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         messageRepository.delete(message);
         logger.info("Сообщение ID: {} успешно удалено пользователем ID: {}", messageId, user.getId());
     }
+
     private void validateDeletePermissions(Message message, Long userId) {
         Long chatId = message.getChat().getId();
 
-        // Проверяем участие в чате
         ChatMember requester = findChatMember(chatId, userId);
         logger.debug("Пользователь ID: {} является участником чата ID: {}", userId, chatId);
 
-        // Проверяем права на удаление
         if (isMessageSender(message, userId)) {
             logger.info("Пользователь ID: {} удаляет своё сообщение ID: {}", userId, message.getId());
             return;
@@ -195,7 +184,6 @@ public class ChatMessageService implements ChatMessageServiceInterface {
             return;
         }
 
-        // Если не отправитель и не админ - ошибка доступа
         logger.warn("Доступ запрещён - попытка удаления чужого сообщения без прав. Сообщение ID: {}, пользователь ID: {}",
                 message.getId(), userId);
         throw new AccessDeniedException("Недостаточно прав для удаления этого сообщения");
@@ -216,6 +204,7 @@ public class ChatMessageService implements ChatMessageServiceInterface {
                     return new MessageNotFoundException("Сообщение не найдено");
                 });
     }
+
     private boolean isMessageSender(Message message, Long userId) {
         return message.getSender().getId().equals(userId);
     }
@@ -256,6 +245,7 @@ public class ChatMessageService implements ChatMessageServiceInterface {
                 savedMessage.getId(), chat.getId());
         return savedMessage;
     }
+
     private Chat findOrCreatePrivateChat(Long senderId, Long recipientId, User sender, User recipient) {
         return chatMemberRepository.findPrivateChatIdByUserIds(senderId, recipientId)
                 .map(chatId -> chatRepository.findById(chatId)
@@ -265,11 +255,10 @@ public class ChatMessageService implements ChatMessageServiceInterface {
 
     private Chat createPrivateChat(User sender, User recipient) {
         Chat chat = new Chat();
-        chat.setChatType(ChatType.PRIVATE); // 🔥 ОБЯЗАТЕЛЬНО устанавливаем тип
+        chat.setChatType(ChatType.PRIVATE);
         chat.setCreatedAt(OffsetDateTime.now());
         Chat savedChat = chatRepository.save(chat);
 
-        // Оба участника получают роль MEMBER
         ChatMember chatMemberSender = new ChatMember(savedChat, sender, ChatRole.MEMBER);
         ChatMember chatMemberRecipient = new ChatMember(savedChat, recipient, ChatRole.MEMBER);
 
@@ -299,9 +288,3 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         return response;
     }
 }
-
-
-
-
-
-

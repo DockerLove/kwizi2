@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
-
 @Component
 public class MessageConverter {
 
@@ -46,7 +45,6 @@ public class MessageConverter {
         }
     }
 
-    // Адаптирован под ваш существующий MessageDto
     public MessageDto convertToDto(Message message) {
         MessageDto dto = new MessageDto();
         dto.setId(message.getId());
@@ -62,7 +60,6 @@ public class MessageConverter {
         return dto;
     }
 
-    // Создание MessageEventDto из данных WebSocket
     public MessageEventDto createMessageEvent(String rawJson, Long senderId) {
         try {
             MessageEventDto event = objectMapper.readValue(rawJson, MessageEventDto.class);
@@ -76,7 +73,6 @@ public class MessageConverter {
         }
     }
 
-    // Метод для создания успешного ответа клиенту
     public String createSuccessResponse() {
         try {
             return objectMapper.writeValueAsString(
@@ -91,7 +87,6 @@ public class MessageConverter {
         }
     }
 
-    // Метод для создания ошибки клиенту
     public String createErrorResponse(String code, String message) {
         try {
             return objectMapper.writeValueAsString(

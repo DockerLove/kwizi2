@@ -62,7 +62,6 @@ public class Message {
     @Column(name = "message_type")
     private MessageSystemType messageType = MessageSystemType.REGULAR;
 
-    // Конструкторы
     public Message() {
     }
 
@@ -131,28 +130,12 @@ public class Message {
         this.createdAt = createdAt;
     }
 
-    public boolean isDeleted() {
-        return isDeleted;
-    }
-
-    public void setDeleted(boolean deleted) {
-        isDeleted = deleted;
-    }
-
     public Instant getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(Instant updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
     public boolean isEdited() {
         return isEdited;
-    }
-
-    public void setEdited(boolean edited) {
-        isEdited = edited;
     }
 
     public MessageSystemType getMessageType() {

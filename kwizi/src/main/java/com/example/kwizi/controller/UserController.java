@@ -40,7 +40,6 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserProfileResponse>> getUserByUsername(
             @PathVariable String username,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-
         logger.info("Поиск пользователя по username: '{}' от пользователя ID: {}",
                 username, userDetails.getId());
 
@@ -54,7 +53,6 @@ public class UserController {
     @PatchMapping("/verify-email")
     public ResponseEntity<ApiResponse<String>> verifyUserEmail(
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-
         logger.info("Запрос верификации email для пользователя ID: {}", userDetails.getId());
 
         userService.verifyUserEmail(userDetails.getId());
@@ -67,7 +65,6 @@ public class UserController {
     @PostMapping("/send-verification-email")
     public ResponseEntity<ApiResponse<String>> sendVerificationEmail(
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-
         logger.info("Запрос отправки verification email для пользователя ID: {}", userDetails.getId());
 
         authenticationService.sendVerificationEmail(userDetails.getId());
@@ -80,7 +77,6 @@ public class UserController {
     public ResponseEntity<ApiResponse<String>> updateBio(
             @Valid @RequestBody UpdateBioRequest request,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-
         logger.info("Запрос обновления bio для пользователя ID: {}", userDetails.getId());
 
         userService.updateBio(userDetails.getId(), request.getBio());
@@ -93,7 +89,6 @@ public class UserController {
     public ResponseEntity<ApiResponse<String>> updateFirstName(
             @Valid @RequestBody UpdateFirstNameRequest request,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-
         logger.info("Запрос обновления имени для пользователя ID: {}", userDetails.getId());
 
         userService.updateFirstName(userDetails.getId(), request.getFirstName());
@@ -106,7 +101,6 @@ public class UserController {
     public ResponseEntity<ApiResponse<String>> updateLastName(
             @Valid @RequestBody UpdateLastNameRequest request,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-
         logger.info("Запрос обновления фамилии для пользователя ID: {}", userDetails.getId());
 
         userService.updateLastName(userDetails.getId(), request.getLastName());
@@ -118,7 +112,6 @@ public class UserController {
     @GetMapping("/profile")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getUserProfile(
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-
         logger.info("Запрос профиля для пользователя ID: {}", userDetails.getId());
 
         UserProfileResponse profile = userService.getUserProfile(userDetails.getId());
@@ -130,7 +123,6 @@ public class UserController {
     @GetMapping("/verified")
     public ResponseEntity<ApiResponse<Boolean>> getEmailVerified(
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-
         logger.info("Запрос статуса верификации email для пользователя ID: {}", userDetails.getId());
 
         boolean isVerified = userService.getEmailVerified(userDetails.getId());
@@ -143,7 +135,6 @@ public class UserController {
     public ResponseEntity<ApiResponse<Map<String, String>>> updateUsername(
             @Valid @RequestBody UpdateUsernameRequest request,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-
         logger.info("Запрос обновления username для пользователя ID: {}", userDetails.getId());
 
         String token = userService.updateUsername(userDetails.getId(), request.getUsername());
@@ -158,21 +149,19 @@ public class UserController {
     public ResponseEntity<?> updateAvatar(
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-
         logger.info("Запрос на изменение фото пользователя ID: {}", userDetails.getId());
 
         userService.updateUserAvatar(file, userDetails.getId());
 
         logger.info("Запрос на изменение фото чата ID успешно изменено {}", userDetails.getId());
 
-        return ResponseEntity.ok(ApiResponse.success("Фото пользователя успешно изменено",null));
+        return ResponseEntity.ok(ApiResponse.success("Фото пользователя успешно изменено", null));
     }
 
     @PatchMapping("/email")
     public ResponseEntity<ApiResponse<String>> updateEmail(
             @Valid @RequestBody UpdateEmailRequest request,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-
         logger.info("Запрос обновления фамилии для пользователя ID: {}", userDetails.getId());
 
         userService.updateEmail(userDetails.getId(), request.getEmail());

@@ -8,14 +8,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 
-//Управление сообщениями (сохранение, получение, поиск по чату, фильтрация по статусу удаления).
 @Repository
 public interface MessageRepository extends JpaRepository<Message, Long> {
-    List<Message> findByChatIdAndIsDeleted(Long chatId, boolean isDeleted);
-
     Page<Message> findByChatId(Long chatId, Pageable pageable);
 
     @Query("SELECT m.text FROM Message m " +

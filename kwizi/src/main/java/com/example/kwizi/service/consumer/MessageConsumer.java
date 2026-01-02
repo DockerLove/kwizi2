@@ -28,7 +28,7 @@ public class MessageConsumer {
     private final MessageConverter messageConverter;
     private final ChatMessageService chatMessageService;
     private final UniversalChatHandler chatHandler;
-    private final KafkaTemplate<String, String> kafkaTemplate; // ✅ ДОБАВЛЕНО
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
     public MessageConsumer(ObjectMapper objectMapper, MessageConverter messageConverter,
                            ChatMessageService chatMessageService, UniversalChatHandler chatHandler,
@@ -69,19 +69,15 @@ public class MessageConsumer {
         logger.debug("Обработка приватного сообщения: {} -> {}",
                 event.getSenderId(), event.getRecipientId());
 
-        // 1. Сохраняем в БД
         MessageDto messageDto = createMessageDto(event);
         Message savedMessage = chatMessageService.sendPrivateMessage(
                 messageDto, event.getSenderId(), event.getRecipientId());
 
-        // 2. Проверяем онлайн статус и отправляем или в DLQ
         if (chatHandler.isUserOnline(event.getRecipientId())) {
-            // Пользователь онлайн - отправляем сразу
             MessageDto responseDto = messageConverter.convertToDto(savedMessage);
             sendPrivateMessageToRecipient(event.getRecipientId(), responseDto);
             sendDeliveryConfirmation(event.getSenderId(), savedMessage.getId(), "DELIVERED");
         } else {
-            // Пользователь оффлайн - отправляем в DLQ
             logger.warn("Получатель {} оффлайн. Отправляем сообщение в DLQ", event.getRecipientId());
             sendToPrivateDlq(event, savedMessage.getId());
             sendDeliveryConfirmation(event.getSenderId(), savedMessage.getId(), "SAVED_OFFLINE");
@@ -94,15 +90,12 @@ public class MessageConsumer {
         logger.debug("Обработка группового сообщения: {} -> чат {}",
                 event.getSenderId(), event.getChatId());
 
-        // 1. Сохраняем в БД
         MessageDto messageDto = createMessageDto(event);
         messageDto.setChatId(event.getChatId());
         Message savedMessage = chatMessageService.sendMessage(messageDto, event.getSenderId());
 
-        // 2. Получаем участников чата
         List<Long> members = chatMessageService.getChatMembers(event.getChatId());
 
-        // 3. Отправляем участникам и обрабатываем оффлайн пользователей
         sendGroupMessageToMembers(event, savedMessage, members);
 
         return savedMessage;
@@ -116,10 +109,8 @@ public class MessageConsumer {
             int offlineCount = 0;
 
             for (Long memberId : members) {
-                // Не отправляем отправителю
                 if (!memberId.equals(event.getSenderId())) {
                     if (chatHandler.isUserOnline(memberId)) {
-                        // ✅ ПОЛЬЗОВАТЕЛЬ ОНЛАЙН - отправляем сразу
                         Map<String, Object> response = Map.of(
                                 "type", "GROUP_MESSAGE",
                                 "chatId", event.getChatId(),
@@ -128,7 +119,6 @@ public class MessageConsumer {
                         chatHandler.sendToUser(memberId, response);
                         deliveredCount++;
                     } else {
-                        // ✅ ПОЛЬЗОВАТЕЛЬ ОФФЛАЙН - отправляем в DLQ
                         logger.debug("Участник {} оффлайн, отправляем в DLQ", memberId);
                         sendGroupMessageToDlq(event, savedMessage.getId(), memberId);
                         offlineCount++;
@@ -144,10 +134,8 @@ public class MessageConsumer {
         }
     }
 
-    // ✅ НОВЫЙ МЕТОД: Отправка групповых сообщений в DLQ
     private void sendGroupMessageToDlq(MessageEventDto event, Long messageId, Long recipientId) {
         try {
-            // Создаем DLQ сообщение для группового чата
             Map<String, Object> dlqMessage = Map.of(
                     "originalEvent", event,
                     "messageId", messageId,
@@ -155,7 +143,7 @@ public class MessageConsumer {
                     "chatId", event.getChatId(),
                     "timestamp", System.currentTimeMillis(),
                     "reason", "USER_OFFLINE",
-                    "messageType", "GROUP" // Помечаем что это групповое сообщение
+                    "messageType", "GROUP"
             );
 
             String dlqPayload = objectMapper.writeValueAsString(dlqMessage);
@@ -169,10 +157,8 @@ public class MessageConsumer {
         }
     }
 
-    // ✅ НОВЫЙ МЕТОД: Отправка в DLQ для оффлайн пользователей
     private void sendToPrivateDlq(MessageEventDto event, Long messageId) {
         try {
-            // Создаем DLQ сообщение с дополнительной информацией
             Map<String, Object> dlqMessage = Map.of(
                     "originalEvent", event,
                     "messageId", messageId,
@@ -192,7 +178,6 @@ public class MessageConsumer {
         }
     }
 
-    // ✅ ИСПРАВЛЕННЫЙ МЕТОД: Принимает String status
     private void sendDeliveryConfirmation(Long senderId, Long messageId, String status) {
         try {
             Map<String, Object> confirmation = Map.of(

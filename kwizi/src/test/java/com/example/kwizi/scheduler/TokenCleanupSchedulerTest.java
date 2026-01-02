@@ -26,7 +26,7 @@ public class TokenCleanupSchedulerTest {
     class CleanExpiredTokensTests {
 
         @Test
-        @DisplayName("✅ Вызывает deleteExpiredTokens при успешной очистке")
+        @DisplayName("Вызывает deleteExpiredTokens при успешной очистке")
         void cleanExpiredTokens_ShouldCallDeleteExpiredTokens() {
             doNothing().when(revokedTokenRepo).deleteExpiredTokens();
             tokenCleanupScheduler.cleanExpiredTokens();
@@ -34,7 +34,7 @@ public class TokenCleanupSchedulerTest {
         }
 
         @Test
-        @DisplayName("✅ Обрабатывает исключение при ошибке удаления")
+        @DisplayName("Обрабатывает исключение при ошибке удаления")
         void cleanExpiredTokens_ShouldHandleException() {
             RuntimeException exception = new RuntimeException("Simulated exception");
             doThrow(exception).when(revokedTokenRepo).deleteExpiredTokens();

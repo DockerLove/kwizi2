@@ -21,7 +21,6 @@ import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.HashMap;
 import java.util.Map;
-
 @Configuration
 @EnableKafka
 public class KafkaConfig {
@@ -30,8 +29,6 @@ public class KafkaConfig {
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
-
-    // ==================== PRODUCER CONFIG ====================
 
     @Bean
     public ProducerFactory<String, String> producerFactory() {
@@ -44,7 +41,6 @@ public class KafkaConfig {
 
         configProps.put(ProducerConfig.ACKS_CONFIG, "1");
         configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-        // Настройки производительности
         configProps.put(ProducerConfig.LINGER_MS_CONFIG, 5);
         configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
         configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
@@ -62,8 +58,6 @@ public class KafkaConfig {
         return template;
     }
 
-    // ==================== CONSUMER CONFIG ====================
-
     @Bean
     public ConsumerFactory<String, String> consumerFactory() {
         logger.info("Инициализация ConsumerFactory для группы: message-consumer-group");
@@ -72,13 +66,12 @@ public class KafkaConfig {
         configProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ConsumerConfig.GROUP_ID_CONFIG, "message-consumer-group");
         configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false); // Ручной коммит
-        configProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100); // Оптимальный размер пачки
-        configProps.put(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, 52428800); // 50MB
+        configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        configProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100);
+        configProps.put(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, 52428800);
 
-        // Настройки для надежности
-        configProps.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000); // 30 секунд
-        configProps.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 10000); // 10 секунд
+        configProps.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
+        configProps.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 10000);
 
         logger.debug("Consumer конфигурация: autoCommit=false, maxPollRecords=100");
 
@@ -88,8 +81,6 @@ public class KafkaConfig {
                 new StringDeserializer()
         );
     }
-
-    // ==================== LISTENER CONTAINER FACTORY ====================
 
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
@@ -103,7 +94,6 @@ public class KafkaConfig {
 
         factory.setConcurrency(3);
 
-        // Настройка обработки ошибок
         DefaultErrorHandler errorHandler = createErrorHandler(kafkaTemplate);
         factory.setCommonErrorHandler(errorHandler);
 
@@ -112,29 +102,23 @@ public class KafkaConfig {
         return factory;
     }
 
-    // ==================== ERROR HANDLER ====================
-
     private DefaultErrorHandler createErrorHandler(KafkaTemplate<String, String> kafkaTemplate) {
         logger.info("Настройка обработчика ошибок с DLQ");
 
-        // Dead Letter Queue recoverer
         DeadLetterPublishingRecoverer dlqRecoverer = new DeadLetterPublishingRecoverer(
                 kafkaTemplate,
                 (record, ex) -> {
                     String originalTopic = record.topic();
                     String dlqTopic = originalTopic + "-dlq";
                     logger.warn("Перенаправление сообщения в DLQ: {} -> {}", originalTopic, dlqTopic);
-                    // ✅ ИСПРАВЛЕНО: используем правильный класс
                     return new org.apache.kafka.common.TopicPartition(dlqTopic, record.partition());
                 }
         );
 
-        // 3 попытки с интервалом 1 секунда, затем в DLQ
         FixedBackOff backOff = new FixedBackOff(1000L, 3L);
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(dlqRecoverer, backOff);
 
-        // Исключения, которые не нужно ретраить (сразу в DLQ)
         errorHandler.addNotRetryableExceptions(
                 MessageValidationException.class,
                 UserNotFoundException.class,
