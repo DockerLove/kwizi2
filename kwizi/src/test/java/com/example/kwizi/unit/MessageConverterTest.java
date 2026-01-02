@@ -3,10 +3,12 @@ package com.example.kwizi.unit;
 import com.example.kwizi.DTO.internal.MessageDto;
 import com.example.kwizi.DTO.internal.MessageEventDto;
 import com.example.kwizi.enums.MessageType;
+import com.example.kwizi.exception.MessageValidationException;
 import com.example.kwizi.model.Chat;
 import com.example.kwizi.model.Message;
 import com.example.kwizi.model.User;
 import com.example.kwizi.util.MessageConverter;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,18 +21,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.AssertionsForClassTypes.catchThrowable;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -246,7 +248,14 @@ class MessageConverterTest {
             baseEvent.setRecipientId(2L);
             baseEvent.setText("Hello");
 
-            when(objectMapper.readValue(rawJson, MessageEventDto.class)).thenReturn(baseEvent);
+            when(objectMapper.readValue(eq(rawJson), eq(MessageEventDto.class))).thenReturn(baseEvent);
+
+            // Мокаем парсинг в Map для валидации типа
+            Map<String, Object> rawMap = new HashMap<>();
+            rawMap.put("type", "PRIVATE");
+            rawMap.put("recipientId", 2);
+            rawMap.put("text", "Hello");
+            when(objectMapper.readValue(eq(rawJson), eq(Map.class))).thenReturn(rawMap);
 
             MessageEventDto result = messageConverter.createMessageEvent(rawJson, senderId);
 
@@ -258,42 +267,102 @@ class MessageConverterTest {
                     () -> assertThat(result.getText()).isEqualTo("Hello"),
                     () -> assertThat(result.getTimestamp()).isNotNull()
             );
+            verify(objectMapper).readValue(rawJson, Map.class); // Добавленная проверка
             verify(objectMapper).readValue(rawJson, MessageEventDto.class);
         }
 
         @Test
-        @DisplayName("Должен бросать RuntimeException при невалидном JSON")
-        void shouldThrowRuntimeException_WhenInvalidJson() throws Exception {
-            String invalidJson = "invalid";
+        @DisplayName("Должен бросать MessageValidationException при некорректном типе сообщения")
+        void shouldThrowMessageValidationException_WhenInvalidMessageType() throws Exception {
+            String jsonWithInvalidType = "{\"type\":\"INVALID_TYPE\",\"recipientId\":2,\"text\":\"Hello\"}";
             Long senderId = 123L;
 
-            when(objectMapper.readValue(invalidJson, MessageEventDto.class))
-                    .thenThrow(new JsonProcessingException("Invalid JSON") {});
+            Map<String, Object> rawMap = new HashMap<>();
+            rawMap.put("type", "INVALID_TYPE");
+            rawMap.put("recipientId", 2);
+            rawMap.put("text", "Hello");
+            when(objectMapper.readValue(eq(jsonWithInvalidType), eq(Map.class))).thenReturn(rawMap);
 
-            assertThatThrownBy(() -> messageConverter.createMessageEvent(invalidJson, senderId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessage("Неверный формат сообщения");
+            assertThatThrownBy(() -> messageConverter.createMessageEvent(jsonWithInvalidType, senderId))
+                    .isInstanceOf(MessageValidationException.class)
+                    .hasMessage("Некорректный тип сообщения. Допустимые значения: PRIVATE, GROUP");
         }
 
         @Test
-        @DisplayName("Должен вызывать validate при создании события")
-        void shouldCallValidate_WhenEventCreated() throws Exception {
-            String rawJson = "{\"type\":\"PRIVATE\",\"recipientId\":2,\"text\":\"Hello\"}";
+        @DisplayName("Должен бросать MessageValidationException при отсутствии типа")
+        void shouldThrowMessageValidationException_WhenTypeIsMissing() throws Exception {
+            String jsonWithoutType = "{\"recipientId\":2,\"text\":\"Hello\"}";
             Long senderId = 123L;
 
-            MessageEventDto mockEvent = mock(MessageEventDto.class);
-            when(mockEvent.getType()).thenReturn(MessageType.PRIVATE);
-            when(mockEvent.getRecipientId()).thenReturn(2L);
-            when(mockEvent.getText()).thenReturn("Hello");
+            Map<String, Object> rawMap = new HashMap<>();
+            rawMap.put("recipientId", 2);
+            rawMap.put("text", "Hello");
+            when(objectMapper.readValue(eq(jsonWithoutType), eq(Map.class))).thenReturn(rawMap);
 
-            when(objectMapper.readValue(rawJson, MessageEventDto.class)).thenReturn(mockEvent);
-            doNothing().when(mockEvent).validate();
+            assertThatThrownBy(() -> messageConverter.createMessageEvent(jsonWithoutType, senderId))
+                    .isInstanceOf(MessageValidationException.class)
+                    .hasMessageContaining("Некорректный тип сообщения");
+        }
 
-            messageConverter.createMessageEvent(rawJson, senderId);
+        @Test
+        @DisplayName("Должен бросать MessageValidationException при пустом типе")
+        void shouldThrowMessageValidationException_WhenTypeIsEmpty() throws Exception {
+            String jsonWithEmptyType = "{\"type\":\"\",\"recipientId\":2,\"text\":\"Hello\"}";
+            Long senderId = 123L;
 
-            verify(mockEvent).setSenderId(senderId);
-            verify(mockEvent).setTimestamp(any(Instant.class));
-            verify(mockEvent).validate();
+            Map<String, Object> rawMap = new HashMap<>();
+            rawMap.put("type", "");
+            rawMap.put("recipientId", 2);
+            rawMap.put("text", "Hello");
+            when(objectMapper.readValue(eq(jsonWithEmptyType), eq(Map.class))).thenReturn(rawMap);
+
+            assertThatThrownBy(() -> messageConverter.createMessageEvent(jsonWithEmptyType, senderId))
+                    .isInstanceOf(MessageValidationException.class)
+                    .hasMessageContaining("Некорректный тип сообщения");
+        }
+
+        @Test
+        @DisplayName("Должен корректно обрабатывать групповой тип сообщения")
+        void shouldHandleGroupMessageType() throws Exception {
+            String groupJson = "{\"type\":\"GROUP\",\"chatId\":100,\"text\":\"Hello group\"}";
+            Long senderId = 123L;
+
+            MessageEventDto baseEvent = new MessageEventDto();
+            baseEvent.setType(MessageType.GROUP);
+            baseEvent.setChatId(100L);
+            baseEvent.setText("Hello group");
+
+            Map<String, Object> rawMap = new HashMap<>();
+            rawMap.put("type", "GROUP");
+            rawMap.put("chatId", 100);
+            rawMap.put("text", "Hello group");
+
+            when(objectMapper.readValue(eq(groupJson), eq(Map.class))).thenReturn(rawMap);
+            when(objectMapper.readValue(eq(groupJson), eq(MessageEventDto.class))).thenReturn(baseEvent);
+
+            MessageEventDto result = messageConverter.createMessageEvent(groupJson, senderId);
+
+            assertAll(
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.getType()).isEqualTo(MessageType.GROUP),
+                    () -> assertThat(result.getChatId()).isEqualTo(100L),
+                    () -> assertThat(result.getText()).isEqualTo("Hello group"),
+                    () -> assertThat(result.getSenderId()).isEqualTo(senderId)
+            );
+        }
+
+        @Test
+        @DisplayName("Должен бросать MessageValidationException при невалидном JSON")
+        void shouldThrowMessageValidationException_WhenInvalidJson() throws Exception {
+            String invalidJson = "invalid json";
+            Long senderId = 123L;
+
+            when(objectMapper.readValue(invalidJson, Map.class))
+                    .thenThrow(new JsonParseException(null, "Invalid JSON"));
+
+            assertThatThrownBy(() -> messageConverter.createMessageEvent(invalidJson, senderId))
+                    .isInstanceOf(MessageValidationException.class)
+                    .hasMessageStartingWith("Неверный формат сообщения");
         }
 
         @Test
@@ -308,7 +377,14 @@ class MessageConverterTest {
             eventFromJson.setRecipientId(2L);
             eventFromJson.setText("Test message");
 
-            when(objectMapper.readValue(jsonWithSender, MessageEventDto.class)).thenReturn(eventFromJson);
+            Map<String, Object> rawMap = new HashMap<>();
+            rawMap.put("type", "PRIVATE");
+            rawMap.put("senderId", 999);
+            rawMap.put("recipientId", 2);
+            rawMap.put("text", "Test message");
+
+            when(objectMapper.readValue(eq(jsonWithSender), eq(Map.class))).thenReturn(rawMap);
+            when(objectMapper.readValue(eq(jsonWithSender), eq(MessageEventDto.class))).thenReturn(eventFromJson);
 
             MessageEventDto result = messageConverter.createMessageEvent(jsonWithSender, actualSenderId);
 
@@ -316,6 +392,33 @@ class MessageConverterTest {
                     () -> assertThat(result.getSenderId()).isEqualTo(actualSenderId),
                     () -> assertThat(result.getText()).isEqualTo("Test message")
             );
+        }
+
+        @Test
+        @DisplayName("Должен вызывать validate при создании события")
+        void shouldCallValidate_WhenEventCreated() throws Exception {
+            String rawJson = "{\"type\":\"PRIVATE\",\"recipientId\":2,\"text\":\"Hello\"}";
+            Long senderId = 123L;
+
+            Map<String, Object> rawMap = new HashMap<>();
+            rawMap.put("type", "PRIVATE");
+            rawMap.put("recipientId", 2);
+            rawMap.put("text", "Hello");
+
+            MessageEventDto mockEvent = mock(MessageEventDto.class);
+            when(mockEvent.getType()).thenReturn(MessageType.PRIVATE);
+            when(mockEvent.getRecipientId()).thenReturn(2L);
+            when(mockEvent.getText()).thenReturn("Hello");
+
+            when(objectMapper.readValue(eq(rawJson), eq(Map.class))).thenReturn(rawMap);
+            when(objectMapper.readValue(eq(rawJson), eq(MessageEventDto.class))).thenReturn(mockEvent);
+            doNothing().when(mockEvent).validate();
+
+            messageConverter.createMessageEvent(rawJson, senderId);
+
+            verify(mockEvent).setSenderId(senderId);
+            verify(mockEvent).setTimestamp(any(Instant.class));
+            verify(mockEvent).validate();
         }
     }
 
@@ -419,6 +522,79 @@ class MessageConverterTest {
                             "TEST_CODE".equals(map.get("code")) &&
                             "Test message".equals(map.get("message"))
             ));
+        }
+    }
+
+    @Nested
+    @DisplayName("Валидация типа сообщения")
+    class ValidateMessageTypeTests {
+
+        private Method validateMessageTypeMethod;
+
+        @BeforeEach
+        void setUp() throws Exception {
+            validateMessageTypeMethod = MessageConverter.class.getDeclaredMethod("validateMessageType", String.class);
+            validateMessageTypeMethod.setAccessible(true);
+        }
+
+        @Test
+        @DisplayName("Должен пропускать валидный тип PRIVATE")
+        void shouldAcceptValidPrivateType() throws Exception {
+            assertThatCode(() -> validateMessageTypeMethod.invoke(messageConverter, "PRIVATE"))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Должен пропускать валидный тип GROUP")
+        void shouldAcceptValidGroupType() throws Exception {
+            assertThatCode(() -> validateMessageTypeMethod.invoke(messageConverter, "GROUP"))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Должен пропускать тип в нижнем регистре")
+        void shouldAcceptLowerCaseType() throws Exception {
+            assertThatCode(() -> validateMessageTypeMethod.invoke(messageConverter, "private"))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Должен бросать IllegalArgumentException при null типе")
+        void shouldThrowException_WhenTypeIsNull() throws Exception {
+            InvocationTargetException exception = (InvocationTargetException) catchThrowable(() ->
+                    validateMessageTypeMethod.invoke(messageConverter, (String) null)
+            );
+
+            assertThat(exception).isNotNull();
+            assertThat(exception.getCause())
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Тип сообщения обязателен");
+        }
+
+        @Test
+        @DisplayName("Должен бросать IllegalArgumentException при пустом типе")
+        void shouldThrowException_WhenTypeIsEmpty() throws Exception {
+            InvocationTargetException exception = (InvocationTargetException) catchThrowable(() ->
+                    validateMessageTypeMethod.invoke(messageConverter, "")
+            );
+
+            assertThat(exception).isNotNull();
+            assertThat(exception.getCause())
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Тип сообщения обязателен");
+        }
+
+        @Test
+        @DisplayName("Должен бросать IllegalArgumentException при некорректном типе")
+        void shouldThrowException_WhenInvalidType() throws Exception {
+            InvocationTargetException exception = (InvocationTargetException) catchThrowable(() ->
+                    validateMessageTypeMethod.invoke(messageConverter, "INVALID_TYPE")
+            );
+
+            assertThat(exception).isNotNull();
+            assertThat(exception.getCause())
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Недопустимый тип сообщения");
         }
     }
 }

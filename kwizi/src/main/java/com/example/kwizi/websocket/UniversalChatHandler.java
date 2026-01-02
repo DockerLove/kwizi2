@@ -1,8 +1,14 @@
 package com.example.kwizi.websocket;
 
 import com.example.kwizi.DTO.internal.MessageEventDto;
+import com.example.kwizi.enums.ChatType;
+import com.example.kwizi.exception.ChatNotFoundException;
 import com.example.kwizi.exception.MessageValidationException;
+import com.example.kwizi.exception.UserNotFoundException;
+import com.example.kwizi.model.Chat;
 import com.example.kwizi.repository.ChatMemberRepository;
+import com.example.kwizi.repository.ChatRepository;
+import com.example.kwizi.repository.UserRepository;
 import com.example.kwizi.security.JwtUtils;
 import com.example.kwizi.util.MessageConverter;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -21,6 +28,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -31,6 +39,8 @@ public class UniversalChatHandler extends TextWebSocketHandler {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ChatMemberRepository chatMemberRepository;
     private final MessageConverter messageConverter;
+    private final UserRepository userRepository;
+    private final ChatRepository chatRepository;
     private final JwtUtils jwtUtils;
     private final Logger logger = LoggerFactory.getLogger(UniversalChatHandler.class);
 
@@ -39,12 +49,15 @@ public class UniversalChatHandler extends TextWebSocketHandler {
                                 KafkaTemplate<String, String> kafkaTemplate,
                                 ChatMemberRepository chatMemberRepository,
                                 MessageConverter messageConverter,
-                                JwtUtils jwtUtils) {
+                                JwtUtils jwtUtils,ChatRepository chatRepository,
+                                UserRepository userRepository) {
         this.objectMapper = objectMapper;
         this.kafkaTemplate = kafkaTemplate;
         this.chatMemberRepository = chatMemberRepository;
         this.messageConverter = messageConverter;
         this.jwtUtils = jwtUtils;
+        this.userRepository = userRepository;
+        this.chatRepository = chatRepository;
     }
 
     @Override
@@ -55,6 +68,8 @@ public class UniversalChatHandler extends TextWebSocketHandler {
         try {
             MessageEventDto event = messageConverter.createMessageEvent(message.getPayload(), senderId);
             logger.info("Обработка события: {}", event.getLogInfo());
+
+            validateEventBeforeSending(event);
 
             String kafkaMessage = messageConverter.convertToJson(event);
             kafkaTemplate.send(event.getTargetTopic(), kafkaMessage);
@@ -68,12 +83,25 @@ public class UniversalChatHandler extends TextWebSocketHandler {
             logger.warn("Ошибка валидации от пользователя {}: {}", senderId, e.getMessage());
             String errorResponse = messageConverter.createErrorResponse("VALIDATION_ERROR", e.getMessage());
             session.sendMessage(new TextMessage(errorResponse));
+        } catch (UserNotFoundException e) {
+            logger.warn("Пользователь не найден: {}", e.getMessage());
+            String errorResponse = messageConverter.createErrorResponse("USER_NOT_FOUND", e.getMessage());
+            session.sendMessage(new TextMessage(errorResponse));
+        } catch (AccessDeniedException e) {
+            logger.warn("Вы не являетесь участником чата: {}", e.getMessage());
+            String errorResponse = messageConverter.createErrorResponse("ACCESS_DENIED", e.getMessage());
+            session.sendMessage(new TextMessage(errorResponse));
+        }catch (ChatNotFoundException e) {
+            logger.warn("Чат не найден: {}", e.getMessage());
+            String errorResponse = messageConverter.createErrorResponse("CHAT_NOT_FOUND", e.getMessage());
+            session.sendMessage(new TextMessage(errorResponse));
         } catch (Exception e) {
             logger.error("Ошибка обработки сообщения от пользователя {}: {}", senderId, e.getMessage(), e);
             String errorResponse = messageConverter.createErrorResponse("SERVER_ERROR", "Внутренняя ошибка сервера");
             session.sendMessage(new TextMessage(errorResponse));
         }
     }
+
 
     @Override
     public void afterConnectionEstablished(@NonNull WebSocketSession session) {
@@ -115,6 +143,35 @@ public class UniversalChatHandler extends TextWebSocketHandler {
             safelyCloseUserSession(userId);
         } catch (Exception e) {
             logger.debug("Транспортная ошибка в неаутентифицированной сессии");
+        }
+    }
+
+    private void validateEventBeforeSending(MessageEventDto event) {
+
+        if (event.isPrivate()) {
+            if (!userRepository.existsById(event.getRecipientId())) {
+                throw new UserNotFoundException("Получатель с ID " + event.getRecipientId() + " не найден");
+            }
+        } else if (event.isGroup()) {
+
+            if (event.getChatId() == null) {
+                throw new MessageValidationException("Для группового сообщения обязателен chatId");
+            }
+
+            Optional<Chat> chat = chatRepository.findById(event.getChatId());
+            if (chat.isPresent()) {
+                if (chat.get().getChatType() == ChatType.PRIVATE) {
+                    throw new MessageValidationException("Нельзя отправить групповое сообщение в приватный чат");
+                }
+            }
+
+            if (!chatRepository.existsById(event.getChatId())) {
+                throw new ChatNotFoundException("Чат с ID " + event.getChatId() + " не найден");
+            }
+
+            if (!chatMemberRepository.existsByChatIdAndUserId(event.getChatId(), event.getSenderId())) {
+                throw new AccessDeniedException("Вы не являетесь участником этого чата");
+            }
         }
     }
 
@@ -160,7 +217,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
         WebSocketSession session = activeSessions.remove(userId);
         if (session != null && session.isOpen()) {
             try {
-                session.close(CloseStatus.GOING_AWAY); // или NORMAL
+                session.close(CloseStatus.GOING_AWAY);
                 logger.info("WebSocket-сессия пользователя {} закрыта при logout", userId);
             } catch (IOException e) {
                 logger.warn("Ошибка при закрытии WebSocket-сессии пользователя {}", userId, e);

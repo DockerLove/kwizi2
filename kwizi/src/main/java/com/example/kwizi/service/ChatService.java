@@ -391,6 +391,7 @@ public class ChatService {
     private Chat createAndSaveChat(CreateGroupChatRequest request, User creator) {
         Chat chat = new Chat();
         chat.setChatType(ChatType.GROUP);
+        chat.setLastActivityAt(OffsetDateTime.now());
 
         GroupChat groupChat = new GroupChat(chat, request.getGroupName());
         chat.setGroupChat(groupChat);

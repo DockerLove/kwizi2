@@ -1,9 +1,15 @@
 package com.example.kwizi.websocket;
 
 import com.example.kwizi.DTO.internal.MessageEventDto;
+import com.example.kwizi.enums.ChatType;
 import com.example.kwizi.enums.MessageType;
+import com.example.kwizi.exception.ChatNotFoundException;
 import com.example.kwizi.exception.MessageValidationException;
+import com.example.kwizi.exception.UserNotFoundException;
+import com.example.kwizi.model.Chat;
 import com.example.kwizi.repository.ChatMemberRepository;
+import com.example.kwizi.repository.ChatRepository;
+import com.example.kwizi.repository.UserRepository;
 import com.example.kwizi.security.JwtUtils;
 import com.example.kwizi.util.MessageConverter;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +25,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -26,12 +34,11 @@ import org.springframework.web.socket.WebSocketSession;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.lenient;
 
 @DisplayName("UniversalChatHandler тесты")
 @ExtendWith(MockitoExtension.class)
@@ -52,6 +59,12 @@ class UniversalChatHandlerTest {
 
     @Mock
     private MessageConverter messageConverter;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private ChatRepository chatRepository;
 
     @Mock
     private WebSocketSession session;
@@ -95,6 +108,7 @@ class UniversalChatHandlerTest {
             event.setText("Hello");
 
             when(messageConverter.createMessageEvent(clientMessage, TEST_USER_ID)).thenReturn(event);
+            when(userRepository.existsById(456L)).thenReturn(true);
             when(messageConverter.convertToJson(event)).thenReturn(kafkaJson);
             when(messageConverter.createSuccessResponse()).thenReturn(successResponse);
             TextMessage message = new TextMessage(clientMessage);
@@ -124,7 +138,14 @@ class UniversalChatHandlerTest {
             event.setChatId(789L);
             event.setText("Hello group");
 
+            Chat chat = new Chat();
+            chat.setId(789L);
+            chat.setChatType(ChatType.GROUP);
+
             when(messageConverter.createMessageEvent(clientMessage, TEST_USER_ID)).thenReturn(event);
+            when(chatRepository.existsById(789L)).thenReturn(true);
+            when(chatRepository.findById(789L)).thenReturn(Optional.of(chat));
+            when(chatMemberRepository.existsByChatIdAndUserId(789L, TEST_USER_ID)).thenReturn(true);
             when(messageConverter.convertToJson(event)).thenReturn(kafkaJson);
             when(messageConverter.createSuccessResponse()).thenReturn(successResponse);
             TextMessage message = new TextMessage(clientMessage);
@@ -161,6 +182,102 @@ class UniversalChatHandlerTest {
         }
 
         @Test
+        @DisplayName("Отправляет ошибку USER_NOT_FOUND для несуществующего получателя")
+        void handleTextMessage_ShouldSendUserNotFoundError_WhenRecipientNotFound() throws Exception {
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
+            String clientMessage = "private message";
+            MessageEventDto event = new MessageEventDto();
+            event.setType(MessageType.PRIVATE);
+            event.setSenderId(TEST_USER_ID);
+            event.setRecipientId(456L);
+            event.setText("Hello");
+
+            String errorResponse = "user not found error";
+
+            when(messageConverter.createMessageEvent(clientMessage, TEST_USER_ID)).thenReturn(event);
+            when(userRepository.existsById(456L)).thenReturn(false);
+            when(messageConverter.createErrorResponse("USER_NOT_FOUND", "Получатель с ID 456 не найден"))
+                    .thenReturn(errorResponse);
+            TextMessage message = new TextMessage(clientMessage);
+
+            chatHandler.handleTextMessage(session, message);
+
+            verify(messageConverter).createErrorResponse("USER_NOT_FOUND", "Получатель с ID 456 не найден");
+            verify(session).sendMessage(textMessageCaptor.capture());
+            assertThat(textMessageCaptor.getValue().getPayload()).isEqualTo(errorResponse);
+            verify(kafkaTemplate, never()).send(anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("Отправляет ошибку CHAT_NOT_FOUND для несуществующего чата")
+        void handleTextMessage_ShouldSendChatNotFoundError_WhenChatDoesNotExist() throws Exception {
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
+            String clientMessage = "group message";
+            MessageEventDto event = new MessageEventDto();
+            event.setType(MessageType.GROUP);
+            event.setSenderId(TEST_USER_ID);
+            event.setChatId(789L);
+            event.setText("Hello group");
+
+            String errorResponse = "chat not found error";
+
+            when(messageConverter.createMessageEvent(clientMessage, TEST_USER_ID)).thenReturn(event);
+            when(chatRepository.existsById(789L)).thenReturn(false);
+            when(messageConverter.createErrorResponse("CHAT_NOT_FOUND", "Чат с ID 789 не найден"))
+                    .thenReturn(errorResponse);
+            TextMessage message = new TextMessage(clientMessage);
+
+            chatHandler.handleTextMessage(session, message);
+
+            verify(messageConverter).createErrorResponse("CHAT_NOT_FOUND", "Чат с ID 789 не найден");
+            verify(session).sendMessage(textMessageCaptor.capture());
+            assertThat(textMessageCaptor.getValue().getPayload()).isEqualTo(errorResponse);
+            verify(kafkaTemplate, never()).send(anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("Отправляет ошибку ACCESS_DENIED при отсутствии доступа к чату")
+        void handleTextMessage_ShouldSendAccessDeniedError_WhenUserNotInChat() throws Exception {
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
+            String clientMessage = "group message";
+            MessageEventDto event = new MessageEventDto();
+            event.setType(MessageType.GROUP);
+            event.setSenderId(TEST_USER_ID);
+            event.setChatId(789L);
+            event.setText("Hello group");
+
+            Chat chat = new Chat();
+            chat.setId(789L);
+            chat.setChatType(ChatType.GROUP);
+
+            String errorResponse = "access denied error";
+
+            when(messageConverter.createMessageEvent(clientMessage, TEST_USER_ID)).thenReturn(event);
+            when(chatRepository.existsById(789L)).thenReturn(true);
+            when(chatRepository.findById(789L)).thenReturn(Optional.of(chat));
+            when(chatMemberRepository.existsByChatIdAndUserId(789L, TEST_USER_ID)).thenReturn(false);
+            when(messageConverter.createErrorResponse("ACCESS_DENIED", "Вы не являетесь участником этого чата"))
+                    .thenReturn(errorResponse);
+            TextMessage message = new TextMessage(clientMessage);
+
+            chatHandler.handleTextMessage(session, message);
+
+            verify(messageConverter).createErrorResponse("ACCESS_DENIED", "Вы не являетесь участником этого чата");
+            verify(session).sendMessage(textMessageCaptor.capture());
+            assertThat(textMessageCaptor.getValue().getPayload()).isEqualTo(errorResponse);
+            verify(kafkaTemplate, never()).send(anyString(), anyString());
+        }
+
+        @Test
         @DisplayName("Отправляет ошибку сервера при непредвиденном исключении")
         void handleTextMessage_ShouldSendServerError_WhenUnexpectedExceptionOccurs() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
@@ -182,6 +299,116 @@ class UniversalChatHandlerTest {
             verify(session).sendMessage(textMessageCaptor.capture());
             assertThat(textMessageCaptor.getValue().getPayload()).isEqualTo(errorResponse);
             verify(kafkaTemplate, never()).send(anyString(), anyString());
+        }
+    }
+
+    @Nested
+    @DisplayName("Валидация событий")
+    class EventValidationTests {
+
+        @Test
+        @DisplayName("Проходит валидацию для приватного сообщения с существующим получателем")
+        void validateEventBeforeSending_ShouldPass_ForPrivateMessageWithExistingRecipient() {
+            MessageEventDto event = new MessageEventDto();
+            event.setType(MessageType.PRIVATE);
+            event.setSenderId(123L);
+            event.setRecipientId(456L);
+
+            when(userRepository.existsById(456L)).thenReturn(true);
+
+            assertThatCode(() -> ReflectionTestUtils.invokeMethod(chatHandler,
+                    "validateEventBeforeSending", event))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Бросает UserNotFoundException для несуществующего получателя")
+        void validateEventBeforeSending_ShouldThrowUserNotFoundException_ForNonExistingRecipient() {
+            MessageEventDto event = new MessageEventDto();
+            event.setType(MessageType.PRIVATE);
+            event.setSenderId(123L);
+            event.setRecipientId(456L);
+
+            when(userRepository.existsById(456L)).thenReturn(false);
+
+            assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(chatHandler,
+                    "validateEventBeforeSending", event))
+                    .isInstanceOf(UserNotFoundException.class)
+                    .hasMessageContaining("Получатель с ID 456 не найден");
+        }
+
+        @Test
+        @DisplayName("Бросает MessageValidationException при отсутствии chatId для группового сообщения")
+        void validateEventBeforeSending_ShouldThrowValidationException_ForGroupMessageWithoutChatId() {
+            MessageEventDto event = new MessageEventDto();
+            event.setType(MessageType.GROUP);
+            event.setSenderId(123L);
+            event.setChatId(null);
+
+            assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(chatHandler,
+                    "validateEventBeforeSending", event))
+                    .isInstanceOf(MessageValidationException.class)
+                    .hasMessageContaining("Для группового сообщения обязателен chatId");
+        }
+
+        @Test
+        @DisplayName("Бросает ChatNotFoundException для несуществующего чата")
+        void validateEventBeforeSending_ShouldThrowChatNotFoundException_ForNonExistingChat() {
+            MessageEventDto event = new MessageEventDto();
+            event.setType(MessageType.GROUP);
+            event.setSenderId(123L);
+            event.setChatId(789L);
+
+            when(chatRepository.existsById(789L)).thenReturn(false);
+
+            assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(chatHandler,
+                    "validateEventBeforeSending", event))
+                    .isInstanceOf(ChatNotFoundException.class)
+                    .hasMessageContaining("Чат с ID 789 не найден");
+        }
+
+        @Test
+        @DisplayName("Бросает MessageValidationException при отправке группового сообщения в приватный чат")
+        void validateEventBeforeSending_ShouldThrowValidationException_ForGroupMessageInPrivateChat() {
+            MessageEventDto event = new MessageEventDto();
+            event.setType(MessageType.GROUP);
+            event.setSenderId(123L);
+            event.setChatId(789L);
+
+            Chat chat = new Chat();
+            chat.setId(789L);
+            chat.setChatType(ChatType.PRIVATE);
+
+            when(chatRepository.existsById(789L)).thenReturn(true);
+            when(chatRepository.findById(789L)).thenReturn(Optional.of(chat));
+            when(chatMemberRepository.existsByChatIdAndUserId(789L, 123L)).thenReturn(true);
+
+            assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(chatHandler,
+                    "validateEventBeforeSending", event))
+                    .isInstanceOf(MessageValidationException.class)
+                    .hasMessageContaining("Нельзя отправить групповое сообщение в приватный чат");
+        }
+
+        @Test
+        @DisplayName("Бросает AccessDeniedException при отправке в чужой чат")
+        void validateEventBeforeSending_ShouldThrowAccessDeniedException_WhenUserNotInChat() {
+            MessageEventDto event = new MessageEventDto();
+            event.setType(MessageType.GROUP);
+            event.setSenderId(123L);
+            event.setChatId(789L);
+
+            Chat chat = new Chat();
+            chat.setId(789L);
+            chat.setChatType(ChatType.GROUP);
+
+            when(chatRepository.existsById(789L)).thenReturn(true);
+            when(chatRepository.findById(789L)).thenReturn(Optional.of(chat));
+            when(chatMemberRepository.existsByChatIdAndUserId(789L, 123L)).thenReturn(false);
+
+            assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(chatHandler,
+                    "validateEventBeforeSending", event))
+                    .isInstanceOf(AccessDeniedException.class)
+                    .hasMessageContaining("Вы не являетесь участником этого чата");
         }
     }
 
@@ -251,6 +478,34 @@ class UniversalChatHandlerTest {
             assertThat(chatHandler.isUserOnline(TEST_USER_ID)).isTrue();
             chatHandler.handleTransportError(session, new IOException("Network error"));
             assertThat(chatHandler.isUserOnline(TEST_USER_ID)).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("Закрытие сессии пользователя")
+    class CloseUserSessionTests {
+
+        @Test
+        @DisplayName("Закрывает сессию пользователя при logout")
+        void closeUserSession_ShouldCloseSession_WhenUserHasActiveSession() throws Exception {
+            when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
+            when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
+
+            WebSocketSession session = createMockSession(VALID_TOKEN);
+            chatHandler.afterConnectionEstablished(session);
+            assertThat(chatHandler.isUserOnline(TEST_USER_ID)).isTrue();
+
+            chatHandler.closeUserSession(TEST_USER_ID);
+
+            verify(session).close(eq(CloseStatus.GOING_AWAY));
+            assertThat(chatHandler.isUserOnline(TEST_USER_ID)).isFalse();
+        }
+
+        @Test
+        @DisplayName("Безопасно обрабатывает закрытие несуществующей сессии")
+        void closeUserSession_ShouldHandleNonExistingSession() {
+            assertThatCode(() -> chatHandler.closeUserSession(999L))
+                    .doesNotThrowAnyException();
         }
     }
 

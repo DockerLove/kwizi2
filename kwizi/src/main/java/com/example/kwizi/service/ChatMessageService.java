@@ -257,6 +257,7 @@ public class ChatMessageService implements ChatMessageServiceInterface {
         Chat chat = new Chat();
         chat.setChatType(ChatType.PRIVATE);
         chat.setCreatedAt(OffsetDateTime.now());
+        chat.setLastActivityAt(OffsetDateTime.now());
         Chat savedChat = chatRepository.save(chat);
 
         ChatMember chatMemberSender = new ChatMember(savedChat, sender, ChatRole.MEMBER);

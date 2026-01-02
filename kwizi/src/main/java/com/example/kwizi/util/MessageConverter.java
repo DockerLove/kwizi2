@@ -3,6 +3,8 @@ package com.example.kwizi.util;
 
 import com.example.kwizi.DTO.internal.MessageDto;
 import com.example.kwizi.DTO.internal.MessageEventDto;
+import com.example.kwizi.enums.MessageType;
+import com.example.kwizi.exception.MessageValidationException;
 import com.example.kwizi.model.Message;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -11,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Map;
 
 @Component
 public class MessageConverter {
@@ -62,14 +66,21 @@ public class MessageConverter {
 
     public MessageEventDto createMessageEvent(String rawJson, Long senderId) {
         try {
+            Map<String, Object> rawMap = objectMapper.readValue(rawJson, Map.class);
+            String typeString = (String) rawMap.get("type");
+
+            validateMessageType(typeString);
+
             MessageEventDto event = objectMapper.readValue(rawJson, MessageEventDto.class);
             event.setSenderId(senderId);
             event.setTimestamp(java.time.Instant.now());
             event.validate();
             return event;
+
+        } catch (IllegalArgumentException e) {
+            throw new MessageValidationException("Некорректный тип сообщения. Допустимые значения: PRIVATE, GROUP");
         } catch (Exception e) {
-            logger.error("Ошибка создания MessageEventDto из JSON", e);
-            throw new RuntimeException("Неверный формат сообщения", e);
+            throw new MessageValidationException("Неверный формат сообщения: " + e.getMessage());
         }
     }
 
@@ -103,5 +114,19 @@ public class MessageConverter {
         }
     }
 
+
+    private void validateMessageType(String typeString) {
+        if (typeString == null || typeString.trim().isEmpty()) {
+            throw new IllegalArgumentException("Тип сообщения обязателен");
+        }
+
+        try {
+            MessageType.valueOf(typeString.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Недопустимый тип сообщения: '" + typeString +
+                    "'. Допустимые значения: " +
+                    Arrays.toString(MessageType.values()));
+        }
+    }
 
 }

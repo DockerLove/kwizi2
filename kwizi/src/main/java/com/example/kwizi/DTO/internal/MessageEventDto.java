@@ -3,6 +3,7 @@ package com.example.kwizi.DTO.internal;
 import com.example.kwizi.enums.MessageType;
 import com.example.kwizi.exception.MessageValidationException;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.time.Instant;
 
 public class MessageEventDto {
