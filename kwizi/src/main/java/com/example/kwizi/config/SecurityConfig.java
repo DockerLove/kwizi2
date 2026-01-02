@@ -51,11 +51,36 @@ public class SecurityConfig {
 
         http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/swagger-ui/index.html",
+                                "/swagger-ui/index.html/**",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs.yaml",
+                                "/v3/api-docs.json",
+                                "/api-docs/**",
+                                "/api-docs.yaml",
+                                "/api-docs.json",
+                                "/swagger-resources/**",
+                                "/swagger-resources",
+                                "/swagger-resources/configuration/ui",
+                                "/swagger-resources/configuration/security",
+                                "/webjars/**",
+                                "/webjars/swagger-ui/**",
+                                "/configuration/ui",
+                                "/configuration/security",
+                                "/favicon.ico",
+                                "/error",
+                                "/actuator/health"
+                        ).permitAll()
+
                         .requestMatchers("/api/kafka/**").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/register").permitAll()
                         .requestMatchers("/api/email-verification/verify-email").permitAll()
                         .requestMatchers("/ws/**").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

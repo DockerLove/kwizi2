@@ -3,17 +3,57 @@ package com.example.kwizi.DTO.internal;
 import com.example.kwizi.enums.MessageType;
 import com.example.kwizi.exception.MessageValidationException;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
 
+@Schema(description = "DTO события сообщения для Kafka и WebSocket")
 public class MessageEventDto {
+
+    @Schema(
+            description = "Тип сообщения",
+            example = "PRIVATE",
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            allowableValues = {"PRIVATE", "GROUP"}
+    )
     private MessageType type;
+
+    @Schema(
+            description = "ID отправителя сообщения",
+            example = "3",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     private Long senderId;
+
+    @Schema(
+            description = "ID получателя (только для приватных сообщений)",
+            example = "5",
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED
+    )
     private Long recipientId;
+
+    @Schema(
+            description = "ID чата (только для групповых сообщений)",
+            example = "10",
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED
+    )
     private Long chatId;
+
+    @Schema(
+            description = "Текст сообщения",
+            example = "Привет! Как дела?",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     private String text;
+
+    @Schema(
+            description = "Временная метка создания сообщения",
+            example = "2024-01-15T10:30:00Z",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     private Instant timestamp;
 
+    @Schema(hidden = true)
     @JsonIgnore
     public void validate() {
         if (type == null) {
@@ -46,6 +86,7 @@ public class MessageEventDto {
         }
     }
 
+    @Schema(hidden = true)
     @JsonIgnore
     public String getTargetTopic() {
         return switch (this.type) {
@@ -54,16 +95,19 @@ public class MessageEventDto {
         };
     }
 
+    @Schema(hidden = true)
     @JsonIgnore
     public boolean isPrivate() {
         return type == MessageType.PRIVATE;
     }
 
+    @Schema(hidden = true)
     @JsonIgnore
     public boolean isGroup() {
         return type == MessageType.GROUP;
     }
 
+    @Schema(hidden = true)
     @JsonIgnore
     public String getLogInfo() {
         if (isPrivate()) {

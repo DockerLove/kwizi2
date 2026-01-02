@@ -3,7 +3,7 @@ package com.example.kwizi.controller;
 import com.example.kwizi.DTO.request.AuthenticationRequest;
 import com.example.kwizi.DTO.request.ChangePasswordRequest;
 import com.example.kwizi.DTO.request.RegistrationRequest;
-import com.example.kwizi.DTO.response.ApiResponse;
+import com.example.kwizi.DTO.response.ApiResponseDto;
 import com.example.kwizi.DTO.response.AuthenticationResponse;
 import com.example.kwizi.model.User;
 import com.example.kwizi.repository.RevokedTokenRepository;
@@ -108,9 +108,9 @@ class AuthenticationControllerTest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<?> apiResponse = extractApiResponse(response);
-            assertThat(apiResponse.isSuccess()).isTrue();
-            assertThat(apiResponse.getMessage()).isEqualTo("Пароль успешно изменен");
+            ApiResponseDto<?> apiResponseDto = extractApiResponse(response);
+            assertThat(apiResponseDto.isSuccess()).isTrue();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Пароль успешно изменен");
 
             verify(authenticationService, times(1))
                     .changePassword(TEST_USERNAME, request);
@@ -183,9 +183,9 @@ class AuthenticationControllerTest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<?> apiResponse = extractApiResponse(response);
-            assertThat(apiResponse.isSuccess()).isTrue();
-            assertThat(apiResponse.getMessage()).isEqualTo("Пользователь успешно зарегистрирован");
+            ApiResponseDto<?> apiResponseDto = extractApiResponse(response);
+            assertThat(apiResponseDto.isSuccess()).isTrue();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Пользователь успешно зарегистрирован");
 
             verify(registrationService, times(1))
                     .registerUser(request);
@@ -332,14 +332,14 @@ class AuthenticationControllerTest {
             doNothing().when(authenticationService)
                     .logout(eq(TEST_JWT_TOKEN));
 
-            ResponseEntity<ApiResponse<Void>> response =
+            ResponseEntity<ApiResponseDto<Void>> response =
                     authenticationController.logout(httpServletRequest);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<Void> apiResponse = response.getBody();
-            assertThat(apiResponse.isSuccess()).isTrue();
-            assertThat(apiResponse.getMessage()).isEqualTo("Выход выполнен успешно");
+            ApiResponseDto<Void> apiResponseDto = response.getBody();
+            assertThat(apiResponseDto.isSuccess()).isTrue();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Выход выполнен успешно");
 
             verify(jwtUtils, times(1)).extractToken(httpServletRequest);
             verify(authenticationService, times(1)).logout(TEST_JWT_TOKEN);
@@ -351,14 +351,14 @@ class AuthenticationControllerTest {
             when(jwtUtils.extractToken(httpServletRequest))
                     .thenReturn(null);
 
-            ResponseEntity<ApiResponse<Void>> response =
+            ResponseEntity<ApiResponseDto<Void>> response =
                     authenticationController.logout(httpServletRequest);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
-            ApiResponse<Void> apiResponse = response.getBody();
-            assertThat(apiResponse.isSuccess()).isFalse();
-            assertThat(apiResponse.getMessage()).isEqualTo("Токен отсутствует");
+            ApiResponseDto<Void> apiResponseDto = response.getBody();
+            assertThat(apiResponseDto.isSuccess()).isFalse();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Токен отсутствует");
 
             verify(authenticationService, never()).logout(anyString());
         }
@@ -393,7 +393,7 @@ class AuthenticationControllerTest {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> ApiResponse<T> extractApiResponse(ResponseEntity<?> responseEntity) {
-        return (ApiResponse<T>) responseEntity.getBody();
+    private <T> ApiResponseDto<T> extractApiResponse(ResponseEntity<?> responseEntity) {
+        return (ApiResponseDto<T>) responseEntity.getBody();
     }
 }

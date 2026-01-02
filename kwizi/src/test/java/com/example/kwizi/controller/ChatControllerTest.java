@@ -4,7 +4,7 @@ import com.example.kwizi.DTO.request.AddChatMemberRequestDto;
 import com.example.kwizi.DTO.request.CreateGroupChatRequest;
 import com.example.kwizi.DTO.request.CreatePrivateChatRequest;
 import com.example.kwizi.DTO.request.UpdateGroupNameRequest;
-import com.example.kwizi.DTO.response.ApiResponse;
+import com.example.kwizi.DTO.response.ApiResponseDto;
 import com.example.kwizi.DTO.response.ChatPreviewResponse;
 import com.example.kwizi.enums.ChatType;
 import com.example.kwizi.exception.ChatNotFoundException;
@@ -74,8 +74,8 @@ class ChatControllerTest {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> ApiResponse<T> extractApiResponse(ResponseEntity<?> responseEntity) {
-        return (ApiResponse<T>) responseEntity.getBody();
+    private <T> ApiResponseDto<T> extractApiResponse(ResponseEntity<?> responseEntity) {
+        return (ApiResponseDto<T>) responseEntity.getBody();
     }
 
     @Nested
@@ -96,9 +96,9 @@ class ChatControllerTest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<?> apiResponse = extractApiResponse(response);
-            assertThat(apiResponse.isSuccess()).isTrue();
-            assertThat(apiResponse.getMessage()).isEqualTo("Групповой чат успешно создан");
+            ApiResponseDto<?> apiResponseDto = extractApiResponse(response);
+            assertThat(apiResponseDto.isSuccess()).isTrue();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Групповой чат успешно создан");
 
             verify(chatService, times(1))
                     .createGroupChat(request, TEST_USERNAME);
@@ -117,9 +117,9 @@ class ChatControllerTest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<?> apiResponse = extractApiResponse(response);
-            assertThat(apiResponse.isSuccess()).isTrue();
-            assertThat(apiResponse.getMessage()).isEqualTo("Приватный чат успешно создан");
+            ApiResponseDto<?> apiResponseDto = extractApiResponse(response);
+            assertThat(apiResponseDto.isSuccess()).isTrue();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Приватный чат успешно создан");
 
             verify(chatService, times(1))
                     .createPrivateChat(request, TEST_USERNAME);
@@ -158,9 +158,9 @@ class ChatControllerTest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<?> apiResponse = extractApiResponse(response);
-            assertThat(apiResponse.isSuccess()).isTrue();
-            assertThat(apiResponse.getMessage()).isEqualTo("Пользователь успешно добавлен в чат");
+            ApiResponseDto<?> apiResponseDto = extractApiResponse(response);
+            assertThat(apiResponseDto.isSuccess()).isTrue();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Пользователь успешно добавлен в чат");
 
             verify(chatService, times(1))
                     .addChatMember(argThat(dto ->
@@ -179,9 +179,9 @@ class ChatControllerTest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<?> apiResponse = extractApiResponse(response);
-            assertThat(apiResponse.isSuccess()).isTrue();
-            assertThat(apiResponse.getMessage()).isEqualTo("Пользователь успешно назначен администратором");
+            ApiResponseDto<?> apiResponseDto = extractApiResponse(response);
+            assertThat(apiResponseDto.isSuccess()).isTrue();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Пользователь успешно назначен администратором");
 
             verify(chatService, times(1))
                     .setAdmin(TEST_CHAT_ID, TEST_OTHER_USER_ID, TEST_USER_ID);
@@ -197,9 +197,9 @@ class ChatControllerTest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<?> apiResponse = extractApiResponse(response);
-            assertThat(apiResponse.isSuccess()).isTrue();
-            assertThat(apiResponse.getMessage()).isEqualTo("Пользователь удален из чата");
+            ApiResponseDto<?> apiResponseDto = extractApiResponse(response);
+            assertThat(apiResponseDto.isSuccess()).isTrue();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Пользователь удален из чата");
 
             verify(chatService, times(1))
                     .removeChatMember(TEST_CHAT_ID, TEST_OTHER_USER_ID, TEST_USER_ID);
@@ -219,15 +219,15 @@ class ChatControllerTest {
             doNothing().when(chatService)
                     .updateGroupName(eq(TEST_CHAT_ID), eq("Новое название группы"), eq(TEST_USER_ID));
 
-            ResponseEntity<ApiResponse<String>> response =
+            ResponseEntity<ApiResponseDto<String>> response =
                     chatController.updateGroupName(TEST_CHAT_ID, request, userDetails);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<String> apiResponse = response.getBody();
-            assertThat(apiResponse.isSuccess()).isTrue();
-            assertThat(apiResponse.getMessage()).isEqualTo("Название группы успешно изменено");
-            assertThat(apiResponse.getData()).isEqualTo("Новое название группы");
+            ApiResponseDto<String> apiResponseDto = response.getBody();
+            assertThat(apiResponseDto.isSuccess()).isTrue();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Название группы успешно изменено");
+            assertThat(apiResponseDto.getData()).isEqualTo("Новое название группы");
 
             verify(chatService, times(1))
                     .updateGroupName(TEST_CHAT_ID, "Новое название группы", TEST_USER_ID);
@@ -245,9 +245,9 @@ class ChatControllerTest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<?> apiResponse = extractApiResponse(response);
-            assertThat(apiResponse.isSuccess()).isTrue();
-            assertThat(apiResponse.getMessage()).isEqualTo("Фото группы успешно изменено");
+            ApiResponseDto<?> apiResponseDto = extractApiResponse(response);
+            assertThat(apiResponseDto.isSuccess()).isTrue();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Фото группы успешно изменено");
 
             verify(chatService, times(1))
                     .updateChatAvatar(TEST_CHAT_ID, file, TEST_USER_ID);
@@ -266,15 +266,15 @@ class ChatControllerTest {
             when(chatService.getUserChatsPreview(eq(TEST_USER_ID), eq(0), eq(50)))
                     .thenReturn(mockPage);
 
-            ResponseEntity<ApiResponse<Page<ChatPreviewResponse>>> response =
+            ResponseEntity<ApiResponseDto<Page<ChatPreviewResponse>>> response =
                     chatController.getUserChats(userDetails, 50, 0);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<Page<ChatPreviewResponse>> apiResponse = response.getBody();
-            assertThat(apiResponse.isSuccess()).isTrue();
-            assertThat(apiResponse.getMessage()).isEqualTo("Самые новые чаты успешно загружены");
-            assertThat(apiResponse.getData().getContent()).hasSize(1);
+            ApiResponseDto<Page<ChatPreviewResponse>> apiResponseDto = response.getBody();
+            assertThat(apiResponseDto.isSuccess()).isTrue();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Самые новые чаты успешно загружены");
+            assertThat(apiResponseDto.getData().getContent()).hasSize(1);
 
             verify(chatService, times(1))
                     .getUserChatsPreview(TEST_USER_ID, 0, 50);
@@ -288,14 +288,14 @@ class ChatControllerTest {
             when(chatService.getUserChatsPreview(eq(TEST_USER_ID), anyInt(), anyInt()))
                     .thenReturn(emptyPage);
 
-            ResponseEntity<ApiResponse<Page<ChatPreviewResponse>>> response =
+            ResponseEntity<ApiResponseDto<Page<ChatPreviewResponse>>> response =
                     chatController.getUserChats(userDetails, 50, 0);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<Page<ChatPreviewResponse>> apiResponse = response.getBody();
-            assertThat(apiResponse.getData().isEmpty()).isTrue();
-            assertThat(apiResponse.getData().getTotalElements()).isEqualTo(0);
+            ApiResponseDto<Page<ChatPreviewResponse>> apiResponseDto = response.getBody();
+            assertThat(apiResponseDto.getData().isEmpty()).isTrue();
+            assertThat(apiResponseDto.getData().getTotalElements()).isEqualTo(0);
         }
     }
 
@@ -357,9 +357,9 @@ class ChatControllerTest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<?> apiResponse = extractApiResponse(response);
-            assertThat(apiResponse.isSuccess()).isTrue();
-            assertThat(apiResponse.getMessage()).isEqualTo("Вы вышли из чата");
+            ApiResponseDto<?> apiResponseDto = extractApiResponse(response);
+            assertThat(apiResponseDto.isSuccess()).isTrue();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Вы вышли из чата");
 
             verify(chatService, times(1))
                     .leaveChat(TEST_CHAT_ID, TEST_USER_ID);
@@ -375,9 +375,9 @@ class ChatControllerTest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-            ApiResponse<?> apiResponse = extractApiResponse(response);
-            assertThat(apiResponse.isSuccess()).isTrue();
-            assertThat(apiResponse.getMessage()).isEqualTo("Администратор разжалован до обычного участника");
+            ApiResponseDto<?> apiResponseDto = extractApiResponse(response);
+            assertThat(apiResponseDto.isSuccess()).isTrue();
+            assertThat(apiResponseDto.getMessage()).isEqualTo("Администратор разжалован до обычного участника");
 
             verify(chatService, times(1))
                     .demoteAdminToMember(TEST_CHAT_ID, TEST_OTHER_USER_ID, TEST_USER_ID);

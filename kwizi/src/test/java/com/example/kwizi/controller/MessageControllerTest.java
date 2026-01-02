@@ -1,7 +1,7 @@
 package com.example.kwizi.controller;
 
 import com.example.kwizi.DTO.request.EditMessageRequest;
-import com.example.kwizi.DTO.response.ApiResponse;
+import com.example.kwizi.DTO.response.ApiResponseDto;
 import com.example.kwizi.DTO.response.ChatHistoryResponse;
 import com.example.kwizi.exception.MessageService.MessageNotFoundException;
 import com.example.kwizi.service.ChatMessageService;
@@ -179,8 +179,8 @@ class MessageControllerTest {
             assertThat(response)
                     .extracting(
                             r -> r.getStatusCode().value(),
-                            r -> ((ApiResponse<?>) r.getBody()).isSuccess(),
-                            r -> ((ApiResponse<?>) r.getBody()).getMessage()
+                            r -> ((ApiResponseDto<?>) r.getBody()).isSuccess(),
+                            r -> ((ApiResponseDto<?>) r.getBody()).getMessage()
                     )
                     .containsExactly(200, true, "Сообщение изменено");
 
