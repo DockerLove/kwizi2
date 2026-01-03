@@ -1,0 +1,1 @@
+CREATE DATABASE monolit_db;
