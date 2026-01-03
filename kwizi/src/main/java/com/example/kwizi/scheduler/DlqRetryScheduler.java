@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,6 +23,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DlqRetryScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(DlqRetryScheduler.class);
+
+    @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
+    private String bootstrapServers;
 
     private final MessageConverter messageConverter;
     private final UniversalChatHandler chatHandler;
@@ -388,7 +392,7 @@ public class DlqRetryScheduler {
 
     private org.apache.kafka.clients.consumer.KafkaConsumer<String, String> createDlqConsumer() {
         java.util.Properties props = new java.util.Properties();
-        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG, "dlq-active-scheduler-group");
         props.put(org.apache.kafka.clients.consumer.ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 org.apache.kafka.common.serialization.StringDeserializer.class.getName());

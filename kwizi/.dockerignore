@@ -3,3 +3,17 @@ target/
 *.iml
 .git/
 *.logs
+.git
+.gitignore
+*.log
+.mvn/
+mvnw
+mvnw.cmd
+HELP.md
+.DS_Store
+**/*.class
+**/node_modules/
+**/uploads/
+**/logs/
+docker-compose.*.yml
+README.md

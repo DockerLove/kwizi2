@@ -1,37 +1,51 @@
-# Базовый образ с Java 21 (официальный образ от Eclipse Temurin)
-FROM eclipse-temurin:21-jdk-jammy as builder
-# Устанавливаем Maven
-RUN apt-get update && \
-    apt-get install -y maven && \
-    rm -rf /var/lib/apt/lists/*
+# Многостадийная сборка
+# Стадия 1: Сборка
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
-# Рабочая директория
 WORKDIR /app
 
-# Копируем только pom.xml сначала (для кэширования зависимостей)
+# Копируем pom.xml
 COPY pom.xml .
-# Скачиваем зависимости (используем package вместо dependency:go-offline для надежности)
-RUN mvn dependency:resolve
+
+# Скачиваем зависимости (кэшируем этот слой)
+RUN mvn dependency:go-offline -B
 
 # Копируем исходный код
 COPY src ./src
 
-# Собираем JAR (с пропуском тестов для ускорения)
-RUN mvn package -DskipTests
+# Собираем JAR
+RUN mvn clean package -DskipTests
 
-# Финальный легковесный образ
+# Стадия 2: Запуск
 FROM eclipse-temurin:21-jre-jammy
+
+# Устанавливаем curl для healthcheck
+RUN apt-get update && \
+    apt-get install -y curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Создаем пользователя для безопасности
+RUN groupadd -r spring && useradd -r -g spring spring
 
 WORKDIR /app
 
-# Копируем JAR из стадии builder
+# Создаем директории для файлов
+RUN mkdir -p /app/uploads/avatars/user \
+             /app/uploads/avatars/chat \
+             /app/logs && \
+    chown -R spring:spring /app
+
+USER spring:spring
+
+# Копируем JAR из стадии сборки
 COPY --from=builder /app/target/*.jar app.jar
 
-# Опциональные настройки JVM (memory, GC и т.д.)
-ENV JAVA_OPTS="-XX:+UseZGC -Xms256m -Xmx512m"
+# Открываем порт приложения
+EXPOSE 8250
 
-# Открываем порт
-EXPOSE 8080
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=3s --start-period=80s --retries=3 \
+    CMD curl -f http://localhost:8250/actuator/health || exit 1
 
-# Запуск приложения (используем shell-форму для подстановки переменных)
-ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -jar /app/app.jar"]
+# Запуск приложения
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
