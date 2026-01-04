@@ -22,6 +22,7 @@ jobs:
 
       - name: Build with Maven
         run: |
+	  cd kwizi 
           chmod +x mvnw
           ./mvnw clean compile -DskipTests
 
