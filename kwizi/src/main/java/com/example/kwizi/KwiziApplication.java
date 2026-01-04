@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableTransactionManagement
 @EnableScheduling
 public class KwiziApplication {
-
 	public static void main(String[] args) {
 		SpringApplication.run(KwiziApplication.class, args);
 	}
