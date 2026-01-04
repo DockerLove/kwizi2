@@ -9,32 +9,8 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: 50432
           POSTGRES_DB: test_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
         ports:
           - 5432:5432
-      
-      zookeeper:
-        image: wurstmeister/zookeeper
-        ports:
-          - 2181:2181
-      
-      kafka:
-        image: wurstmeister/kafka
-        env:
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-          KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-          KAFKA_ZOOKEEPER_CONNECT: localhost:2181
-          KAFKA_CREATE_TOPICS: "test-topic:1:1,private-messages:1:1,group-messages:1:1"
-          KAFKA_NUM_PARTITIONS: 1
-          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-        ports:
-          - 9092:9092
-        depends_on:
-          - zookeeper
     
     steps:
     - name: Checkout code
@@ -46,26 +22,12 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
     
-    - name: Install kafkacat for Kafka testing
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y kafkacat
-    
-    - name: Wait for services to be ready
-      run: |
-        echo "Waiting for PostgreSQL..."
-        timeout 30 bash -c 'until pg_isready -h localhost -p 5432; do sleep 2; done'
-        echo "PostgreSQL is ready!"
-        
-        echo "Waiting for Kafka..."
-        sleep 45  # даем больше времени для Kafka
-        
-        # Проверяем Kafka
-        timeout 30 bash -c 'until nc -z localhost 9092; do sleep 2; done'
-        echo "Kafka port is open!"
-        
-        # Даем Kafka время на инициализацию
-        sleep 15
+    - name: Cache Maven dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('kwizi/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
     
     - name: Build with Maven
       run: |
@@ -73,13 +35,12 @@ jobs:
         chmod +x mvnw
         ./mvnw clean compile -DskipTests
     
-    - name: Run tests (без интеграционных)
+    - name: Run unit tests
       run: |
         cd kwizi
-        ./mvnw test -Dtest="!*Integration*" -Dspring.kafka.bootstrap-servers=localhost:9092
+        ./mvnw test -Dtest="!*Integration*" -Dspring.kafka.bootstrap-servers=
       env:
         SPRING_PROFILES_ACTIVE: test
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/test_db
         SPRING_DATASOURCE_USERNAME: postgres
         SPRING_DATASOURCE_PASSWORD: 50432
-        SPRING_KAFKA_BOOTSTRAP_SERVERS: localhost:9092
