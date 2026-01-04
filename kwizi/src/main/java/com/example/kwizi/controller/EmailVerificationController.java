@@ -179,62 +179,62 @@ public class EmailVerificationController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .contentType(MediaType.TEXT_HTML)
                     .body("""
-                        <!DOCTYPE html>
-                        <html lang="ru">
-                        <head>
-                            <meta charset="UTF-8">
-                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                            <title>Ошибка подтверждения</title>
-                            <style>
-                                body {
-                                    font-family: Arial, sans-serif;
-                                    display: flex;
-                                    justify-content: center;
-                                    align-items: center;
-                                    min-height: 100vh;
-                                    margin: 0;
-                                    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-                                }
-                                .container {
-                                    background: white;
-                                    padding: 40px;
-                                    border-radius: 10px;
-                                    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-                                    text-align: center;
-                                    max-width: 500px;
-                                }
-                                h1 {
-                                    color: #f44336;
-                                    margin-bottom: 20px;
-                                }
-                                p {
-                                    color: #666;
-                                    margin-bottom: 30px;
-                                    line-height: 1.6;
-                                }
-                                .error-icon {
-                                    font-size: 60px;
-                                    color: #f44336;
-                                    margin-bottom: 20px;
-                                }
-                            </style>
-                        </head>
-                        <body>
-                            <div class="container">
-                                <div class="error-icon">✗</div>
-                                <h1>Ошибка подтверждения email</h1>
-                                <p>Произошла ошибка: %s</p>
-                                <p>Возможные причины:</p>
-                                <ul style="text-align: left; color: #666;">
-                                    <li>Ссылка устарела (действительна 24 часа)</li>
-                                    <li>Email уже был подтвержден ранее</li>
-                                    <li>Некорректная ссылка</li>
-                                </ul>
-                                <p>Попробуйте запросить новое письмо подтверждения.</p>
-                            </div>
-                        </body>
-                        </html>
-                        """.formatted(e.getMessage()));
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ошибка подтверждения</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+        }
+        h1 {
+            color: #f44336;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .error-icon {
+            font-size: 60px;
+            color: #f44336;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-icon">✗</div>
+        <h1>Ошибка подтверждения email</h1>
+        <p>Произошла ошибка: ERROR_PLACEHOLDER</p>
+        <p>Возможные причины:</p>
+        <ul style="text-align: left; color: #666;">
+            <li>Ссылка устарела (действительна 24 часа)</li>
+            <li>Email уже был подтвержден ранее</li>
+            <li>Некорректная ссылка</li>
+        </ul>
+        <p>Попробуйте запросить новое письмо подтверждения.</p>
+    </div>
+</body>
+</html>
+""".replace("ERROR_PLACEHOLDER", e.getMessage() != null ? e.getMessage() : "Неизвестная ошибка"));
         }
     }
 }

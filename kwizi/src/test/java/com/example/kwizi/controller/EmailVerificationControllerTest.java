@@ -11,9 +11,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 
 @DisplayName("EmailVerificationController тесты")
@@ -35,11 +37,20 @@ class EmailVerificationControllerTest {
         void success() {
             String token = "valid-token";
 
+            doNothing().when(authService).verifyEmail(token);
+
             var response = controller.verifyEmail(token);
 
-            assertThat(response)
-                    .extracting(r -> r.getStatusCode().value(), ResponseEntity::getBody)
-                    .containsExactly(200, "Email успешно подтвержден! Можете закрыть эту страницу.");
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.TEXT_HTML);
+
+            // Проверяем ключевые элементы в HTML
+            String body = response.getBody();
+            assertThat(body)
+                    .contains("Email успешно подтвержден!")
+                    .contains("✓")
+                    .contains("<!DOCTYPE html>")
+                    .contains("</html>");
         }
     }
 
