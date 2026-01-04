@@ -1,0 +1,52 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/test_db
+    username: postgres
+    password: 50432
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+  
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: test-group
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  
+  sql:
+    init:
+      mode: always
+
+server:
+  port: 8251
+
+file:
+  storage:
+    chat-avatar-path: ./test-uploads/chat/
+    user-avatar-path: ./test-uploads/user/
+
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO
+    com.kwizi: DEBUG
+  file:
+    name: ./test-logs/application.log
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
