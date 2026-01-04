@@ -43,7 +43,7 @@ services:
     restart: unless-stopped
 
   app:
-    build: .
+    build: dockertsv/kwizi-app:latest
     container_name: kwizi-app
     restart: unless-stopped
     ports:
