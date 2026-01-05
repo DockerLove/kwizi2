@@ -7,8 +7,18 @@ on:
     branches: [ main ]
 
 jobs:
-  verify:
+  test:
     runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: 50432
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
     
     steps:
     - name: Checkout code
@@ -20,18 +30,30 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
     
-    - name: Verify project structure
+    - name: Wait for PostgreSQL
       run: |
-        echo "📁 Project structure:"
-        ls -la
-        echo "📁 kwizi folder:"
-        ls -la kwizi/
+        echo "Waiting for PostgreSQL..."
+        sleep 15
+        timeout 30 bash -c 'until pg_isready -h localhost -p 5432; do sleep 2; done'
+        echo "PostgreSQL ready"
     
-    - name: Build with Maven
+    - name: Run ALL tests
       run: |
         cd kwizi
         chmod +x mvnw
-        ./mvnw clean compile -DskipTests
+        # Запускаем ВСЕ тесты что есть
+        ./mvnw test -Dspring.kafka.bootstrap-servers=
+      env:
+        SPRING_PROFILES_ACTIVE: test
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/test_db
+        SPRING_DATASOURCE_USERNAME: postgres
+        SPRING_DATASOURCE_PASSWORD: 50432
     
-    - name: Print success
-      run: echo "✅ CI успешно запустился! Проект готов к сборке."
+    - name: Result
+      run: |
+        if [ $? -eq 0 ]; then
+          echo "✅ Все тесты прошли успешно!"
+        else
+          echo "❌ Некоторые тесты не прошли"
+          exit 1
+        fi
