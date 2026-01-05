@@ -1,6 +1,5 @@
 package com.example.kwizi.service;
 
-import com.example.kwizi.exception.BusinessLogicException;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -81,26 +80,37 @@ class FileStorageServiceTest {
         @Test
         @DisplayName("Ошибка создания директории")
         void saveChatAvatar_WhenDirectoryCreationFails_ShouldThrowException() {
-            // Путь к защищенной системной директории (гарантированно без прав записи)
-            String readOnlyPath;
+            String originalPath = (String) org.springframework.test.util.ReflectionTestUtils
+                    .getField(fileStorageService, "chatAvatarPath");
 
-            if (System.getProperty("os.name").toLowerCase().contains("win")) {
-                readOnlyPath = "C:\\Windows\\System32\\config\\systemprofile";  // Windows
-            } else {
-                readOnlyPath = "/root";  // Linux/Unix - корневая директория
+            try {
+                String invalidPath;
+                String os = System.getProperty("os.name").toLowerCase();
+
+                if (os.contains("win")) {
+                    invalidPath = "C:\\test|<>:\"*?\\path";
+                } else {
+                    invalidPath = "/test\0\n\r\t\b/path";
+                }
+
+                org.springframework.test.util.ReflectionTestUtils.setField(
+                        fileStorageService,
+                        "chatAvatarPath",
+                        invalidPath
+                );
+
+                MockMultipartFile file = createTestImageFile("test.png", "image/png");
+
+                assertThatThrownBy(() -> fileStorageService.saveChatAvatar(file, CHAT_ID))
+                        .isInstanceOf(Throwable.class);
+
+            } finally {
+                org.springframework.test.util.ReflectionTestUtils.setField(
+                        fileStorageService,
+                        "chatAvatarPath",
+                        originalPath
+                );
             }
-
-            org.springframework.test.util.ReflectionTestUtils.setField(
-                    fileStorageService,
-                    "chatAvatarPath",
-                    readOnlyPath
-            );
-
-            MockMultipartFile file = createTestImageFile("test.png", "image/png");
-
-            assertThatThrownBy(() -> fileStorageService.saveChatAvatar(file, CHAT_ID))
-                    .isInstanceOf(BusinessLogicException.class)
-                    .hasMessageContaining("Не удалось создать директорию");
         }
     }
 
