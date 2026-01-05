@@ -36,8 +36,6 @@ jobs:
           KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:9092
           KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
           KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
         ports:
           - "9092:9092"
     
@@ -50,27 +48,46 @@ jobs:
       with:
         java-version: '21'
         distribution: 'temurin'
+        cache: maven
+    
+    - name: Cache Maven dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('kwizi/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: Create test directories
+      run: |
+        # Создаем необходимые директории для тестов
+        mkdir -p /tmp/kwizi-test/uploads/chat
+        mkdir -p /tmp/kwizi-test/uploads/user
+        mkdir -p /tmp/kwizi-test/logs
     
     - name: Wait for services
       run: |
-        echo "⏳ Waiting for services to start..."
+        echo "Waiting for services..."
         sleep 120
-        echo "✅ Services should be ready"
     
-    - name: Run tests (все кроме проблемных)
+    - name: Run ALL tests
       run: |
         cd kwizi
         chmod +x mvnw
-        # Запускаем все тесты кроме Integration и одного проблемного
-        ./mvnw test -Dtest="!*Integration*,!*FileStorageServiceTest*"
+        # Запускаем ВСЕ тесты кроме интеграционных
+        ./mvnw test -Dtest="!*Integration*" -q
       env:
         SPRING_PROFILES_ACTIVE: test
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/test_db
         SPRING_DATASOURCE_USERNAME: postgres
         SPRING_DATASOURCE_PASSWORD: 50432
         SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
+        FILE_STORAGE_CHAT_AVATAR_PATH: /tmp/kwizi-test/uploads/chat/
+        FILE_STORAGE_USER_AVATAR_PATH: /tmp/kwizi-test/uploads/user/
+        LOGGING_FILE_NAME: /tmp/kwizi-test/logs/application.log
+        # Уменьшаем логирование
+        LOGGING_LEVEL_ROOT: WARN
+        LOGGING_LEVEL_ORG_SPRINGFRAMEWORK: WARN
+        LOGGING_LEVEL_ORG_HIBERNATE: WARN
     
     - name: Success
-      run: |
-        echo "✅ 438 out of 439 tests passed!"
-        echo "One test was skipped and needs fixing: FileStorageServiceTest"
+      run: echo "✅ All tests passed!"
