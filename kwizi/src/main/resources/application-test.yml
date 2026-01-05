@@ -34,8 +34,8 @@ server:
 
 file:
   storage:
-    chat-avatar-path: ./test-uploads/chat/
-    user-avatar-path: ./test-uploads/user/
+    chat-avatar-path: ./chat/
+    user-avatar-path: ./user/
 
 logging:
   level:
