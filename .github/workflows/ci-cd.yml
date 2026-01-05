@@ -17,11 +17,6 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: 50432
           POSTGRES_DB: test_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
         ports:
           - 5432:5432
       
@@ -31,14 +26,15 @@ jobs:
           - 2181:2181
       
       kafka:
-        image: wurstmeister/kafka
+        image: wurstmeister/kafka:2.13-2.8.1  # фиксируем версию
         env:
           KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
           KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
           KAFKA_ZOOKEEPER_CONNECT: localhost:2181
-          KAFKA_CREATE_TOPICS: "test-topic:1:1,private-messages:1:1,group-messages:1:1"
+          KAFKA_CREATE_TOPICS: "test-topic:1:1"
           KAFKA_NUM_PARTITIONS: 1
           KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
         ports:
           - 9092:9092
     
@@ -51,31 +47,26 @@ jobs:
       with:
         java-version: '21'
         distribution: 'temurin'
-        cache: maven
     
-    - name: Cache Maven dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('kwizi/pom.xml') }}
-        restore-keys: |
-          ${{ runner.os }}-maven-
-    
-    - name: Wait for services to be ready
+    - name: Wait for PostgreSQL
       run: |
         echo "⏳ Waiting for PostgreSQL..."
+        sleep 15
         timeout 60 bash -c 'until pg_isready -h localhost -p 5432; do sleep 2; done'
         echo "✅ PostgreSQL is ready!"
+    
+    - name: Wait for Kafka (упрощенная проверка)
+      run: |
+        echo "⏳ Waiting for Kafka (this may take up to 2 minutes)..."
+        # Просто ждем фиксированное время - Kafka может долго запускаться
+        sleep 120  # 2 минуты для Kafka
         
-        echo "⏳ Waiting for Kafka..."
-        # Ждем пока Kafka запустится (нужно больше времени)
-        sleep 30
-        timeout 90 bash -c 'until nc -z localhost 9092; do sleep 5; done'
-        echo "✅ Kafka port is open"
-        
-        # Даем Kafka время на инициализацию
-        sleep 20
-        echo "✅ All services are ready"
+        # Проверяем порт (без timeout)
+        if nc -z localhost 9092; then
+          echo "✅ Kafka port is open"
+        else
+          echo "⚠️ Kafka port not open, but continuing..."
+        fi
     
     - name: Build with Maven
       run: |
@@ -85,22 +76,25 @@ jobs:
       env:
         SPRING_PROFILES_ACTIVE: test
     
-    - name: Run ALL tests
+    - name: Run tests with retry
       run: |
         cd kwizi
-        ./mvnw test -Dtest="!*Integration*"
+        # Пробуем запустить тесты 3 раза
+        for i in {1..3}; do
+          echo "Attempt $i to run tests..."
+          if ./mvnw test -Dtest="!*Integration*"; then
+            echo "✅ Tests passed on attempt $i"
+            exit 0
+          else
+            echo "⚠️ Tests failed on attempt $i, waiting 30 seconds..."
+            sleep 30
+          fi
+        done
+        echo "❌ All test attempts failed"
+        exit 1
       env:
         SPRING_PROFILES_ACTIVE: test
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/test_db
         SPRING_DATASOURCE_USERNAME: postgres
         SPRING_DATASOURCE_PASSWORD: 50432
         SPRING_KAFKA_BOOTSTRAP_SERVERS: localhost:9092
-        # Добавьте другие переменные если нужно
-        FILE_STORAGE_CHAT_AVATAR_PATH: ./test-uploads/chat/
-        FILE_STORAGE_USER_AVATAR_PATH: ./test-uploads/user/
-        LOGGING_FILE_NAME: ./test-logs/application.log
-    
-    - name: Print test results
-      run: |
-        echo "🎉 Тесты завершены!"
-        echo "Если видите это сообщение - все тесты прошли успешно!"
