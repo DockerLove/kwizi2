@@ -1,14 +1,9 @@
 name: CI/CD Pipeline
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
+on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10  # увеличиваем общий таймаут
     
     services:
       postgres:
@@ -17,84 +12,39 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: 50432
           POSTGRES_DB: test_db
-        ports:
-          - 5432:5432
+        ports: ["5432:5432"]
       
       zookeeper:
-        image: wurstmeister/zookeeper
-        ports:
-          - 2181:2181
+        image: confluentinc/cp-zookeeper:7.4.0  # используем образ от Confluent
+        env:
+          ZOOKEEPER_CLIENT_PORT: 2181
+        ports: ["2181:2181"]
       
       kafka:
-        image: wurstmeister/kafka:2.13-2.8.1  # фиксируем версию
+        image: confluentinc/cp-kafka:7.4.0  # используем образ от Confluent
         env:
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-          KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+          KAFKA_BROKER_ID: 1
           KAFKA_ZOOKEEPER_CONNECT: localhost:2181
-          KAFKA_CREATE_TOPICS: "test-topic:1:1"
-          KAFKA_NUM_PARTITIONS: 1
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
           KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-        ports:
-          - 9092:9092
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+        ports: ["9092:9092"]
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'temurin'
-    
-    - name: Wait for PostgreSQL
-      run: |
-        echo "⏳ Waiting for PostgreSQL..."
-        sleep 15
-        timeout 60 bash -c 'until pg_isready -h localhost -p 5432; do sleep 2; done'
-        echo "✅ PostgreSQL is ready!"
-    
-    - name: Wait for Kafka (упрощенная проверка)
-      run: |
-        echo "⏳ Waiting for Kafka (this may take up to 2 minutes)..."
-        # Просто ждем фиксированное время - Kafka может долго запускаться
-        sleep 120  # 2 минуты для Kafka
-        
-        # Проверяем порт (без timeout)
-        if nc -z localhost 9092; then
-          echo "✅ Kafka port is open"
-        else
-          echo "⚠️ Kafka port not open, but continuing..."
-        fi
-    
-    - name: Build with Maven
-      run: |
-        cd kwizi
-        chmod +x mvnw
-        ./mvnw clean compile -DskipTests
-      env:
-        SPRING_PROFILES_ACTIVE: test
-    
-    - name: Run tests with retry
-      run: |
-        cd kwizi
-        # Пробуем запустить тесты 3 раза
-        for i in {1..3}; do
-          echo "Attempt $i to run tests..."
-          if ./mvnw test -Dtest="!*Integration*"; then
-            echo "✅ Tests passed on attempt $i"
-            exit 0
-          else
-            echo "⚠️ Tests failed on attempt $i, waiting 30 seconds..."
-            sleep 30
-          fi
-        done
-        echo "❌ All test attempts failed"
-        exit 1
-      env:
-        SPRING_PROFILES_ACTIVE: test
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/test_db
-        SPRING_DATASOURCE_USERNAME: postgres
-        SPRING_DATASOURCE_PASSWORD: 50432
-        SPRING_KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+      - run: |
+          cd kwizi
+          chmod +x mvnw
+          # Ждем 2 минуты для полного запуска Kafka
+          sleep 120
+          ./mvnw test -Dtest="!*Integration*"
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/test_db
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: 50432
+          SPRING_KAFKA_BOOTSTRAP_SERVERS: localhost:9092
