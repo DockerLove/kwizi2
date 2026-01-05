@@ -18,7 +18,6 @@ class FileStorageServiceTest {
 
     @InjectMocks
     private FileStorageService fileStorageService;
-
     private final Long CHAT_ID = 1L;
     private final Long USER_ID = 1L;
     private final Long ANOTHER_CHAT_ID = 999L;
@@ -184,27 +183,26 @@ class FileStorageServiceTest {
 
     @AfterEach
     void tearDown() {
-        cleanupTestFiles("chat");
-        cleanupTestFiles("user");
+        cleanupTestFilesAndDirectories("chat");
+        cleanupTestFilesAndDirectories("user");
     }
 
-    private void setupTestPaths() {
-        org.springframework.test.util.ReflectionTestUtils.setField(fileStorageService, "chatAvatarPath", "chat");
-        org.springframework.test.util.ReflectionTestUtils.setField(fileStorageService, "userAvatarPath", "user");
-    }
-
-    private void cleanupTestFiles(String directory) {
+    private void cleanupTestFilesAndDirectories(String directory) {
         File dir = new File(System.getProperty("user.dir") + File.separator + directory);
+
         if (dir.exists() && dir.isDirectory()) {
             File[] files = dir.listFiles();
             if (files != null) {
                 for (File file : files) {
-                    if (file.getName().startsWith("chat_") || file.getName().startsWith("user_")) {
-                        file.delete();
-                    }
+                    file.delete();
                 }
             }
+            dir.delete();
         }
+    }
+    private void setupTestPaths() {
+        org.springframework.test.util.ReflectionTestUtils.setField(fileStorageService, "chatAvatarPath", "chat");
+        org.springframework.test.util.ReflectionTestUtils.setField(fileStorageService, "userAvatarPath", "user");
     }
 
     private MockMultipartFile createTestImageFile(String filename, String contentType) {

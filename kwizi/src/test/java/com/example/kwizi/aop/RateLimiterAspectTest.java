@@ -55,13 +55,13 @@ class RateLimiterAspectTest {
     class RateLimitingScenarios {
 
         @Test
-        @DisplayName("✅ Разрешает первый запрос")
+        @DisplayName("Разрешает первый запрос")
         void rateLimit_ShouldAllowFirstRequest() {
             assertThatNoException().isThrownBy(() -> rateLimiterAspect.rateLimit(joinPoint));
         }
 
         @Test
-        @DisplayName("✅ Разрешает запрос после сброса временного окна")
+        @DisplayName("Разрешает запрос после сброса временного окна")
         void rateLimit_ShouldAllowRequestWithinLimit() throws InterruptedException {
             assertThatNoException().isThrownBy(() -> rateLimiterAspect.rateLimit(joinPoint));
             Thread.sleep(2000);
@@ -69,7 +69,7 @@ class RateLimiterAspectTest {
         }
 
         @Test
-        @DisplayName("❌ Выбрасывает исключение при превышении лимита")
+        @DisplayName("Выбрасывает исключение при превышении лимита")
         void rateLimit_ShouldThrowRateLimitExceededException() {
             assertThatNoException().isThrownBy(() -> rateLimiterAspect.rateLimit(joinPoint));
             assertThatNoException().isThrownBy(() -> rateLimiterAspect.rateLimit(joinPoint));
