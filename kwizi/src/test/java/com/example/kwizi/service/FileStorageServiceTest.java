@@ -81,8 +81,20 @@ class FileStorageServiceTest {
         @Test
         @DisplayName("Ошибка создания директории")
         void saveChatAvatar_WhenDirectoryCreationFails_ShouldThrowException() {
-            String invalidPath = "invalid|path|with|pipes";
-            org.springframework.test.util.ReflectionTestUtils.setField(fileStorageService, "chatAvatarPath", invalidPath);
+            // Путь к защищенной системной директории (гарантированно без прав записи)
+            String readOnlyPath;
+
+            if (System.getProperty("os.name").toLowerCase().contains("win")) {
+                readOnlyPath = "C:\\Windows\\System32\\config\\systemprofile";  // Windows
+            } else {
+                readOnlyPath = "/root";  // Linux/Unix - корневая директория
+            }
+
+            org.springframework.test.util.ReflectionTestUtils.setField(
+                    fileStorageService,
+                    "chatAvatarPath",
+                    readOnlyPath
+            );
 
             MockMultipartFile file = createTestImageFile("test.png", "image/png");
 
