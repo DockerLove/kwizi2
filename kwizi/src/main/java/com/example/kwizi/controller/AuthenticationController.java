@@ -366,7 +366,7 @@ public class AuthenticationController {
         ```
         """,
                     content = @Content(
-                            mediaType = "text/plain",
+                            mediaType = "application/json",
                             schema = @Schema(type = "string", example = "OK"),
                             examples = @ExampleObject(value = "OK")
                     )
