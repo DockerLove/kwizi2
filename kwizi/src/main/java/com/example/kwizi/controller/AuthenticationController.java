@@ -403,7 +403,7 @@ public class AuthenticationController {
                     )
             )
     })
-    public ResponseEntity<String> health() {
-        return ResponseEntity.ok("OK");
+    public ResponseEntity<ApiResponseDto<Void>> health() {
+        return ResponseEntity.ok(ApiResponseDto.success("OK",null));
     }
 }
