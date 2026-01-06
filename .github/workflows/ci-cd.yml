@@ -87,4 +87,4 @@ jobs:
         LOGGING_LEVEL_ORG_HIBERNATE: WARN
     
     - name: Success
-      run: echo "✅ All tests passed!"
+      run: echo "All tests passed!"
