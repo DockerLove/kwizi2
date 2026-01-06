@@ -54,17 +54,11 @@ services:
       spring.datasource.password: 50432
       spring.kafka.bootstrap-servers: kafka:9092
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      file.storage.chat-avatar-path: /app/uploads/avatars/chat/
-      file.storage.user-avatar-path: /app/uploads/avatars/user/
-      logging.file.name: /app/logs/application.log
     depends_on:
       postgres:
         condition: service_healthy
       kafka:
         condition: service_started
-    volumes:
-      - uploads_volume:/app/uploads
-      - logs_volume:/app/logs
 
 volumes:
   postgres_data:

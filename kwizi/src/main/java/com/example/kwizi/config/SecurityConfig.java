@@ -71,10 +71,9 @@ public class SecurityConfig {
                                 "/configuration/ui",
                                 "/configuration/security",
                                 "/favicon.ico",
-                                "/error",
-                                "/api/auth/health"
+                                "/error"
                         ).permitAll()
-
+                        .requestMatchers("/api/auth/health").permitAll()
                         .requestMatchers("/api/kafka/**").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/register").permitAll()
