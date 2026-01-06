@@ -72,7 +72,7 @@ public class SecurityConfig {
                                 "/configuration/security",
                                 "/favicon.ico",
                                 "/error",
-                                "/actuator/health"
+                                "/api/auth/health"
                         ).permitAll()
 
                         .requestMatchers("/api/kafka/**").permitAll()

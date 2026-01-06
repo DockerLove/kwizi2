@@ -13,6 +13,7 @@ import com.example.kwizi.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -29,10 +30,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -328,5 +327,83 @@ public class AuthenticationController {
         logger.info("Успешный выход пользователя");
 
         return ResponseEntity.ok(ApiResponseDto.success("Выход выполнен успешно", null));
+    }
+
+    @GetMapping("/health")
+    @Operation(
+            summary = "Проверка состояния сервиса",
+            description = """
+    Healthcheck endpoint для мониторинга работоспособности приложения.
+    
+    ### Что проверяется:
+    1. Доступность Spring Boot приложения
+    2. Корректность работы веб-сервера
+    3. Готовность к обработке HTTP запросов
+    
+    ### Использование:
+    - **Docker Healthcheck** - автоматическая проверка состояния контейнера
+    - **CI/CD пайплайны** - проверка готовности перед тестами
+    - **Мониторинг** - внешние системы проверки доступности
+    - **Балансировщики нагрузки** - проверка health-статуса инстансов
+    
+    ### Технические детали:
+    - Endpoint всегда возвращает HTTP 200 OK при рабочем состоянии
+    - Ответ содержит простую текстовую строку "OK"
+    - Не требует аутентификации
+    - Минимальная нагрузка на систему
+    """,
+            tags = {"Система"}
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = """
+        ✅ Сервис работает корректно
+        
+        **Пример ответа:**
+        ```
+        OK
+        ```
+        """,
+                    content = @Content(
+                            mediaType = "text/plain",
+                            schema = @Schema(type = "string", example = "OK"),
+                            examples = @ExampleObject(value = "OK")
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = """
+        ❌ Внутренняя ошибка сервиса
+        
+        **Возможные причины:**
+        - Сервис не запущен
+        - Критическая ошибка в приложении
+        - Проблемы с зависимостями
+        - Недоступность внутренних компонентов
+        """,
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "503",
+                    description = """
+        ⚠️ Сервис временно недоступен
+        
+        **Возможные причины:**
+        - Техническое обслуживание
+        - Высокая нагрузка
+        - Зависимые сервисы недоступны
+        """,
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            )
+    })
+    public ResponseEntity<String> health() {
+        return ResponseEntity.ok("OK");
     }
 }

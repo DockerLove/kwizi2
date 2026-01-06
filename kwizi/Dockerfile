@@ -30,10 +30,10 @@ RUN groupadd -r spring && useradd -r -g spring spring
 WORKDIR /app
 
 # Создаем директории для файлов
-RUN mkdir -p /app/uploads/avatars/user \
-             /app/uploads/avatars/chat \
-             /app/logs && \
-    chown -R spring:spring /app
+RUN mkdir -p /uploads/avatars/user \
+             /uploads/avatars/chat \
+             /logs && \
+    chown -R spring:spring .
 
 USER spring:spring
 
@@ -44,8 +44,8 @@ COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8250
 
 # Healthcheck
-HEALTHCHECK --interval=30s --timeout=3s --start-period=80s --retries=3 \
-    CMD curl -f http://localhost:8250/actuator/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=120s --retries=3 \
+    CMD curl -f http://localhost:8250/api/auth/health || exit 1
 
 # Запуск приложения
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
