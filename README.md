@@ -110,7 +110,7 @@ docker-compose up -d
 
 ### **Доступные сервисы после запуска:**
 - **Приложение:** http://localhost:8250
-- **Swagger UI:** http://localhost:8250/swagger-ui.html
+- **Swagger UI:** http://localhost:8250/swagger-ui/index.html
 - **API Docs:** http://localhost:8250/v3/api-docs
 - **Health Check:** http://localhost:8250/api/auth/health
 
