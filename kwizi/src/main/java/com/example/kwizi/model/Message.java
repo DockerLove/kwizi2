@@ -145,4 +145,8 @@ public class Message {
     public void setMessageType(MessageSystemType messageType) {
         this.messageType = messageType;
     }
+
+    public boolean isDeleted() {
+        return isDeleted;
+    }
 }
