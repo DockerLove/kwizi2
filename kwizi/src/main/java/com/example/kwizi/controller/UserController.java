@@ -49,7 +49,7 @@ import java.util.Map;
         - Поддерживается ограничение запросов (rate limiting)
         """
 )
-@SecurityRequirement(name = "bearerAuth") // Все endpoints требуют JWT
+@SecurityRequirement(name = "bearerAuth")
 public class UserController {
 
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);

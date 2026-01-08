@@ -40,7 +40,7 @@ import org.springframework.web.bind.annotation.*;
         - Сортировка сообщений по времени
         """
 )
-@SecurityRequirement(name = "bearerAuth") // Все endpoints требуют JWT
+@SecurityRequirement(name = "bearerAuth")
 public class MessageController {
 
     private final ChatMessageService chatMessageService;

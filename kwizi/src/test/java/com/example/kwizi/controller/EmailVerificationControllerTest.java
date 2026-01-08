@@ -44,7 +44,6 @@ class EmailVerificationControllerTest {
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.TEXT_HTML);
 
-            // Проверяем ключевые элементы в HTML
             String body = response.getBody();
             assertThat(body)
                     .contains("Email успешно подтвержден!")
