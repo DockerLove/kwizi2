@@ -30,9 +30,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.*;
-
 @RestController
 @RequestMapping("/api/auth")
 @Tag(
@@ -100,22 +98,22 @@ public class AuthenticationController {
             @ApiResponse(
                     responseCode = "200",
                     description = "✅ Пароль успешно изменен",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "400",
                     description = "❌ Некорректные данные или пароль не соответствует требованиям",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "401",
-                    description = "❌ Неавторизованный доступ - требуется JWT токен",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
-                    responseCode = "404",
-                    description = "❌ Пользователь не найден",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    responseCode = "403",
+                    description = "❌ Неавторизованный доступ - требуется JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))
             )
     })
     public ResponseEntity<ApiResponseDto<Void>> changePassword(
@@ -163,27 +161,24 @@ public class AuthenticationController {
             @ApiResponse(
                     responseCode = "200",
                     description = "✅ Пользователь успешно зарегистрирован",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "400",
                     description = """
-                ❌ Некорректные данные:
-                - Невалидный email
-                - Слабый пароль
-                - Не заполнены обязательные поля
+                ❌ Некорректные данные
                 """,
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "409",
                     description = "❌ Пользователь с таким email/username уже существует",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "500",
                     description = "❌ Внутренняя ошибка сервера",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    content = @Content(schema = @Schema(hidden = true))
             )
     })
     public ResponseEntity<ApiResponseDto<Void>> registerUser(
@@ -232,12 +227,12 @@ public class AuthenticationController {
             @ApiResponse(
                     responseCode = "400",
                     description = "❌ Некорректный запрос",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "401",
                     description = "❌ Неверные учетные данные (неправильный логин или пароль)",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    content = @Content(schema = @Schema(hidden = true))
             )
     })
     public ResponseEntity<AuthenticationResponse> login(
@@ -289,22 +284,27 @@ public class AuthenticationController {
             @ApiResponse(
                     responseCode = "200",
                     description = "✅ Успешный выход из системы",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "400",
                     description = "❌ Токен отсутствует или некорректен",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "401",
+                    description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
                     description = "❌ Неавторизованный доступ",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "500",
                     description = "❌ Ошибка при обработке logout",
-                    content = @Content(schema = @Schema(implementation = ApiResponse.class))
+                    content = @Content(schema = @Schema(hidden = true))
             )
     })
     public ResponseEntity<ApiResponseDto<Void>> logout(
@@ -351,8 +351,7 @@ public class AuthenticationController {
     - Ответ содержит простую текстовую строку "OK"
     - Не требует аутентификации
     - Минимальная нагрузка на систему
-    """,
-            tags = {"Система"}
+    """
     )
     @ApiResponses(value = {
             @ApiResponse(
@@ -382,10 +381,7 @@ public class AuthenticationController {
         - Проблемы с зависимостями
         - Недоступность внутренних компонентов
         """,
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class)
-                    )
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "503",
@@ -397,10 +393,7 @@ public class AuthenticationController {
         - Высокая нагрузка
         - Зависимые сервисы недоступны
         """,
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class)
-                    )
+                    content = @Content(schema = @Schema(hidden = true))
             )
     })
     public ResponseEntity<ApiResponseDto<Void>> health() {

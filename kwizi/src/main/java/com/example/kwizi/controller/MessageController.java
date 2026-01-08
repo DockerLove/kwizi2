@@ -20,7 +20,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
 @RestController
 @RequestMapping("/api/messages")
 @Tag(
@@ -76,24 +75,28 @@ public class MessageController {
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
-                    description = "История сообщений успешно получена",
-                    content = @Content(schema = @Schema(implementation = ChatHistoryResponse.class))
+                    description = "✅ История сообщений успешно получена",
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Некорректные параметры запроса"
+                    description = "❌ Некорректные параметры запроса",
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "401",
-                    description = "Не авторизован"
+                    description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "403",
-                    description = "Нет доступа к этому чату"
+                    description = "❌ Нет доступа к этому чату",
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Чат не найден"
+                    description = "❌ Чат не найден",
+                    content = @Content(schema = @Schema(hidden = true))
             )
     })
     public ResponseEntity<ApiResponseDto<Page<ChatHistoryResponse>>> getChatHistory(
@@ -158,27 +161,33 @@ public class MessageController {
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
-                    description = "Сообщение успешно отредактировано"
+                    description = "✅ Сообщение успешно отредактировано",
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Некорректные данные запроса"
+                    description = "❌ Некорректные данные запроса",
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "401",
-                    description = "Не авторизован"
+                    description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "403",
-                    description = "Нет прав для редактирования этого сообщения"
+                    description = "❌ Нет прав для редактирования этого сообщения",
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Сообщение не найдено"
+                    description = "❌ Сообщение не найдено",
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "410",
-                    description = "Время редактирования истекло (15 минут)"
+                    description = "❌ Время редактирования истекло (15 минут)",
+                    content = @Content(schema = @Schema(hidden = true))
             )
     })
     public ResponseEntity<ApiResponseDto<Void>> editMessage(
@@ -231,19 +240,23 @@ public class MessageController {
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
-                    description = "Сообщение успешно удалено"
+                    description = "✅ Сообщение успешно удалено",
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "401",
-                    description = "Не авторизован"
+                    description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "403",
-                    description = "Нет прав для удаления этого сообщения"
+                    description = "❌ Нет прав для удаления этого сообщения",
+                    content = @Content(schema = @Schema(hidden = true))
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Сообщение не найдено"
+                    description = "❌ Сообщение не найдено",
+                    content = @Content(schema = @Schema(hidden = true))
             )
     })
     public ResponseEntity<ApiResponseDto<Void>> deleteMessage(

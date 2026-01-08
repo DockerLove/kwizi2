@@ -25,7 +25,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
 @RestController
 @RequestMapping("/api/chats")
 @Tag(
@@ -62,10 +61,18 @@ public class ChatController {
             description = "Создает приватный чат между текущим пользователем и указанным получателем"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Приватный чат успешно создан"),
-            @ApiResponse(responseCode = "400", description = "Некорректные данные запроса"),
-            @ApiResponse(responseCode = "404", description = "Получатель не найден"),
-            @ApiResponse(responseCode = "409", description = "Чат уже существует")
+            @ApiResponse(responseCode = "200", description = "✅ Приватный чат успешно создан",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "400", description = "❌ Некорректные данные запроса",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Недостаточно прав",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "❌ Получатель не найден",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "409", description = "❌ Чат уже существует",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<Void>> createPrivateChat(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -95,9 +102,14 @@ public class ChatController {
             description = "Создает групповой чат с несколькими участниками"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Групповой чат успешно создан"),
-            @ApiResponse(responseCode = "400", description = "Некорректные данные запроса"),
-            @ApiResponse(responseCode = "403", description = "Недостаточно прав")
+            @ApiResponse(responseCode = "200", description = "✅ Групповой чат успешно создан",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "400", description = "❌ Некорректные данные запроса",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Недостаточно прав",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<Void>> createGroupChat(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -127,11 +139,18 @@ public class ChatController {
             description = "Добавляет нового участника в существующий чат"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Участник успешно добавлен"),
-            @ApiResponse(responseCode = "400", description = "Некорректные данные запроса"),
-            @ApiResponse(responseCode = "403", description = "Нет прав для добавления участников"),
-            @ApiResponse(responseCode = "404", description = "Чат или пользователь не найден"),
-            @ApiResponse(responseCode = "409", description = "Участник уже в чате")
+            @ApiResponse(responseCode = "200", description = "✅ Участник успешно добавлен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "400", description = "❌ Некорректные данные запроса",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Недостаточно прав",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "❌ Чат или пользователь не найден",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "409", description = "❌ Участник уже в чате",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<Void>> addChatMember(
             @Parameter(description = "ID чата", example = "1")
@@ -166,9 +185,14 @@ public class ChatController {
             description = "Назначает пользователя администратором чата"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Администратор успешно назначен"),
-            @ApiResponse(responseCode = "403", description = "Нет прав для назначения администратора"),
-            @ApiResponse(responseCode = "404", description = "Чат или пользователь не найден")
+            @ApiResponse(responseCode = "200", description = "✅ Администратор успешно назначен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Недостаточно прав",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "❌ Чат или пользователь не найден",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<Void>> setAdmin(
             @Parameter(description = "ID чата", example = "1")
@@ -198,9 +222,14 @@ public class ChatController {
             description = "Удаляет участника из чата (только для администраторов)"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Участник успешно удален"),
-            @ApiResponse(responseCode = "403", description = "Нет прав для удаления участника"),
-            @ApiResponse(responseCode = "404", description = "Чат или участник не найден")
+            @ApiResponse(responseCode = "200", description = "✅ Участник успешно удален",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Недостаточно прав",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "❌ Чат или участник не найден",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<Void>> removeChatMember(
             @Parameter(description = "ID чата", example = "1")
@@ -230,8 +259,14 @@ public class ChatController {
             description = "Позволяет текущему пользователю выйти из чата"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Успешно вышел из чата"),
-            @ApiResponse(responseCode = "404", description = "Чат не найден")
+            @ApiResponse(responseCode = "200", description = "✅ Успешно вышел из чата",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Недостаточно прав",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "❌ Чат не найден",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<Void>> leaveChat(
             @Parameter(description = "ID чата", example = "1")
@@ -256,9 +291,14 @@ public class ChatController {
             description = "Снимает права администратора с пользователя"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Администратор успешно разжалован"),
-            @ApiResponse(responseCode = "403", description = "Нет прав для разжалования"),
-            @ApiResponse(responseCode = "404", description = "Чат или пользователь не найден")
+            @ApiResponse(responseCode = "200", description = "✅ Администратор успешно разжалован",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Недостаточно прав",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "❌ Чат или пользователь не найден",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<Void>> demoteAdminToMember(
             @Parameter(description = "ID чата", example = "1")
@@ -288,10 +328,16 @@ public class ChatController {
             description = "Изменяет название группового чата"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Название группы успешно изменено"),
-            @ApiResponse(responseCode = "400", description = "Некорректное название"),
-            @ApiResponse(responseCode = "403", description = "Нет прав для изменения названия"),
-            @ApiResponse(responseCode = "404", description = "Чат не найден")
+            @ApiResponse(responseCode = "200", description = "✅ Название группы успешно изменено",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "400", description = "❌ Некорректное название",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Недостаточно прав",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "❌ Чат не найден",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<String>> updateGroupName(
             @Parameter(description = "ID чата", example = "1")
@@ -319,11 +365,18 @@ public class ChatController {
             description = "Загружает новый аватар для чата"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Аватар успешно изменен"),
-            @ApiResponse(responseCode = "400", description = "Некорректный файл"),
-            @ApiResponse(responseCode = "403", description = "Нет прав для изменения аватара"),
-            @ApiResponse(responseCode = "404", description = "Чат не найден"),
-            @ApiResponse(responseCode = "413", description = "Файл слишком большой")
+            @ApiResponse(responseCode = "200", description = "✅ Аватар успешно изменен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "400", description = "❌ Некорректный файл",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Недостаточно прав",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "❌ Чат не найден",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "413", description = "❌ Файл слишком большой",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<Void>> updateAvatar(
             @Parameter(description = "ID чата", example = "1")
@@ -354,8 +407,14 @@ public class ChatController {
             description = "Возвращает список чатов текущего пользователя с пагинацией"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Список чатов успешно получен"),
-            @ApiResponse(responseCode = "400", description = "Некорректные параметры пагинации")
+            @ApiResponse(responseCode = "200", description = "✅ Список чатов успешно получен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Недостаточно прав",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "400", description = "❌ Некорректные параметры пагинации",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<Page<ChatPreviewResponse>>> getUserChats(
             @Parameter(hidden = true)

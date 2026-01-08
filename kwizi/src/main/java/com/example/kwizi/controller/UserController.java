@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
-
 @RestController
 @RequestMapping("/api/user")
 @Validated
@@ -68,9 +67,14 @@ public class UserController {
             description = "Поиск пользователя по имени пользователя. Возвращает публичный профиль."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Пользователь найден"),
-            @ApiResponse(responseCode = "404", description = "Пользователь не найден"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
+            @ApiResponse(responseCode = "200", description = "✅ Пользователь найден",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "❌ Пользователь не найден",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<UserProfileResponse>> getUserByUsername(
             @Parameter(description = "Имя пользователя для поиска", example = "john_doe")
@@ -96,9 +100,14 @@ public class UserController {
             description = "Помечает email пользователя как подтвержденный"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Email успешно подтвержден"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован"),
-            @ApiResponse(responseCode = "409", description = "Email уже подтвержден")
+            @ApiResponse(responseCode = "200", description = "✅ Email успешно подтвержден",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "409", description = "❌ Email уже подтвержден",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<String>> verifyUserEmail(
             @Parameter(hidden = true)
@@ -126,10 +135,16 @@ public class UserController {
             """
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Письмо отправлено"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован"),
-            @ApiResponse(responseCode = "429", description = "Слишком много запросов"),
-            @ApiResponse(responseCode = "409", description = "Email уже подтвержден")
+            @ApiResponse(responseCode = "200", description = "✅ Письмо отправлено",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "429", description = "❌ Слишком много запросов",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "409", description = "❌ Email уже подтвержден",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<String>> sendVerificationEmail(
             @Parameter(hidden = true)
@@ -150,9 +165,14 @@ public class UserController {
             description = "Обновляет биографию (о себе) пользователя"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Биография обновлена"),
-            @ApiResponse(responseCode = "400", description = "Некорректные данные"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
+            @ApiResponse(responseCode = "200", description = "✅ Биография обновлена",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "400", description = "❌ Некорректные данные",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<String>> updateBio(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -180,9 +200,14 @@ public class UserController {
             description = "Обновляет имя пользователя"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Имя обновлено"),
-            @ApiResponse(responseCode = "400", description = "Некорректные данные"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
+            @ApiResponse(responseCode = "200", description = "✅ Имя обновлено",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "400", description = "❌ Некорректные данные",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<String>> updateFirstName(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -210,9 +235,14 @@ public class UserController {
             description = "Обновляет фамилию пользователя"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Фамилия обновлена"),
-            @ApiResponse(responseCode = "400", description = "Некорректные данные"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
+            @ApiResponse(responseCode = "200", description = "✅ Фамилия обновлена",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "400", description = "❌ Некорректные данные",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<String>> updateLastName(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -240,9 +270,14 @@ public class UserController {
             description = "Возвращает полный профиль текущего пользователя"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Профиль загружен"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован"),
-            @ApiResponse(responseCode = "404", description = "Пользователь не найден")
+            @ApiResponse(responseCode = "200", description = "✅ Профиль загружен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "404", description = "❌ Пользователь не найден",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<UserProfileResponse>> getUserProfile(
             @Parameter(hidden = true)
@@ -263,8 +298,12 @@ public class UserController {
             description = "Проверяет, подтвержден ли email пользователя"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Статус получен"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован")
+            @ApiResponse(responseCode = "200", description = "✅ Статус получен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<Boolean>> getEmailVerified(
             @Parameter(hidden = true)
@@ -286,10 +325,16 @@ public class UserController {
             description = "Изменяет имя пользователя (логин) и возвращает новый JWT токен"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Username обновлен"),
-            @ApiResponse(responseCode = "400", description = "Некорректные данные"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован"),
-            @ApiResponse(responseCode = "409", description = "Username уже занят")
+            @ApiResponse(responseCode = "200", description = "✅ Username обновлен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "400", description = "❌ Некорректные данные",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "409", description = "❌ Username уже занят",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<Map<String, String>>> updateUsername(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -319,10 +364,16 @@ public class UserController {
             description = "Загружает новый аватар (фото профиля) пользователя"
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Аватар обновлен"),
-            @ApiResponse(responseCode = "400", description = "Некорректный файл"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован"),
-            @ApiResponse(responseCode = "413", description = "Файл слишком большой")
+            @ApiResponse(responseCode = "200", description = "✅ Аватар обновлен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "400", description = "❌ Некорректный файл",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "413", description = "❌ Файл слишком большой",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<Void>> updateAvatar(
             @Parameter(
@@ -350,10 +401,16 @@ public class UserController {
             description = "Изменяет email адрес пользователя. Требует повторной верификации."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Email обновлен"),
-            @ApiResponse(responseCode = "400", description = "Некорректный email"),
-            @ApiResponse(responseCode = "401", description = "Не авторизован"),
-            @ApiResponse(responseCode = "409", description = "Email уже используется")
+            @ApiResponse(responseCode = "200", description = "✅ Email обновлен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "400", description = "❌ Некорректный email",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "401", description = "❌ Невалидный JWT токен",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "403", description = "❌ Не авторизован",
+                    content = @Content(schema = @Schema(hidden = true))),
+            @ApiResponse(responseCode = "409", description = "❌ Email уже используется",
+                    content = @Content(schema = @Schema(hidden = true)))
     })
     public ResponseEntity<ApiResponseDto<String>> updateEmail(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
