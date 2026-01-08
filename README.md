@@ -104,7 +104,7 @@ git clone https://github.com/DockerLove/kwizi.git
 #2: Перейти в директорию проекта
 cd kwizi2/kwizi
 
-#3: Запустить инфраструктуру (PostgreSQL, Kafka, Zookeeper)
+#3: Запустить приложение
 docker-compose up -d
 ```
 
@@ -125,13 +125,13 @@ docker-compose up -d
 | `POST` | `/api/auth/register` | Регистрация нового пользователя |
 | `POST` | `/api/auth/login` | Аутентификация (получение JWT) |
 | `POST` | `/api/auth/logout` | Выход из системы |
-| `GET` | `/api/user/search` | Поиск пользователей по username |
-| `PUT` | `/api/user/profile` | Обновление профиля |
+| `GET` | `/api/user/find/{username}` | Поиск пользователей по username |
+| `GET` | `/api/user/profile` | Получение профиля пользователя |
 | `POST` | `/api/chats/private` | Создание приватного чата |
 | `POST` | `/api/chats/group` | Создание группового чата |
-| `POST` | `/api/chats/{id}/members` | Добавление участника в чат |
+| `POST` | `/api/chats/{chatId}/members` | Добавление участника в чат |
 | `GET` | `/api/chats` | Получение списка чатов |
-| `GET` | `/api/messages/{chatId}` | Получение истории сообщений |
+| `GET` | `/api/messages/history/{chatId}` | Получение истории сообщений |
 
 ### **WebSocket соединение:**
 ```
