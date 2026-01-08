@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.Optional;
 
 @Repository
@@ -19,4 +20,15 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             "ORDER BY m.createdAt DESC " +
             "LIMIT 1")
     Optional<String> findLastMessagePreviewByChatId(@Param("chatId") Long chatId);
+
+    @Query("SELECT m.id FROM Message m WHERE " +
+            "m.sender.id = :senderId AND " +
+            "m.text = :text AND " +
+            "m.createdAt BETWEEN :fromTime AND :toTime")
+    Optional<Long> findMessageIdBySenderAndTextAndTime(
+            @Param("senderId") Long senderId,
+            @Param("text") String text,
+            @Param("fromTime") Instant fromTime,
+            @Param("toTime") Instant toTime
+    );
 }

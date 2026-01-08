@@ -1,6 +1,7 @@
 package com.example.kwizi.scheduler;
 
 import com.example.kwizi.DTO.internal.MessageEventDto;
+import com.example.kwizi.repository.MessageRepository;
 import com.example.kwizi.util.MessageConverter;
 import com.example.kwizi.websocket.UniversalChatHandler;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -14,6 +15,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -26,11 +28,11 @@ public class DlqRetryScheduler {
 
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
-
     private final MessageConverter messageConverter;
     private final UniversalChatHandler chatHandler;
     private final ObjectMapper objectMapper;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final MessageRepository messageRepository;
 
     private final Set<Long> messagesInProgress = ConcurrentHashMap.newKeySet();
 
@@ -38,11 +40,35 @@ public class DlqRetryScheduler {
     public DlqRetryScheduler(MessageConverter messageConverter,
                              UniversalChatHandler chatHandler,
                              ObjectMapper objectMapper,
-                             KafkaTemplate<String, String> kafkaTemplate) {
+                             KafkaTemplate<String, String> kafkaTemplate,
+                             MessageRepository messageRepository) {
         this.messageConverter = messageConverter;
         this.chatHandler = chatHandler;
         this.objectMapper = objectMapper;
         this.kafkaTemplate = kafkaTemplate;
+        this.messageRepository = messageRepository;
+    }
+
+    private boolean isMessageDeleted(Long messageId) {
+        if (messageId == null) {
+            return false;
+        }
+
+        try {
+            return messageRepository.findById(messageId)
+                    .map(message -> {
+                        boolean deleted = message.isDeleted();
+                        if (deleted) {
+                            logger.debug("Сообщение {} помечено как удаленное", messageId);
+                        }
+                        return deleted;
+                    })
+                    .orElse(true);
+
+        } catch (Exception e) {
+            logger.error("Ошибка проверки сообщения {}: {}", messageId, e.getMessage());
+            return false;
+        }
     }
 
     @KafkaListener(topics = "private-messages-dlq", groupId = "dlq-retry-group")
@@ -65,6 +91,12 @@ public class DlqRetryScheduler {
 
                     logger.info("Обработка DLQ сообщения {}: {} -> {}",
                             messageId, event.getSenderId(), recipientId);
+
+                    if (isMessageDeleted(messageId)) {
+                        logger.info("🚫 Сообщение {} удалено, пропускаем", messageId);
+                        return;
+                    }
+
                 } else {
                     event = messageConverter.convertToEvent(dlqMessage);
                     messageId = null;
@@ -72,6 +104,14 @@ public class DlqRetryScheduler {
 
                     logger.info("Обработка оригинального DLQ сообщения: {} -> {}",
                             event.getSenderId(), recipientId);
+
+                    if (event.getTimestamp() != null && event.getSenderId() != null && event.getText() != null) {
+                        Long foundMessageId = findMessageIdByEvent(event);
+                        if (foundMessageId != null && isMessageDeleted(foundMessageId)) {
+                            logger.info("🚫 Найденное сообщение {} удалено, пропускаем", foundMessageId);
+                            return;
+                        }
+                    }
                 }
 
             } catch (Exception e) {
@@ -97,6 +137,24 @@ public class DlqRetryScheduler {
         }
     }
 
+    private Long findMessageIdByEvent(MessageEventDto event) {
+        try {
+            Instant fromTime = event.getTimestamp().minusSeconds(5);
+            Instant toTime = event.getTimestamp().plusSeconds(5);
+
+            return messageRepository.findMessageIdBySenderAndTextAndTime(
+                    event.getSenderId(),
+                    event.getText(),
+                    fromTime,
+                    toTime
+            ).orElse(null);
+
+        } catch (Exception e) {
+            logger.error("Ошибка поиска сообщения по event: {}", e.getMessage());
+            return null;
+        }
+    }
+
     @KafkaListener(topics = "group-messages-dlq", groupId = "dlq-retry-group")
     public void retryGroupMessages(String dlqMessage) {
         logger.info("Получено сообщение из group-messages-dlq");
@@ -118,6 +176,11 @@ public class DlqRetryScheduler {
 
             logger.info("Обработка группового DLQ сообщения {}: чат {}, получатель {}",
                     messageId, chatId, recipientId);
+
+            if (messageId != null && isMessageDeleted(messageId)) {
+                logger.info("🚫 Групповое сообщение {} удалено, пропускаем", messageId);
+                return;
+            }
 
             if (chatHandler.isUserOnline(recipientId)) {
                 boolean delivered = sendGroupMessageToUser(event, messageId, chatId, recipientId);
@@ -211,7 +274,7 @@ public class DlqRetryScheduler {
                         }
 
                         if (messagesInProgress.contains(messageId)) {
-                            logger.debug("⏳ Сообщение {} уже в процессе доставки, пропускаем", messageId);
+                            logger.debug("Сообщение {} уже в процессе доставки, пропускаем", messageId);
                             alreadyInProgressCount++;
                             continue;
                         }
@@ -298,6 +361,16 @@ public class DlqRetryScheduler {
         logger.debug("Обработка приватного сообщения для пользователя {} (онлайн: {})",
                 recipientId, chatHandler.isUserOnline(recipientId));
 
+        if (messageId != null && isMessageDeleted(messageId)) {
+            logger.info("🚫 Сообщение {} удалено, пропускаем доставку", messageId);
+
+            var topicPartition = new org.apache.kafka.common.TopicPartition(record.topic(), record.partition());
+            var offsetAndMetadata = new org.apache.kafka.clients.consumer.OffsetAndMetadata(record.offset() + 1);
+            offsetsToCommit.put(topicPartition, offsetAndMetadata);
+
+            return false;
+        }
+
         if (chatHandler.isUserOnline(recipientId)) {
             boolean delivered = sendPrivateMessageToUser(event, messageId);
             if (delivered) {
@@ -332,10 +405,20 @@ public class DlqRetryScheduler {
             return false;
         }
 
+        if (messageId != null && isMessageDeleted(messageId)) {
+            logger.info("Групповое сообщение {} удалено, пропускаем доставку", messageId);
+
+            var topicPartition = new org.apache.kafka.common.TopicPartition(record.topic(), record.partition());
+            var offsetAndMetadata = new org.apache.kafka.clients.consumer.OffsetAndMetadata(record.offset() + 1);
+            offsetsToCommit.put(topicPartition, offsetAndMetadata);
+
+            return false;
+        }
+
         if (chatHandler.isUserOnline(targetRecipientId)) {
             boolean delivered = sendGroupMessageToUser(event, messageId, chatId, recipientId);
             if (delivered) {
-                logger.info("✅ Групповое сообщение ДОСТАВЛЕНО пользователю {} (чат: {})", targetRecipientId, chatId);
+                logger.info("Групповое сообщение ДОСТАВЛЕНО пользователю {} (чат: {})", targetRecipientId, chatId);
 
                 var topicPartition = new org.apache.kafka.common.TopicPartition(record.topic(), record.partition());
                 var offsetAndMetadata = new org.apache.kafka.clients.consumer.OffsetAndMetadata(record.offset() + 1);
