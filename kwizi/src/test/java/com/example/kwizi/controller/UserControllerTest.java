@@ -125,7 +125,7 @@ class UserControllerTest {
                             r -> r.getBody().getMessage(),
                             r -> r.getBody().getData()
                     )
-                    .containsExactly(200, "Получен статус проверки", true);
+                    .containsExactly(200, "Email подтвержден", true);
         }
     }
 
