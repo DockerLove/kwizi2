@@ -407,6 +407,7 @@ public class ChatService {
     private Chat createPrivateChat() {
         Chat chat = new Chat();
         chat.setChatType(ChatType.PRIVATE);
+        chat.setLastActivityAt(OffsetDateTime.now());
         return chatRepository.save(chat);
     }
 
