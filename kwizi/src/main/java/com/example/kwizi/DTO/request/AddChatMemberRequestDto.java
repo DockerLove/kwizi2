@@ -5,12 +5,6 @@ import jakarta.validation.constraints.NotNull;
 
 @Schema(description = "Запрос на добавление участника в чат")
 public class AddChatMemberRequestDto {
-
-    @Schema(
-            description = "ID чата (заполняется автоматически из пути URL)",
-            example = "1",
-            requiredMode = Schema.RequiredMode.REQUIRED
-    )
     private Long chatId;
 
     @Schema(

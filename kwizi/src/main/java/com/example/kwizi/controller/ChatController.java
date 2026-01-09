@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -359,7 +360,7 @@ public class ChatController {
         return ResponseEntity.ok(ApiResponseDto.success("Название группы успешно изменено", request.getGroupName()));
     }
 
-    @PatchMapping("/{chatId}/avatar")
+    @PatchMapping(value = "/{chatId}/avatar",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(
             summary = "Изменить аватар чата",
             description = "Загружает новый аватар для чата"
@@ -387,7 +388,7 @@ public class ChatController {
                     required = true,
                     content = @Content(mediaType = "multipart/form-data")
             )
-            @RequestParam("file") MultipartFile file,
+            @RequestPart("file") MultipartFile file,
 
             @Parameter(hidden = true)
             @AuthenticationPrincipal UserDetailsImpl userDetails) {

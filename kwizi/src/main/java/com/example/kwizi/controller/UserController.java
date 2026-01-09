@@ -20,6 +20,7 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -316,7 +317,7 @@ public class UserController {
         logger.info("Статус верификации email: {} для пользователя ID: {}",
                 isVerified, userDetails.getId());
 
-        return ResponseEntity.ok(ApiResponseDto.success("Получен статус проверки", isVerified));
+        return ResponseEntity.ok(ApiResponseDto.success("Email подтвержден", isVerified));
     }
 
     @PatchMapping("/username")
@@ -358,7 +359,7 @@ public class UserController {
         );
     }
 
-    @PatchMapping("/avatar")
+    @PatchMapping(value = "/avatar",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(
             summary = "Обновить аватар пользователя",
             description = "Загружает новый аватар (фото профиля) пользователя"
@@ -381,7 +382,7 @@ public class UserController {
                     required = true,
                     content = @Content(mediaType = "multipart/form-data")
             )
-            @RequestParam("file") MultipartFile file,
+            @RequestPart("file") MultipartFile file,
 
             @Parameter(hidden = true)
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
