@@ -59,7 +59,7 @@ jobs:
           cache: maven
 
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.m2
@@ -101,7 +101,7 @@ jobs:
           LOGGING_LEVEL_ORG_HIBERNATE: WARN
 
       - name: Upload test reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-reports
@@ -111,7 +111,7 @@ jobs:
             kwizi/target/site/jacoco/
 
       - name: Upload logs on failure
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: failure-logs
