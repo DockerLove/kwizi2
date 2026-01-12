@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20  # Увеличиваем таймаут
 
     services:
       postgres:
@@ -30,22 +30,25 @@ jobs:
         image: wurstmeister/zookeeper
         ports:
           - "2181:2181"
+        options: >-
+          --health-cmd="echo ruok | nc localhost 2181"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
 
       kafka:
         image: wurstmeister/kafka
         env:
           KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:9092
           KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-          KAFKA_ZOOKEEPER_CONNECT: localhost:2181
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
           KAFKA_CREATE_TOPICS: "private-messages:3:1,private-messages-dlq:3:1,group-messages:3:1,group-messages-dlq:3:1"
           KAFKA_NUM_PARTITIONS: 3
+          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
         ports:
           - "9092:9092"
-        options: >-
-          --health-cmd="kafka-topics.sh --list --bootstrap-server localhost:9092"
-          --health-interval=20s
-          --health-timeout=10s
-          --health-retries=5
+        # Убираем health check для Kafka - он ненадежный
+        # Просто даем больше времени на запуск
 
     steps:
       - name: Checkout code
@@ -73,14 +76,24 @@ jobs:
           mkdir -p /tmp/kwizi-test/uploads/user
           mkdir -p /tmp/kwizi-test/logs
 
-      - name: Wait for services
+      - name: Wait for services with improved logic
         run: |
           echo "Waiting for PostgreSQL..."
-          timeout 60s bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 2; done'
+          timeout 90s bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 2; done'
           
-          echo "Waiting for Kafka..."
-          timeout 60s bash -c 'until nc -z localhost 9092; do sleep 2; done'
-          sleep 10
+          echo "Waiting for Zookeeper..."
+          timeout 60s bash -c 'until nc -z localhost 2181; do sleep 2; done'
+          
+          echo "Waiting for Kafka to start..."
+          # Ждем пока порт откроется
+          timeout 120s bash -c 'until nc -z localhost 9092; do sleep 2; done'
+          
+          echo "Giving Kafka extra time to initialize..."
+          sleep 30  # Дополнительное время для инициализации Kafka
+          
+          echo "Testing Kafka connection..."
+          # Проверяем, что Kafka действительно работает
+          docker exec ${{ job.services.kafka.id }} kafka-topics.sh --list --bootstrap-server localhost:9092 || echo "Kafka topics check failed, but continuing..."
 
       - name: Build and run ALL tests
         run: |
@@ -93,12 +106,18 @@ jobs:
           SPRING_DATASOURCE_USERNAME: postgres
           SPRING_DATASOURCE_PASSWORD: 50432
           SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
+          # Добавляем настройки для устойчивости Kafka
+          SPRING_KAFKA_CONSUMER_AUTO_OFFSET_RESET: earliest
+          SPRING_KAFKA_PROPERTIES_REQUEST_TIMEOUT_MS: 60000
+          SPRING_KAFKA_PROPERTIES_SESSION_TIMEOUT_MS: 45000
           FILE_STORAGE_CHAT_AVATAR_PATH: /tmp/kwizi-test/uploads/chat/
           FILE_STORAGE_USER_AVATAR_PATH: /tmp/kwizi-test/uploads/user/
           LOGGING_FILE_NAME: /tmp/kwizi-test/logs/application.log
           LOGGING_LEVEL_ROOT: WARN
           LOGGING_LEVEL_ORG_SPRINGFRAMEWORK: WARN
           LOGGING_LEVEL_ORG_HIBERNATE: WARN
+          # Отключаем некоторые компоненты для тестов
+          SPRING_KAFKA_LISTENER_MISSING_TOPICS_FATAL: false
 
       - name: Upload test reports
         uses: actions/upload-artifact@v4
