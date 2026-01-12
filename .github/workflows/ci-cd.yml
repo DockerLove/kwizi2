@@ -9,32 +9,27 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20  # Увеличиваем таймаут
+    timeout-minutes: 10
 
     services:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: 50432
-          POSTGRES_DB: test_db
+          POSTGRES_USER: ${{ secrets.DB_USERNAME }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DB_NAME }}
         ports:
           - "5432:5432"
         options: >-
-          --health-cmd="pg_isready -U postgres -d test_db"
+          --health-cmd="pg_isready -U ${{ secrets.DB_USERNAME }}"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=3
 
       zookeeper:
         image: wurstmeister/zookeeper
         ports:
           - "2181:2181"
-        options: >-
-          --health-cmd="echo ruok | nc localhost 2181"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
 
       kafka:
         image: wurstmeister/kafka
@@ -42,13 +37,10 @@ jobs:
           KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:9092
           KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
           KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-          KAFKA_CREATE_TOPICS: "private-messages:3:1,private-messages-dlq:3:1,group-messages:3:1,group-messages-dlq:3:1"
+          KAFKA_CREATE_TOPICS: "private-messages:3:1,group-messages:3:1"
           KAFKA_NUM_PARTITIONS: 3
-          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
         ports:
           - "9092:9092"
-        # Убираем health check для Kafka - он ненадежный
-        # Просто даем больше времени на запуск
 
     steps:
       - name: Checkout code
@@ -64,77 +56,34 @@ jobs:
       - name: Cache dependencies
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.m2
-            ~/.m2/wrapper
-          key: ${{ runner.os }}-m2-${{ hashFiles('kwizi/pom.xml', 'kwizi/.mvn/wrapper/maven-wrapper.properties') }}
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('kwizi/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Create test directories
+      - name: Wait for services
         run: |
-          mkdir -p /tmp/kwizi-test/uploads/chat
-          mkdir -p /tmp/kwizi-test/uploads/user
-          mkdir -p /tmp/kwizi-test/logs
+          echo "Waiting for services..."
+          sleep 90
 
-      - name: Wait for services with improved logic
-        run: |
-          echo "Waiting for PostgreSQL..."
-          timeout 90s bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 2; done'
-          
-          echo "Waiting for Zookeeper..."
-          timeout 60s bash -c 'until nc -z localhost 2181; do sleep 2; done'
-          
-          echo "Waiting for Kafka to start..."
-          # Ждем пока порт откроется
-          timeout 120s bash -c 'until nc -z localhost 9092; do sleep 2; done'
-          
-          echo "Giving Kafka extra time to initialize..."
-          sleep 30  # Дополнительное время для инициализации Kafka
-          
-          echo "Testing Kafka connection..."
-          # Проверяем, что Kafka действительно работает
-          docker exec ${{ job.services.kafka.id }} kafka-topics.sh --list --bootstrap-server localhost:9092 || echo "Kafka topics check failed, but continuing..."
-
-      - name: Build and run ALL tests
+      - name: Run tests
         run: |
           cd kwizi
-          chmod +x mvnw
-          ./mvnw clean test jacoco:report -q
+          ./mvnw clean test -q
         env:
-          SPRING_PROFILES_ACTIVE: test
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/test_db
-          SPRING_DATASOURCE_USERNAME: postgres
-          SPRING_DATASOURCE_PASSWORD: 50432
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/${{ secrets.DB_NAME }}
+          SPRING_DATASOURCE_USERNAME: ${{ secrets.DB_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
           SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
-          # Добавляем настройки для устойчивости Kafka
-          SPRING_KAFKA_CONSUMER_AUTO_OFFSET_RESET: earliest
-          SPRING_KAFKA_PROPERTIES_REQUEST_TIMEOUT_MS: 60000
-          SPRING_KAFKA_PROPERTIES_SESSION_TIMEOUT_MS: 45000
-          FILE_STORAGE_CHAT_AVATAR_PATH: /tmp/kwizi-test/uploads/chat/
-          FILE_STORAGE_USER_AVATAR_PATH: /tmp/kwizi-test/uploads/user/
-          LOGGING_FILE_NAME: /tmp/kwizi-test/logs/application.log
-          LOGGING_LEVEL_ROOT: WARN
-          LOGGING_LEVEL_ORG_SPRINGFRAMEWORK: WARN
-          LOGGING_LEVEL_ORG_HIBERNATE: WARN
-          # Отключаем некоторые компоненты для тестов
-          SPRING_KAFKA_LISTENER_MISSING_TOPICS_FATAL: false
 
       - name: Upload test reports
-        uses: actions/upload-artifact@v4
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: test-reports
           path: |
             kwizi/target/surefire-reports/
             kwizi/target/failsafe-reports/
             kwizi/target/site/jacoco/
-
-      - name: Upload logs on failure
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: failure-logs
-          path: /tmp/kwizi-test/logs/
 
   build-and-push:
     needs: test
@@ -154,14 +103,9 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       
-      - name: Build and push Docker image
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: ./kwizi
           push: true
           tags: dockertsv/kwizi-app:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      
-      - name: Logout from DockerHub
-        run: docker logout
