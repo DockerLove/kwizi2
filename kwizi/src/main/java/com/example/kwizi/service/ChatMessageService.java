@@ -163,7 +163,7 @@ public class ChatMessageService implements ChatMessageServiceInterface {
 
         notificationService.notifyMessageDeleted(message.getChat().getId(), messageId, username);
 
-        messageRepository.delete(message);
+        message.setDeleted(true);
         logger.info("Сообщение ID: {} успешно удалено пользователем ID: {}", messageId, user.getId());
     }
 

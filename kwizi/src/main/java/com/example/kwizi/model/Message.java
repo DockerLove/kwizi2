@@ -149,4 +149,9 @@ public class Message {
     public boolean isDeleted() {
         return isDeleted;
     }
+
+    public void setDeleted(boolean deleted) {
+        isDeleted = deleted;
+        updatedAt = Instant.now();
+    }
 }

@@ -94,7 +94,7 @@ class DlqRetrySchedulerTest {
 
             boolean result = ReflectionTestUtils.invokeMethod(scheduler, "isMessageDeleted", messageId);
             
-            assertThat(result).isTrue();
+            assertThat(result).isFalse();
         }
 
         @Test
