@@ -2,15 +2,15 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
     branches: [ main ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    
+    timeout-minutes: 15
+
     services:
       postgres:
         image: postgres:15
@@ -20,12 +20,17 @@ jobs:
           POSTGRES_DB: test_db
         ports:
           - "5432:5432"
-      
+        options: >-
+          --health-cmd="pg_isready -U postgres -d test_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
       zookeeper:
         image: wurstmeister/zookeeper
         ports:
           - "2181:2181"
-      
+
       kafka:
         image: wurstmeister/kafka
         env:
@@ -36,53 +41,108 @@ jobs:
           KAFKA_NUM_PARTITIONS: 3
         ports:
           - "9092:9092"
+        options: >-
+          --health-cmd="kafka-topics.sh --list --bootstrap-server localhost:9092"
+          --health-interval=20s
+          --health-timeout=10s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2
+            ~/.m2/wrapper
+          key: ${{ runner.os }}-m2-${{ hashFiles('kwizi/pom.xml', 'kwizi/.mvn/wrapper/maven-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Create test directories
+        run: |
+          mkdir -p /tmp/kwizi-test/uploads/chat
+          mkdir -p /tmp/kwizi-test/uploads/user
+          mkdir -p /tmp/kwizi-test/logs
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for PostgreSQL..."
+          timeout 60s bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 2; done'
+          
+          echo "Waiting for Kafka..."
+          timeout 60s bash -c 'until nc -z localhost 9092; do sleep 2; done'
+          sleep 10
+
+      - name: Build and run ALL tests
+        run: |
+          cd kwizi
+          chmod +x mvnw
+          ./mvnw clean test jacoco:report -q
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/test_db
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: 50432
+          SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
+          FILE_STORAGE_CHAT_AVATAR_PATH: /tmp/kwizi-test/uploads/chat/
+          FILE_STORAGE_USER_AVATAR_PATH: /tmp/kwizi-test/uploads/user/
+          LOGGING_FILE_NAME: /tmp/kwizi-test/logs/application.log
+          LOGGING_LEVEL_ROOT: WARN
+          LOGGING_LEVEL_ORG_SPRINGFRAMEWORK: WARN
+          LOGGING_LEVEL_ORG_HIBERNATE: WARN
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-reports
+          path: |
+            kwizi/target/surefire-reports/
+            kwizi/target/failsafe-reports/
+            kwizi/target/site/jacoco/
+
+      - name: Upload logs on failure
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: failure-logs
+          path: /tmp/kwizi-test/logs/
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'temurin'
-        cache: maven
-    
-    - name: Cache Maven dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('kwizi/pom.xml') }}
-        restore-keys: ${{ runner.os }}-m2
-    
-    - name: Create test directories
-      run: |
-        mkdir -p /tmp/kwizi-test/uploads/chat
-        mkdir -p /tmp/kwizi-test/uploads/user
-        mkdir -p /tmp/kwizi-test/logs
-    
-    - name: Wait for services
-      run: |
-        echo "Waiting for services..."
-        sleep 120
-    
-    - name: Run ALL tests
-      run: |
-        cd kwizi
-        chmod +x mvnw
-        ./mvnw test -q
-      env:
-        SPRING_PROFILES_ACTIVE: test
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/test_db
-        SPRING_DATASOURCE_USERNAME: postgres
-        SPRING_DATASOURCE_PASSWORD: 50432
-        SPRING_KAFKA_BOOTSTRAP_SERVERS: 127.0.0.1:9092
-        FILE_STORAGE_CHAT_AVATAR_PATH: /tmp/kwizi-test/uploads/chat/
-        FILE_STORAGE_USER_AVATAR_PATH: /tmp/kwizi-test/uploads/user/
-        LOGGING_FILE_NAME: /tmp/kwizi-test/logs/application.log
-        LOGGING_LEVEL_ROOT: WARN
-        LOGGING_LEVEL_ORG_SPRINGFRAMEWORK: WARN
-        LOGGING_LEVEL_ORG_HIBERNATE: WARN
-    
-    - name: Success
-      run: echo "All tests passed!"
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./kwizi
+          push: true
+          tags: dockertsv/kwizi-app:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Logout from DockerHub
+        run: docker logout
