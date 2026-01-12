@@ -60,6 +60,11 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('kwizi/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      - name: Make mvnw executable
+        run: |
+          cd kwizi
+          chmod +x mvnw
+
       - name: Wait for services
         run: |
           echo "Waiting for services..."
