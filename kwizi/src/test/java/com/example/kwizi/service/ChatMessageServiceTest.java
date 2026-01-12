@@ -314,8 +314,9 @@ class ChatMessageServiceTest {
             
             chatMessageService.deleteMessage(1L, "testUser");
 
-            
-            verify(messageRepository).delete(testMessage);
+
+            assertThat(testMessage.isDeleted()).isTrue();
+            verify(messageRepository, never()).delete(testMessage);
             verify(notificationService).notifyMessageDeleted(1L, 1L, "testUser");
         }
 
@@ -336,8 +337,9 @@ class ChatMessageServiceTest {
             
             chatMessageService.deleteMessage(1L, "adminUser");
 
-            
-            verify(messageRepository).delete(testMessage);
+
+            assertThat(testMessage.isDeleted()).isTrue();
+            verify(messageRepository, never()).delete(testMessage);
             verify(notificationService).notifyMessageDeleted(1L, 1L, "adminUser");
         }
 

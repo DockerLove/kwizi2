@@ -63,7 +63,7 @@ public class DlqRetryScheduler {
                         }
                         return deleted;
                     })
-                    .orElse(true);
+                    .orElse(false);
 
         } catch (Exception e) {
             logger.error("Ошибка проверки сообщения {}: {}", messageId, e.getMessage());
