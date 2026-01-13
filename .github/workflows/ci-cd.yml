@@ -67,13 +67,13 @@ jobs:
 
       - name: Wait for services
         run: |
-          echo "Waiting for services...."
+          echo "Waiting for services..."
           sleep 90
 
       - name: Run tests
         run: |
           cd kwizi
-          ./mvnw clean test -q
+          ./mvnw clean verify -q
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/test_db
           SPRING_DATASOURCE_USERNAME: postgres
@@ -87,7 +87,6 @@ jobs:
           name: test-reports
           path: |
             kwizi/target/surefire-reports/
-            kwizi/target/failsafe-reports/
             kwizi/target/site/jacoco/
 
   build-and-push:
