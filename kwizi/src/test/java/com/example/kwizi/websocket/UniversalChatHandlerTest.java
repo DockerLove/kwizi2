@@ -106,6 +106,7 @@ class UniversalChatHandlerTest {
             event.setSenderId(TEST_USER_ID);
             event.setRecipientId(456L);
             event.setText("Hello");
+            String expectedKey = "private-123-456";
 
             when(messageConverter.createMessageEvent(clientMessage, TEST_USER_ID)).thenReturn(event);
             when(userRepository.existsById(456L)).thenReturn(true);
@@ -117,7 +118,7 @@ class UniversalChatHandlerTest {
 
             verify(messageConverter).createMessageEvent(clientMessage, TEST_USER_ID);
             verify(messageConverter).convertToJson(event);
-            verify(kafkaTemplate).send(eq("private-messages"), eq(kafkaJson));
+            verify(kafkaTemplate).send(eq("private-messages"), eq(expectedKey), eq(kafkaJson));
             verify(session).sendMessage(textMessageCaptor.capture());
             assertThat(textMessageCaptor.getValue().getPayload()).isEqualTo(successResponse);
         }
@@ -137,6 +138,7 @@ class UniversalChatHandlerTest {
             event.setSenderId(TEST_USER_ID);
             event.setChatId(789L);
             event.setText("Hello group");
+            String expectedKey = "group-789";
 
             Chat chat = new Chat();
             chat.setId(789L);
@@ -152,7 +154,7 @@ class UniversalChatHandlerTest {
 
             chatHandler.handleTextMessage(session, message);
 
-            verify(kafkaTemplate).send(eq("group-messages"), eq(kafkaJson));
+            verify(kafkaTemplate).send(eq("group-messages"),eq(expectedKey), eq(kafkaJson));
             verify(session).sendMessage(textMessageCaptor.capture());
             assertThat(textMessageCaptor.getValue().getPayload()).isEqualTo(successResponse);
         }

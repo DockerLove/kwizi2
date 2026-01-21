@@ -72,8 +72,11 @@ public class UniversalChatHandler extends TextWebSocketHandler {
             validateEventBeforeSending(event);
 
             String kafkaMessage = messageConverter.convertToJson(event);
-            kafkaTemplate.send(event.getTargetTopic(), kafkaMessage);
-            logger.info("Сообщение отправлено в топик: {}", event.getTargetTopic());
+            String key = generateMessageKey(event);
+
+            kafkaTemplate.send(event.getTargetTopic(), key, kafkaMessage);
+            logger.info("Сообщение отправлено в топик {} с ключом {}",
+                    event.getTargetTopic(), key);
 
             String successResponse = messageConverter.createSuccessResponse();
             session.sendMessage(new TextMessage(successResponse));
@@ -268,5 +271,16 @@ public class UniversalChatHandler extends TextWebSocketHandler {
 
     private List<Long> getChatMemberIds(Long chatId) {
         return chatMemberRepository.findUserIdsByChatId(chatId);
+    }
+
+    private String generateMessageKey(MessageEventDto event) {
+        if (event.isPrivate()) {
+            Long minId = Math.min(event.getSenderId(), event.getRecipientId());
+            Long maxId = Math.max(event.getSenderId(), event.getRecipientId());
+            return "private-" + minId + "-" + maxId;
+        } else if (event.isGroup()) {
+            return "group-" + event.getChatId();
+        }
+        throw new IllegalArgumentException("Неизвестный тип сообщения");
     }
 }
