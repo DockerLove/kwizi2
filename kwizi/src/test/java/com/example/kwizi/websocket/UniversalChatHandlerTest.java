@@ -125,7 +125,7 @@ class UniversalChatHandlerTest {
 
         @Test
         @DisplayName("Обрабатывает групповое сообщение и отправляет в Kafka")
-        void handleTextMessage_ShouldProcessGroupMessageSuccessfully() throws Exception {
+        void handleTextMessage_ShouldPrgitocessGroupMessageSuccessfully() throws Exception {
             when(jwtUtils.isTokenRevoked(VALID_TOKEN)).thenReturn(false);
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(TEST_USER_ID);
 

@@ -38,6 +38,12 @@ services:
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    healthcheck:
+      test: [ "CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     depends_on:
       - zookeeper
     restart: unless-stopped
@@ -48,17 +54,19 @@ services:
     restart: unless-stopped
     ports:
       - "8250:8250"
+    volumes:
+      - uploads_volume:/app/uploads
+      - logs_volume:/app/logs
     environment:
       spring.datasource.url: jdbc:postgresql://postgres:5432/monolit_db
       spring.datasource.username: postgres
       spring.datasource.password: 50432
       spring.kafka.bootstrap-servers: kafka:9092
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       postgres:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   postgres_data:
