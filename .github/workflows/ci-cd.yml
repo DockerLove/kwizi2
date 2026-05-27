@@ -74,7 +74,7 @@ jobs:
           
           echo "Waiting for Kafka..."
           for i in {1..30}; do
-            nc -z localhost 9092 && break || sleep 2
+            nc -z 127.0.0.1 9092 && break || sleep 2
           done
           
           echo "All services are ready!"
@@ -128,3 +128,5 @@ jobs:
           tags: |
             dockertsv/kwizi-app:latest
             dockertsv/kwizi-app:${{ steps.sha.outputs.sha }}
+	cache-from: type=gha
+        cache-to: type=gha,mode=max
