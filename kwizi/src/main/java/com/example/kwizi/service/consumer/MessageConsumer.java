@@ -40,7 +40,7 @@ public class MessageConsumer {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    @KafkaListener(topics = {"private-messages", "group-messages"}, groupId = "websocket-group")
+    @KafkaListener(topics = {"private-messages", "group-messages"}, groupId = "message-consumer-group")
     @Transactional
     public void consumeMessage(String kafkaMessage,
                                @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
