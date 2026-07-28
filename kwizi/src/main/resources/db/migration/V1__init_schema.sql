@@ -18,12 +18,6 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at      TIMESTAMPTZ
     );
 
--- Индексы для таблицы users
-CREATE UNIQUE INDEX IF NOT EXISTS users_pkey ON users(id);
-CREATE UNIQUE INDEX IF NOT EXISTS users_username_key ON users(username);
-CREATE UNIQUE INDEX IF NOT EXISTS users_email_key ON users(email);
-
-
 -- ===== Таблица чатов =====
 CREATE TABLE IF NOT EXISTS chats (
                                      id                BIGSERIAL PRIMARY KEY,
@@ -34,7 +28,6 @@ CREATE TABLE IF NOT EXISTS chats (
     );
 
 -- Индексы для таблицы chats
-CREATE UNIQUE INDEX IF NOT EXISTS chats_pkey ON chats(id);
 CREATE INDEX IF NOT EXISTS idx_chats_chat_type ON chats(chat_type) WHERE chat_type = 'PRIVATE';
 CREATE INDEX IF NOT EXISTS idx_chats_last_activity ON chats(last_activity_at DESC);
 
@@ -48,10 +41,6 @@ CREATE TABLE IF NOT EXISTS group_chats (
     CONSTRAINT fk_group_chats_chat
     FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE
     );
-
--- Индексы для таблицы group_chats
-CREATE UNIQUE INDEX IF NOT EXISTS group_chats_pkey ON group_chats(chat_id);
-
 
 -- ===== Таблица участников чата =====
 CREATE TABLE IF NOT EXISTS chat_members (
@@ -69,7 +58,6 @@ CREATE TABLE IF NOT EXISTS chat_members (
     );
 
 -- Индексы для таблицы chat_members
-CREATE UNIQUE INDEX IF NOT EXISTS chat_members_pkey ON chat_members(chat_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_member_chat_id ON chat_members(chat_id);
 CREATE INDEX IF NOT EXISTS idx_chat_members_user_id ON chat_members(user_id);
 
@@ -93,7 +81,6 @@ CREATE TABLE IF NOT EXISTS messages (
     );
 
 -- Индексы для таблицы messages
-CREATE UNIQUE INDEX IF NOT EXISTS messages_pkey ON messages(id);
 CREATE INDEX IF NOT EXISTS idx_messages_chat_created ON messages(chat_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_sender_created ON messages(sender_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_messages_deleted_cleanup ON messages(updated_at) WHERE is_deleted = true;
@@ -112,5 +99,4 @@ CREATE TABLE IF NOT EXISTS revoked_access_tokens (
     );
 
 -- Индексы для таблицы revoked_access_tokens
-CREATE UNIQUE INDEX IF NOT EXISTS revoked_access_tokens_pkey ON revoked_access_tokens(jti);
 CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires ON revoked_access_tokens(expires_at);
