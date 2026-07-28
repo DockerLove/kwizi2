@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -56,6 +57,9 @@ class UniversalChatHandlerTest {
 
     @Mock
     private ChatMemberRepository chatMemberRepository;
+
+    @Mock
+    private Executor taskExecutor;
 
     @Mock
     private MessageConverter messageConverter;
@@ -592,6 +596,12 @@ class UniversalChatHandlerTest {
             when(jwtUtils.getUserIdFromToken(VALID_TOKEN)).thenReturn(123L);
             when(jwtUtils.getUserIdFromToken("token-456")).thenReturn(456L);
 
+            // ВАЖНО: Заставляем taskExecutor выполнять задачи синхронно в тестовом потоке
+            doAnswer(invocation -> {
+                ((Runnable) invocation.getArgument(0)).run();
+                return null;
+            }).when(taskExecutor).execute(any(Runnable.class));
+
             Long chatId = 1L;
             List<Long> members = List.of(123L, 456L, 789L);
             String payload = "broadcast message";
@@ -605,6 +615,7 @@ class UniversalChatHandlerTest {
 
             chatHandler.broadcastToChat(chatId, payload);
 
+            // Теперь verify сработает сразу, так как задачи выполнились синхронно
             verify(session1).sendMessage(any(TextMessage.class));
             verify(session2).sendMessage(any(TextMessage.class));
         }

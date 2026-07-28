@@ -16,6 +16,7 @@ import io.micrometer.common.lang.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
@@ -23,13 +24,14 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 @Component
 public class UniversalChatHandler extends TextWebSocketHandler {
@@ -42,6 +44,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
     private final UserRepository userRepository;
     private final ChatRepository chatRepository;
     private final JwtUtils jwtUtils;
+    private final Executor taskExecutor;
     private final Logger logger = LoggerFactory.getLogger(UniversalChatHandler.class);
 
     @Autowired
@@ -50,7 +53,8 @@ public class UniversalChatHandler extends TextWebSocketHandler {
                                 ChatMemberRepository chatMemberRepository,
                                 MessageConverter messageConverter,
                                 JwtUtils jwtUtils,ChatRepository chatRepository,
-                                UserRepository userRepository) {
+                                UserRepository userRepository,
+                                @Qualifier("taskExecutor") Executor taskExecutor) {
         this.objectMapper = objectMapper;
         this.kafkaTemplate = kafkaTemplate;
         this.chatMemberRepository = chatMemberRepository;
@@ -58,6 +62,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
         this.jwtUtils = jwtUtils;
         this.userRepository = userRepository;
         this.chatRepository = chatRepository;
+        this.taskExecutor = taskExecutor;
     }
 
     @Override
@@ -110,13 +115,22 @@ public class UniversalChatHandler extends TextWebSocketHandler {
     public void afterConnectionEstablished(@NonNull WebSocketSession session) {
         try {
             Long userId = extractUserIdFromToken(session);
-            activeSessions.put(userId, session);
+
+            activeSessions.compute(userId, (id, existingSession) -> {
+                if (existingSession != null && existingSession.isOpen()) {
+                    try {
+                        existingSession.close(CloseStatus.SESSION_NOT_RELIABLE);
+                        logger.info("Закрыта старая сессия пользователя {} при новом подключении", userId);
+                    } catch (IOException e) {
+                        logger.debug("Ошибка закрытия старой сессии", e);
+                    }
+                }
+                return session;
+            });
 
             session.setBinaryMessageSizeLimit(1024 * 1024);
             session.setTextMessageSizeLimit(1024 * 1024);
-
             logger.info("Пользователь {} подключился. Session ID: {}", userId, session.getId());
-
         } catch (Exception e) {
             logger.warn("Ошибка аутентификации WebSocket-сессии: {}", e.getMessage());
             try {
@@ -131,7 +145,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) {
         try {
             Long userId = extractUserIdFromToken(session);
-            activeSessions.remove(userId);
+            activeSessions.remove(userId,session);
             logger.info("Пользователь {} отключился. Причина: {}", userId, status);
         } catch (Exception e) {
             logger.debug("Закрытие неаутентифицированной сессии");
@@ -205,28 +219,36 @@ public class UniversalChatHandler extends TextWebSocketHandler {
     }
 
     private void safelyCloseUserSession(Long userId) {
-        WebSocketSession session = activeSessions.remove(userId);
-        if (session != null && session.isOpen()) {
-            try {
-                session.close(CloseStatus.SESSION_NOT_RELIABLE);
-                logger.info("Сессия пользователя {} принудительно закрыта", userId);
-            } catch (IOException e) {
-                logger.debug("Ошибка при закрытии сессии пользователя {}", userId, e);
+        WebSocketSession session = activeSessions.get(userId);
+
+        if (session != null && activeSessions.remove(userId, session)) {
+            if (session.isOpen()) {
+                try {
+                    session.close(CloseStatus.SESSION_NOT_RELIABLE);
+                    logger.info("Сессия пользователя {} принудительно закрыта", userId);
+                } catch (IOException e) {
+                    logger.debug("Ошибка при закрытии сессии пользователя {}", userId, e);
+                }
             }
+        } else {
+            logger.debug("Сессия пользователя {} уже была заменена или отсутствует", userId);
         }
     }
 
     public void closeUserSession(Long userId) {
-        WebSocketSession session = activeSessions.remove(userId);
-        if (session != null && session.isOpen()) {
-            try {
-                session.close(CloseStatus.GOING_AWAY);
-                logger.info("WebSocket-сессия пользователя {} закрыта при logout", userId);
-            } catch (IOException e) {
-                logger.warn("Ошибка при закрытии WebSocket-сессии пользователя {}", userId, e);
+        WebSocketSession session = activeSessions.get(userId);
+
+        if (session != null && activeSessions.remove(userId, session)) {
+            if (session.isOpen()) {
+                try {
+                    session.close(CloseStatus.GOING_AWAY);
+                    logger.info("WebSocket-сессия пользователя {} закрыта при logout", userId);
+                } catch (IOException e) {
+                    logger.warn("Ошибка при закрытии WebSocket-сессии пользователя {}", userId, e);
+                }
             }
         } else {
-            logger.debug("Пользователь {} не имеет активной WebSocket-сессии", userId);
+            logger.debug("Пользователь {} не имеет активной WebSocket-сессии для закрытия", userId);
         }
     }
 
@@ -238,7 +260,7 @@ public class UniversalChatHandler extends TextWebSocketHandler {
                 logger.debug("Сообщение отправлено пользователю {}", userId);
             } catch (IOException e) {
                 logger.warn("Ошибка отправки сообщения пользователю {}. Удаляем сессию.", userId, e);
-                activeSessions.remove(userId);
+                activeSessions.remove(userId,session);
             }
         }
     }
@@ -259,14 +281,27 @@ public class UniversalChatHandler extends TextWebSocketHandler {
 
     public void broadcastToChat(Long chatId, String payload) {
         List<Long> chatMemberIds = getChatMemberIds(chatId);
-        int sentCount = 0;
-        for (Long memberId : chatMemberIds) {
-            if (isUserOnline(memberId)) {
-                sendToUser(memberId, payload);
-                sentCount++;
-            }
-        }
-        logger.info("Трансляция в чат {} завершена. Отправлено {}/{} пользователям", chatId, sentCount, chatMemberIds.size());
+
+        List<CompletableFuture<Void>> futures = chatMemberIds.stream()
+                .filter(this::isUserOnline)
+                .map(memberId -> CompletableFuture.runAsync(() -> {
+                    try {
+                        sendToUser(memberId, payload);
+                    } catch (Exception e) {
+                        logger.warn("Ошибка отправки сообщения пользователю {} в чате {}: {}",
+                                memberId, chatId, e.getMessage());
+                    }
+                }, taskExecutor))
+                .toList();
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .thenRun(() -> logger.info("Трансляция в чат {} завершена. Обработано {} пользователей",
+                        chatId, futures.size()))
+                .exceptionally(ex -> {
+                    logger.error("Критическая ошибка при трансляции в чат {}", chatId, ex);
+                    return null;
+                });
+
     }
 
     private List<Long> getChatMemberIds(Long chatId) {
