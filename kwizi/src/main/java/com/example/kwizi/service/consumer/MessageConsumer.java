@@ -147,10 +147,13 @@ public class MessageConsumer {
             );
 
             String dlqPayload = objectMapper.writeValueAsString(dlqMessage);
-            kafkaTemplate.send("group-messages-dlq", dlqPayload);
 
-            logger.info("Групповое сообщение {} отправлено в group-messages-dlq для пользователя {}",
-                    messageId, recipientId);
+            String dlqKey = "group-dlq-" + event.getChatId() + "-" + recipientId;
+
+            kafkaTemplate.send("group-messages-dlq",dlqKey, dlqPayload);
+
+            logger.info("Групповое сообщение {} отправлено в group-messages-dlq с ключом {} для пользователя {}",
+                    messageId, dlqKey, recipientId);
 
         } catch (Exception e) {
             logger.error("Ошибка отправки группового сообщения в DLQ: {}", e.getMessage(), e);
@@ -168,10 +171,13 @@ public class MessageConsumer {
             );
 
             String dlqPayload = objectMapper.writeValueAsString(dlqMessage);
-            kafkaTemplate.send("private-messages-dlq", dlqPayload);
 
-            logger.info("Сообщение {} отправлено в private-messages-dlq для пользователя {}",
-                    messageId, event.getRecipientId());
+            String dlqKey = "private-dlq-" + event.getRecipientId();
+
+            kafkaTemplate.send("private-messages-dlq",dlqKey, dlqPayload);
+
+            logger.info("Сообщение {} отправлено в private-messages-dlq с ключом {} для пользователя {}",
+                    messageId, dlqKey, event.getRecipientId());
 
         } catch (Exception e) {
             logger.error("Ошибка отправки сообщения в DLQ: {}", e.getMessage(), e);

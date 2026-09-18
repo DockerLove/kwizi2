@@ -71,131 +71,6 @@ public class DlqRetryScheduler {
         }
     }
 
-    @KafkaListener(topics = "private-messages-dlq", groupId = "dlq-retry-group")
-    public void retryPrivateMessages(String dlqMessage) {
-        logger.info("Получено сообщение из DLQ");
-
-        try {
-            MessageEventDto event;
-            Long messageId;
-            Long recipientId;
-
-            try {
-                JsonNode dlqNode = objectMapper.readTree(dlqMessage);
-
-                if (dlqNode.has("originalEvent") && dlqNode.has("messageId")) {
-                    JsonNode originalEventNode = dlqNode.get("originalEvent");
-                    messageId = dlqNode.get("messageId").asLong();
-                    recipientId = dlqNode.get("recipientId").asLong();
-                    event = objectMapper.convertValue(originalEventNode, MessageEventDto.class);
-
-                    logger.info("Обработка DLQ сообщения {}: {} -> {}",
-                            messageId, event.getSenderId(), recipientId);
-
-                    if (isMessageDeleted(messageId)) {
-                        logger.info("🚫 Сообщение {} удалено, пропускаем", messageId);
-                        return;
-                    }
-
-                } else {
-                    event = messageConverter.convertToEvent(dlqMessage);
-                    messageId = null;
-                    recipientId = event.getRecipientId();
-
-                    logger.info("Обработка оригинального DLQ сообщения: {} -> {}",
-                            event.getSenderId(), recipientId);
-
-                    if (event.getTimestamp() != null && event.getSenderId() != null && event.getText() != null) {
-                        Long foundMessageId = findMessageIdByEvent(event);
-                        if (foundMessageId != null && isMessageDeleted(foundMessageId)) {
-                            logger.info("🚫 Найденное сообщение {} удалено, пропускаем", foundMessageId);
-                            return;
-                        }
-                    }
-                }
-
-            } catch (Exception e) {
-                event = messageConverter.convertToEvent(dlqMessage);
-                messageId = null;
-                recipientId = event.getRecipientId();
-                logger.info("Обработка MessageEventDto из DLQ: {} -> {}",
-                        event.getSenderId(), recipientId);
-            }
-
-            if (chatHandler.isUserOnline(recipientId)) {
-                boolean delivered = sendPrivateMessageToUser(event, messageId);
-                if (delivered) {
-                    logger.info("Сообщение доставлено мгновенно пользователю {}", recipientId);
-                }
-            } else {
-                logger.debug("Пользователь {} оффлайн, сообщение остается в DLQ", recipientId);
-            }
-
-        } catch (Exception e) {
-            logger.error("Ошибка обработки сообщения из DLQ: {}", e.getMessage());
-            logger.debug("Содержимое сообщения: {}", dlqMessage);
-        }
-    }
-
-    private Long findMessageIdByEvent(MessageEventDto event) {
-        try {
-            Instant fromTime = event.getTimestamp().minusSeconds(5);
-            Instant toTime = event.getTimestamp().plusSeconds(5);
-
-            return messageRepository.findMessageIdBySenderAndTextAndTime(
-                    event.getSenderId(),
-                    event.getText(),
-                    fromTime,
-                    toTime
-            ).orElse(null);
-
-        } catch (Exception e) {
-            logger.error("Ошибка поиска сообщения по event: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    @KafkaListener(topics = "group-messages-dlq", groupId = "dlq-retry-group")
-    public void retryGroupMessages(String dlqMessage) {
-        logger.info("Получено сообщение из group-messages-dlq");
-
-        try {
-            JsonNode dlqNode = objectMapper.readTree(dlqMessage);
-
-            if (!dlqNode.has("messageType") || !"GROUP".equals(dlqNode.get("messageType").asText())) {
-                logger.debug("Не групповое сообщение, пропускаем");
-                return;
-            }
-
-            JsonNode originalEventNode = dlqNode.get("originalEvent");
-            Long recipientId = dlqNode.get("recipientId").asLong();
-            Long messageId = dlqNode.has("messageId") ? dlqNode.get("messageId").asLong() : null;
-            Long chatId = dlqNode.get("chatId").asLong();
-
-            MessageEventDto event = objectMapper.convertValue(originalEventNode, MessageEventDto.class);
-
-            logger.info("Обработка группового DLQ сообщения {}: чат {}, получатель {}",
-                    messageId, chatId, recipientId);
-
-            if (messageId != null && isMessageDeleted(messageId)) {
-                logger.info("🚫 Групповое сообщение {} удалено, пропускаем", messageId);
-                return;
-            }
-
-            if (chatHandler.isUserOnline(recipientId)) {
-                boolean delivered = sendGroupMessageToUser(event, messageId, chatId, recipientId);
-                if (delivered) {
-                    logger.info("Групповое сообщение {} доставлено пользователю {}", messageId, recipientId);
-                }
-            } else {
-                logger.debug("Участник {} оффлайн, сообщение {} остается в DLQ", recipientId, messageId);
-            }
-
-        } catch (Exception e) {
-            logger.error("Ошибка обработки группового сообщения из DLQ: {}", e.getMessage(), e);
-        }
-    }
-
     private boolean sendGroupMessageToUser(MessageEventDto event, Long messageId, Long chatId, Long recipientId) {
         try {
             if (recipientId == null) {
@@ -247,17 +122,29 @@ public class DlqRetryScheduler {
             org.apache.kafka.clients.consumer.KafkaConsumer<String, String> consumer = createDlqConsumer();
 
             try {
-                consumer.subscribe(java.util.Collections.singletonList(topicName));
+
+                var partitionsInfo = consumer.partitionsFor(topicName);
+                if (partitionsInfo == null || partitionsInfo.isEmpty()) {
+                    logger.debug("Топик {} не имеет партиций или не существует", topicName);
+                    return;
+                }
+
+                var topicPartitions = partitionsInfo.stream()
+                        .map(info -> new org.apache.kafka.common.TopicPartition(topicName, info.partition()))
+                        .toList();
+
+                consumer.assign(topicPartitions);
 
                 org.apache.kafka.clients.consumer.ConsumerRecords<String, String> records =
                         consumer.poll(java.time.Duration.ofSeconds(2));
 
                 if (records.isEmpty()) {
-                    logger.debug("DLQ {} пуст", topicName);
+                    logger.debug("DLQ {} пуст (или все сообщения уже успешно обработаны)", topicName);
                     return;
                 }
 
-                logger.info("Найдено {} сообщений в DLQ {}", records.count(), topicName);
+                logger.info("Найдено {} непрочитанных сообщений в DLQ {}", records.count(), topicName);
+
                 int deliveredCount = 0;
                 int alreadyInProgressCount = 0;
                 int skippedCount = 0;
@@ -294,7 +181,7 @@ public class DlqRetryScheduler {
 
                 if (!offsetsToCommit.isEmpty()) {
                     consumer.commitSync(offsetsToCommit);
-                    logger.info("Удалено {} сообщений из DLQ {}", offsetsToCommit.size(), topicName);
+                    logger.info("Успешно закоммичено (удалено из очереди) {} сообщений из DLQ {}", offsetsToCommit.size(), topicName);
                 }
 
                 logger.info("Проверка {} завершена. Доставлено: {}, В процессе: {}, Пропущено: {}, Всего: {}",

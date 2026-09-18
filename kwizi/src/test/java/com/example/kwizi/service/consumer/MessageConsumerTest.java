@@ -111,7 +111,8 @@ class MessageConsumerTest {
 
             messageConsumer.consumeMessage(kafkaMessage, topic);
 
-            verify(kafkaTemplate).send(eq("private-messages-dlq"), kafkaPayloadCaptor.capture());
+            verify(kafkaTemplate).send(eq("private-messages-dlq"), anyString(), kafkaPayloadCaptor.capture());
+
             verify(chatHandler, never()).sendToUser(eq(2L), any());
 
             assertThat(kafkaPayloadCaptor.getValue()).isEqualTo("dlq-payload");
@@ -188,7 +189,9 @@ class MessageConsumerTest {
             verify(chatHandler).sendToUser(eq(2L), argThat(hasGroupMessageProperties()));
             verify(chatHandler).sendToUser(eq(3L), argThat(hasGroupMessageProperties()));
             verify(chatHandler, never()).sendToUser(eq(4L), any());
-            verify(kafkaTemplate).send(eq("group-messages-dlq"), anyString());
+
+            verify(kafkaTemplate).send(eq("group-messages-dlq"), anyString(), eq("dlq-payload"));
+
             verify(chatHandler, times(2)).sendToUser(anyLong(), any(Map.class));
         }
 

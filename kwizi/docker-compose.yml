@@ -16,30 +16,32 @@ services:
       timeout: 5s
       retries: 5
 
-  zookeeper:
-    image: wurstmeister/zookeeper
-    container_name: kwizi-zookeeper
-    restart: unless-stopped
-
   kafka:
-    image: wurstmeister/kafka
+    image: apache/kafka:3.7.0
     container_name: kwizi-kafka
     environment:
+      # KRaft настройки (без Zookeeper)
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_CREATE_TOPICS: "private-messages:3:1,private-messages-dlq:3:1,group-messages:3:1,group-messages-dlq:3:1"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # Настройки производительности и топиков
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_NUM_PARTITIONS: 3
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LOG_RETENTION_MS: 604800000
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
     healthcheck:
-      test: [ "CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1" ]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
-    depends_on:
-      - zookeeper
     restart: unless-stopped
 
   app:
