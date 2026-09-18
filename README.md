@@ -18,8 +18,7 @@
 
 ### **Базы данных и брокеры**
 - **PostgreSQL 16** — основное хранилище данных
-- **Apache Kafka 3.4.5** — event-driven архитектура
-- **Zookeeper** — координация Kafka кластера
+- **Apache Kafka 3.7.0 (KRaft mode)** — брокер сообщений, с реализацией Dead Letter Queue (DLQ) для надежной доставки
 
 ### **Инфраструктура и инструменты**
 - **Docker & Docker Compose** — контейнеризация
@@ -170,18 +169,11 @@ mvn clean test jacoco:report
 ## ⚡ CI/CD
 
 ### **GitHub Actions Workflow:**
-```yaml
-name: CI/CD Pipeline
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    services: [postgres:15, zookeeper:7.4.0, kafka:7.4.0]
-    steps:
-      - запуск тестов в изолированном окружении
-      - проверка работы с PostgreSQL и Kafka
-      - автоматическая проверка каждого коммита
-```
+Пайплайн автоматически запускается при push в main или при создании Pull Request:
+- Поднимает изолированные сервисы: PostgreSQL 15 и Apache Kafka 3.7.0 (KRaft).
+- Явно создает необходимые топики Kafka.
+- Запускает mvn clean verify (Unit + Integration тесты + Jacoco).
+- При успешном прохождении тестов собирает Docker-образ и публикует его в Docker Hub.
 
 ## 📊 Производительность
 
